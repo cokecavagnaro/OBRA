@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git remote *)",
+      "Bash(ssh -T git@github-personal)",
+      "Bash(git push *)",
+      "Bash(npx create-next-app@14 obra360-tmp --typescript --tailwind --eslint --app --src-dir=no --import-alias=\"@/*\" --use-npm)",
+      "Bash(npx create-next-app@14 obra360-tmp --typescript --tailwind --eslint --app --no-src-dir --import-alias=\"@/*\" --use-npm --yes)",
+      "Bash(sudo chmod -R 777 /Users/jcavagnaro/.npm/_cacache)",
+      "Bash(ls -la /Users/jcavagnaro/.npm/_cacache/content-v2/sha512/cb/ 2>&1)",
+      "Bash(npm install *)",
+      "Bash(cp obra360-claude-code.md obra360-tmp/)",
+      "Bash(cp -r obra360-tmp/. . --no-clobber)",
+      "Bash(rsync -av --exclude='.git' --exclude='obra360-claude-code.md' obra360-tmp/ .)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(mkdir -p \"/Users/jcavagnaro/Documents/Carpeta de Coke/CODE/Obra/.claude\")",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}
