@@ -2,7 +2,7 @@ import { CLASIFICACIONES_CONFIRMADAS_MOCK } from './mock'
 import type { ClasificacionConfirmada } from './mock'
 
 // En producción (Supabase), esta lista vendría de la tabla items_gasto con estado='confirmado'
-let clasificacionesRuntime: ClasificacionConfirmada[] = [...CLASIFICACIONES_CONFIRMADAS_MOCK]
+const clasificacionesRuntime: ClasificacionConfirmada[] = [...CLASIFICACIONES_CONFIRMADAS_MOCK]
 
 export function agregarClasificacionConfirmada(c: ClasificacionConfirmada) {
   const existe = clasificacionesRuntime.find(
