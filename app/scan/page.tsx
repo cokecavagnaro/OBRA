@@ -2,15 +2,13 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { OBRAS_MOCK, ETAPAS_MOCK, PARTIDAS_MOCK, formatCLP } from '@/lib/mock'
+import { OBRAS_MOCK, ETAPAS_MOCK, PARTIDAS_MOCK, CLASIFICACIONES_CONFIRMADAS_MOCK, formatCLP } from '@/lib/mock'
 import { agregarClasificacionConfirmada } from '@/lib/aprendizaje'
 import type { Obra, Etapa, Partida, ItemAnalizado } from '@/lib/types'
 import SystemPromptBox from '@/components/SystemPromptBox'
-import ItemCard from '@/components/ItemCard'
 
 type Paso = 1 | 2 | 3
 
-// Items mock para el paso 3
 const ITEMS_DEMO: ItemAnalizado[] = [
   { descripcion: 'Pintura látex blanca 20L', cantidad: 4, unidad: 'un', precio_unitario: 28990, subtotal: 115960, categoria: 'Pinturas', etiquetas: ['pintura', 'látex'], confianza: 0.95 },
   { descripcion: 'Rodillo lana 23cm', cantidad: 2, unidad: 'un', precio_unitario: 4990, subtotal: 9980, categoria: 'Herramientas', etiquetas: ['pintura'], confianza: 0.88 },
@@ -32,9 +30,11 @@ export default function Scan() {
   const [analizando, setAnalizando] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  // Paso 3
+  // Paso 3 — one item at a time
   const [items, setItems] = useState<ItemAnalizado[]>(ITEMS_DEMO)
-  const [checked, setChecked] = useState<boolean[]>(ITEMS_DEMO.map((i) => i.confianza >= 0.7))
+  const [itemActual, setItemActual] = useState(0)
+  const [tagInput, setTagInput] = useState('')
+  const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
   const [proveedor] = useState('Sodimac Quilicura')
   const [rut] = useState('96.928.180-5')
   const [fecha] = useState('2024-06-10')
@@ -43,7 +43,19 @@ export default function Scan() {
   const partidasFiltradas = PARTIDAS_MOCK.filter((p) => p.etapa_id === etapa?.id)
   const paso1Completo = obra && etapa && partida
 
-  const totalConfirmado = items.reduce((sum, item, i) => checked[i] ? sum + item.subtotal : sum, 0)
+  // Tags existentes en la obra (de clasificaciones previas)
+  const tagsObra = obra
+    ? Array.from(new Set(
+        CLASIFICACIONES_CONFIRMADAS_MOCK
+          .filter((c) => c.obra_id === obra.id)
+          .flatMap((c) => c.etiquetas)
+      ))
+    : []
+
+  const item = items[itemActual]
+  const esUltimo = itemActual === items.length - 1
+  const confirmados = items.filter((i) => i.etiquetas.length > 0).length
+  const pendientes = items.filter((i) => i.etiquetas.length === 0).length
 
   function handleObraChange(id: string) {
     const o = OBRAS_MOCK.find((x) => x.id === id) ?? null
@@ -70,66 +82,89 @@ export default function Scan() {
     setTimeout(() => {
       setAnalizando(false)
       setItems(ITEMS_DEMO)
-      setChecked(ITEMS_DEMO.map((i) => i.confianza >= 0.7))
+      setItemActual(0)
+      setTagInput('')
       setPaso(3)
     }, 2000)
   }
 
-  function toggleItem(i: number) {
-    setChecked((prev) => prev.map((v, idx) => idx === i ? !v : v))
+  function addTag(tag: string) {
+    const t = tag.toLowerCase().trim()
+    if (!t || item.etiquetas.includes(t)) return
+    setItems((prev) => prev.map((x, idx) =>
+      idx === itemActual ? { ...x, etiquetas: [...x.etiquetas, t] } : x
+    ))
+    setTagInput('')
+    setMostrarSugerencias(false)
   }
 
-  function addTag(i: number, tag: string) {
-    setItems((prev) => prev.map((item, idx) =>
-      idx === i ? { ...item, etiquetas: [...item.etiquetas, tag] } : item
+  function removeTag(tag: string) {
+    setItems((prev) => prev.map((x, idx) =>
+      idx === itemActual ? { ...x, etiquetas: x.etiquetas.filter((t) => t !== tag) } : x
     ))
   }
 
-  function removeTag(i: number, tag: string) {
-    setItems((prev) => prev.map((item, idx) =>
-      idx === i ? { ...item, etiquetas: item.etiquetas.filter((t) => t !== tag) } : item
-    ))
+  function handleTagKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' && tagInput.trim()) {
+      addTag(tagInput)
+    }
+  }
+
+  function handleSiguiente() {
+    setTagInput('')
+    setMostrarSugerencias(false)
+    if (esUltimo) {
+      handleGuardar()
+    } else {
+      setItemActual((i) => i + 1)
+    }
+  }
+
+  function handleAnterior() {
+    setTagInput('')
+    setMostrarSugerencias(false)
+    setItemActual((i) => Math.max(0, i - 1))
   }
 
   function handleGuardar() {
-    // Registrar clasificaciones confirmadas para retroalimentar la IA
-    items.forEach((item, i) => {
-      if (checked[i] && obra) {
+    items.forEach((i) => {
+      if (i.etiquetas.length > 0 && obra) {
         agregarClasificacionConfirmada({
           obra_id: obra.id,
-          descripcion: item.descripcion,
-          categoria: item.categoria,
-          etiquetas: item.etiquetas,
+          descripcion: i.descripcion,
+          categoria: i.categoria,
+          etiquetas: i.etiquetas,
         })
       }
     })
-    // TODO: guardar en Supabase
     router.push('/')
   }
 
+  const sugerenciasFiltradas = tagsObra.filter(
+    (t) => t.includes(tagInput.toLowerCase()) && !item?.etiquetas.includes(t)
+  )
+
   return (
     <div className="min-h-screen bg-white">
-      {/* Header con pasos */}
+      {/* Header */}
       <div className="px-4 pt-12 pb-4 border-b border-gray-100">
         <div className="flex items-center justify-between mb-4">
-          <button onClick={() => paso > 1 ? setPaso((paso - 1) as Paso) : router.push('/')} className="text-gray-400">
+          <button
+            onClick={() => paso > 1 ? setPaso((paso - 1) as Paso) : router.push('/')}
+            className="text-gray-400"
+          >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <h2 className="text-sm font-semibold text-gray-900">
-            {paso === 1 ? 'Contexto de la boleta' : paso === 2 ? 'Fotografiar boleta' : 'Revisar ítems'}
+            {paso === 1 ? 'Contexto de la boleta' : paso === 2 ? 'Fotografiar boleta' : 'Clasificar ítems'}
           </h2>
           <span className="text-xs text-gray-400">{paso}/3</span>
         </div>
-
-        {/* Barra de progreso */}
         <div className="flex gap-1">
           {[1, 2, 3].map((n) => (
-            <div
-              key={n}
-              className={`h-1 flex-1 rounded-full transition-colors ${n <= paso ? 'bg-blue-600' : 'bg-gray-200'}`}
-            />
+            <div key={n} className={`h-1 flex-1 rounded-full transition-colors ${n <= paso ? 'bg-blue-600' : 'bg-gray-200'}`} />
           ))}
         </div>
       </div>
@@ -193,7 +228,7 @@ export default function Scan() {
           <button
             onClick={() => setPaso(2)}
             disabled={!paso1Completo}
-            className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+            className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Siguiente
           </button>
@@ -203,14 +238,7 @@ export default function Scan() {
       {/* Paso 2 — Captura */}
       {paso === 2 && (
         <div className="px-4 py-5 space-y-4">
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleCaptura}
-            className="hidden"
-          />
+          <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleCaptura} className="hidden" />
 
           {!imagenPreview ? (
             <button
@@ -256,75 +284,167 @@ export default function Scan() {
                 </svg>
                 Analizando con IA...
               </>
-            ) : (
-              'Analizar con IA'
-            )}
+            ) : 'Analizar con IA'}
           </button>
         </div>
       )}
 
-      {/* Paso 3 — Revisión */}
-      {paso === 3 && (
-        <div className="px-4 py-5 space-y-4">
-          {/* Banner propuesta IA */}
-          <div className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 flex items-start gap-2">
-            <span className="text-lg leading-none mt-0.5">🤖</span>
-            <div>
-              <p className="text-xs font-semibold text-blue-700">Propuesta de la IA — revisa y confirma</p>
-              <p className="text-[11px] text-blue-500 mt-0.5">Marca cada ítem para confirmar su clasificación. Puedes editar etiquetas antes de guardar.</p>
+      {/* Paso 3 — Clasificación ítem a ítem */}
+      {paso === 3 && item && (
+        <div className="px-4 py-5 flex flex-col gap-4">
+
+          {/* Progreso */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-400">
+              Ítem <span className="font-semibold text-gray-700">{itemActual + 1}</span> de {items.length}
+            </span>
+            <div className="flex gap-2 text-[10px]">
+              <span className="bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">{confirmados} con etiqueta</span>
+              {pendientes > 0 && <span className="bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">{pendientes} pendiente{pendientes > 1 ? 's' : ''}</span>}
             </div>
+          </div>
+
+          {/* Barra de progreso */}
+          <div className="flex gap-1">
+            {items.map((it, idx) => (
+              <div
+                key={idx}
+                className={`h-1 flex-1 rounded-full transition-colors ${
+                  idx === itemActual ? 'bg-blue-500' :
+                  it.etiquetas.length > 0 ? 'bg-green-400' : 'bg-gray-200'
+                }`}
+              />
+            ))}
           </div>
 
           {/* Datos del proveedor */}
-          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-1">
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Proveedor extraído</p>
-            <p className="text-sm font-semibold text-gray-900">{proveedor}</p>
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Proveedor</p>
+            <p className="text-sm font-semibold text-gray-900 mt-0.5">{proveedor}</p>
             <p className="text-xs text-gray-400">RUT {rut} · {fecha}</p>
           </div>
 
-          {obra && <SystemPromptBox obra={obra} />}
-
-          {/* Items */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Ítems propuestos</p>
-              <span className="text-[10px] text-gray-400">
-                {checked.filter(Boolean).length}/{items.length} confirmados
+          {/* Tarjeta del ítem */}
+          <div className="rounded-2xl border-2 border-blue-100 bg-blue-50/30 p-4">
+            {/* Badge IA */}
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                🤖 Propuesta IA
               </span>
+              {item.confianza < 0.7 ? (
+                <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+                  ⚠ Confianza {Math.round(item.confianza * 100)}%
+                </span>
+              ) : (
+                <span className="text-[10px] text-gray-400">
+                  {Math.round(item.confianza * 100)}% confianza
+                </span>
+              )}
             </div>
-            <div className="space-y-2">
-              {items.map((item, i) => (
-                <div key={i} className="relative">
-                  <ItemCard
-                    item={item}
-                    checked={checked[i]}
-                    onToggle={() => toggleItem(i)}
-                    onTagAdd={(tag) => addTag(i, tag)}
-                    onTagRemove={(tag) => removeTag(i, tag)}
-                  />
-                  {/* Badge Propuesto / Confirmado */}
-                  <span className={`absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                    checked[i] ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
-                  }`}>
-                    {checked[i] ? '✓ Confirmado' : 'Propuesto'}
-                  </span>
-                </div>
-              ))}
+
+            {/* Descripción */}
+            <p className="text-base font-bold text-gray-900 mb-1">{item.descripcion}</p>
+            <p className="text-xs text-gray-400 mb-3">{item.categoria}</p>
+
+            {/* Montos */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="bg-white rounded-xl p-2 text-center border border-gray-100">
+                <p className="text-[10px] text-gray-400">Cantidad</p>
+                <p className="text-sm font-bold text-gray-900">{item.cantidad} {item.unidad}</p>
+              </div>
+              <div className="bg-white rounded-xl p-2 text-center border border-gray-100">
+                <p className="text-[10px] text-gray-400">Precio unit.</p>
+                <p className="text-sm font-bold text-gray-900">{formatCLP(item.precio_unitario)}</p>
+              </div>
+              <div className="bg-white rounded-xl p-2 text-center border border-blue-100 bg-blue-50">
+                <p className="text-[10px] text-blue-400">Subtotal</p>
+                <p className="text-sm font-bold text-blue-700">{formatCLP(item.subtotal)}</p>
+              </div>
+            </div>
+
+            {/* Etiquetas */}
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Etiquetas</p>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {item.etiquetas.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => removeTag(tag)}
+                    className="flex items-center gap-1 bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full font-medium hover:bg-red-500 transition-colors"
+                  >
+                    {tag} ×
+                  </button>
+                ))}
+                {item.etiquetas.length === 0 && (
+                  <span className="text-xs text-gray-400 italic">Sin etiquetas — quedará pendiente</span>
+                )}
+              </div>
+
+              {/* Input nueva etiqueta */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => { setTagInput(e.target.value); setMostrarSugerencias(true) }}
+                  onKeyDown={handleTagKey}
+                  onFocus={() => setMostrarSugerencias(true)}
+                  placeholder="+ Agregar etiqueta..."
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 placeholder-gray-300 outline-none focus:border-blue-300"
+                />
+
+                {/* Sugerencias */}
+                {mostrarSugerencias && sugerenciasFiltradas.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden">
+                    {sugerenciasFiltradas.map((t) => (
+                      <button
+                        key={t}
+                        onMouseDown={() => addTag(t)}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 border-b border-gray-50 last:border-0"
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {tagInput.trim() && (
+                <button
+                  onClick={() => addTag(tagInput)}
+                  className="mt-1.5 text-xs text-blue-600 font-medium px-2"
+                >
+                  + Crear etiqueta &quot;{tagInput.trim()}&quot;
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Total confirmado */}
-          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex items-center justify-between">
-            <span className="text-sm text-gray-500">Total confirmado</span>
-            <span className="text-lg font-bold text-gray-900">{formatCLP(totalConfirmado)}</span>
+          {/* Navegación */}
+          <div className="flex gap-3 mt-2">
+            <button
+              onClick={handleAnterior}
+              disabled={itemActual === 0}
+              className="flex-1 border border-gray-200 rounded-xl py-3 text-sm font-semibold text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              Anterior
+            </button>
+            <button
+              onClick={handleSiguiente}
+              className={`flex-1 rounded-xl py-3 text-sm font-semibold text-white ${
+                esUltimo ? 'bg-green-600' : 'bg-blue-600'
+              }`}
+            >
+              {esUltimo ? 'Guardar boleta' : 'Siguiente'}
+            </button>
           </div>
 
-          <button
-            onClick={handleGuardar}
-            className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold"
-          >
-            Guardar boleta
-          </button>
+          {/* Resumen al final */}
+          {esUltimo && (
+            <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 text-xs text-gray-500 text-center">
+              Al guardar: <span className="font-semibold text-green-700">{confirmados} ítems confirmados</span>
+              {pendientes > 0 && <> · <span className="font-semibold text-amber-600">{pendientes} quedarán pendientes</span></>}
+            </div>
+          )}
         </div>
       )}
     </div>
