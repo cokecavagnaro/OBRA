@@ -63,6 +63,20 @@ export default function ObraDetalle() {
         </div>
       </div>
 
+      {/* Galería de boletas */}
+      {gastos.length > 0 && (
+        <div className="px-4 pt-4 pb-2 border-b border-gray-100">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+            Boletas escaneadas ({gastos.length})
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {gastos.map((g) => (
+              <GaleriaThumbnail key={g.id} gasto={g} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Selector agrupación */}
       <div className="px-4 py-3 border-b border-gray-100 flex gap-2">
         <button
@@ -213,6 +227,55 @@ function GrupoCard({
         </div>
       )}
     </div>
+  )
+}
+
+function GaleriaThumbnail({ gasto }: { gasto: Gasto }) {
+  const [expandido, setExpandido] = useState(false)
+
+  return (
+    <>
+      <button onClick={() => setExpandido(true)} className="rounded-xl overflow-hidden border border-gray-100 text-left w-full">
+        {gasto.imagen_url ? (
+          <img src={gasto.imagen_url} alt={gasto.proveedor} className="w-full h-16 object-cover" />
+        ) : (
+          <div className="w-full h-16 bg-gray-100 flex items-center justify-center text-2xl">🧾</div>
+        )}
+        <div className="p-1.5">
+          <p className="text-[10px] font-medium text-gray-700 truncate">{gasto.proveedor}</p>
+          <p className="text-[10px] text-gray-400">{formatCLP(gasto.total)}</p>
+        </div>
+      </button>
+
+      {/* Modal simple */}
+      {expandido && (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center"
+          onClick={() => setExpandido(false)}
+        >
+          <div
+            className="bg-white rounded-t-2xl w-full max-w-[390px] p-4 pb-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {gasto.imagen_url ? (
+              <img src={gasto.imagen_url} alt={gasto.proveedor} className="w-full rounded-xl mb-3 max-h-48 object-cover" />
+            ) : (
+              <div className="w-full h-32 bg-gray-100 rounded-xl flex items-center justify-center text-4xl mb-3">🧾</div>
+            )}
+            <p className="text-sm font-semibold text-gray-900">{gasto.proveedor}</p>
+            <p className="text-xs text-gray-400 mt-0.5">RUT {gasto.rut_proveedor} · {gasto.fecha_boleta}</p>
+            <p className="text-lg font-bold text-gray-900 mt-2">{formatCLP(gasto.total)}</p>
+            <p className="text-xs text-gray-400 mt-1">{gasto.etapa?.nombre} › {gasto.partida?.nombre}</p>
+            <button
+              onClick={() => setExpandido(false)}
+              className="mt-4 w-full border border-gray-200 rounded-xl py-2.5 text-sm text-gray-500"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

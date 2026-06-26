@@ -69,9 +69,13 @@ export default function Inicio() {
                 <div className="text-right shrink-0">
                   <p className="font-bold text-gray-900">{formatCLP(obra.total)}</p>
                   {obra.pendientes > 0 && (
-                    <span className="inline-flex items-center gap-1 mt-1 bg-amber-100 text-amber-700 text-[10px] font-medium px-2 py-0.5 rounded-full">
+                    <Link
+                      href={`/pendientes?obra=${obra.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 mt-1 bg-amber-100 text-amber-700 text-[10px] font-medium px-2 py-0.5 rounded-full"
+                    >
                       ⚠ {obra.pendientes} pendiente{obra.pendientes > 1 ? 's' : ''}
-                    </span>
+                    </Link>
                   )}
                 </div>
               </div>

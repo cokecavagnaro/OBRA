@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { OBRAS_MOCK, ETAPAS_MOCK, PARTIDAS_MOCK, formatCLP } from '@/lib/mock'
+import { agregarClasificacionConfirmada } from '@/lib/aprendizaje'
 import type { Obra, Etapa, Partida, ItemAnalizado } from '@/lib/types'
 import SystemPromptBox from '@/components/SystemPromptBox'
 import ItemCard from '@/components/ItemCard'
@@ -91,6 +92,17 @@ export default function Scan() {
   }
 
   function handleGuardar() {
+    // Registrar clasificaciones confirmadas para retroalimentar la IA
+    items.forEach((item, i) => {
+      if (checked[i] && obra) {
+        agregarClasificacionConfirmada({
+          obra_id: obra.id,
+          descripcion: item.descripcion,
+          categoria: item.categoria,
+          etiquetas: item.etiquetas,
+        })
+      }
+    })
     // TODO: guardar en Supabase
     router.push('/')
   }
@@ -254,6 +266,15 @@ export default function Scan() {
       {/* Paso 3 — Revisión */}
       {paso === 3 && (
         <div className="px-4 py-5 space-y-4">
+          {/* Banner propuesta IA */}
+          <div className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 flex items-start gap-2">
+            <span className="text-lg leading-none mt-0.5">🤖</span>
+            <div>
+              <p className="text-xs font-semibold text-blue-700">Propuesta de la IA — revisa y confirma</p>
+              <p className="text-[11px] text-blue-500 mt-0.5">Marca cada ítem para confirmar su clasificación. Puedes editar etiquetas antes de guardar.</p>
+            </div>
+          </div>
+
           {/* Datos del proveedor */}
           <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-1">
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Proveedor extraído</p>
@@ -265,17 +286,29 @@ export default function Scan() {
 
           {/* Items */}
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Ítems extraídos</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Ítems propuestos</p>
+              <span className="text-[10px] text-gray-400">
+                {checked.filter(Boolean).length}/{items.length} confirmados
+              </span>
+            </div>
             <div className="space-y-2">
               {items.map((item, i) => (
-                <ItemCard
-                  key={i}
-                  item={item}
-                  checked={checked[i]}
-                  onToggle={() => toggleItem(i)}
-                  onTagAdd={(tag) => addTag(i, tag)}
-                  onTagRemove={(tag) => removeTag(i, tag)}
-                />
+                <div key={i} className="relative">
+                  <ItemCard
+                    item={item}
+                    checked={checked[i]}
+                    onToggle={() => toggleItem(i)}
+                    onTagAdd={(tag) => addTag(i, tag)}
+                    onTagRemove={(tag) => removeTag(i, tag)}
+                  />
+                  {/* Badge Propuesto / Confirmado */}
+                  <span className={`absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                    checked[i] ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    {checked[i] ? '✓ Confirmado' : 'Propuesto'}
+                  </span>
+                </div>
               ))}
             </div>
           </div>
