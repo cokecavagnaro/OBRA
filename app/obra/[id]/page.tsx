@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { GASTOS_MOCK, OBRAS_MOCK, ETAPAS_MOCK, PARTIDAS_MOCK, formatCLP } from '@/lib/mock'
+import { GASTOS_MOCK, OBRAS_MOCK, formatCLP } from '@/lib/mock'
 import type { Gasto } from '@/lib/types'
 
 type AgrupacionKey = 'partida' | 'etiqueta'
