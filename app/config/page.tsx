@@ -168,24 +168,17 @@ export default function Config() {
               )}
             </div>
 
-            {/* Etapas */}
+            {/* Etapas — solo etapas, sin partidas */}
             <div className="rounded-xl border border-gray-100 p-4">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Etapas</p>
-              <div className="space-y-2 mb-3">
+              <div className="space-y-1.5 mb-3">
+                {etapasFiltradas.length === 0 && (
+                  <p className="text-xs text-gray-300 italic">Sin etapas</p>
+                )}
                 {etapasFiltradas.map((etapa) => (
-                  <div key={etapa.id} className="flex items-center justify-between">
-                    <p className="text-sm text-gray-700">{etapa.nombre}</p>
-                    <div className="flex flex-wrap gap-1">
-                      {partidas.filter((p) => p.etapa_id === etapa.id).map((p) => (
-                        <span key={p.id} className="bg-gray-100 text-gray-500 text-[10px] px-2 py-0.5 rounded-full">
-                          {p.nombre}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                  <p key={etapa.id} className="text-sm text-gray-700 py-1 border-b border-gray-50 last:border-0">{etapa.nombre}</p>
                 ))}
               </div>
-
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -199,31 +192,53 @@ export default function Config() {
               </div>
             </div>
 
-            {/* Partidas */}
-            {etapasFiltradas.length > 0 && (
-              <div className="rounded-xl border border-gray-100 p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Agregar partida</p>
-                <select
-                  value={etapaParaPartida}
-                  onChange={(e) => setEtapaParaPartida(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-2"
-                >
-                  <option value="">Seleccionar etapa...</option>
-                  {etapasFiltradas.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-                </select>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={nuevaPartida}
-                    onChange={(e) => setNuevaPartida(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && agregarPartida()}
-                    placeholder="Nueva partida..."
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                  />
-                  <button onClick={agregarPartida} className="bg-gray-900 text-white px-3 rounded-lg text-sm font-medium">+</button>
-                </div>
+            {/* Partidas — sección completamente separada */}
+            <div className="rounded-xl border border-gray-100 p-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Partidas</p>
+
+              {/* Lista de partidas existentes */}
+              <div className="space-y-1.5 mb-3">
+                {etapasFiltradas.every((e) => partidas.filter((p) => p.etapa_id === e.id).length === 0) && (
+                  <p className="text-xs text-gray-300 italic">Sin partidas</p>
+                )}
+                {etapasFiltradas.flatMap((etapa) =>
+                  partidas.filter((p) => p.etapa_id === etapa.id).map((p) => (
+                    <div key={p.id} className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">
+                      <p className="text-sm text-gray-700">{p.nombre}</p>
+                      <span className="text-xs text-gray-400">{etapa.nombre}</span>
+                    </div>
+                  ))
+                )}
               </div>
-            )}
+
+              {/* Agregar partida */}
+              {etapasFiltradas.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-[10px] text-gray-400">¿A qué etapa pertenece esta partida?</p>
+                  <select
+                    value={etapaParaPartida}
+                    onChange={(e) => setEtapaParaPartida(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+                  >
+                    <option value="">Seleccionar etapa...</option>
+                    {etapasFiltradas.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                  </select>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={nuevaPartida}
+                      onChange={(e) => setNuevaPartida(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && agregarPartida()}
+                      placeholder="Nueva partida..."
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    />
+                    <button onClick={agregarPartida} className="bg-gray-900 text-white px-3 rounded-lg text-sm font-medium">+</button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-300 italic">Crea una etapa primero</p>
+              )}
+            </div>
           </>
         )}
       </div>
