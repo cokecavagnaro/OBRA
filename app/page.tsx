@@ -1,15 +1,26 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { GASTOS_MOCK, OBRAS_MOCK, formatCLP } from '@/lib/mock'
+import { getGastosStorage } from '@/lib/storage'
+import type { Gasto } from '@/lib/types'
 
 export default function Inicio() {
-  const pendientesCount = GASTOS_MOCK.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
-  const totalGlobal = GASTOS_MOCK.reduce((s, g) => s + g.total, 0)
-  const totalBoletas = GASTOS_MOCK.length
+  const [gastosLocal, setGastosLocal] = useState<Gasto[]>([])
+
+  useEffect(() => {
+    setGastosLocal(getGastosStorage())
+  }, [])
+
+  const todosLosGastos = [...GASTOS_MOCK, ...gastosLocal]
+
+  const pendientesCount = todosLosGastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
+  const totalGlobal = todosLosGastos.reduce((s, g) => s + g.total, 0)
+  const totalBoletas = todosLosGastos.length
 
   const obrasConTotales = OBRAS_MOCK.map((obra) => {
-    const gastos = GASTOS_MOCK.filter((g) => g.obra_id === obra.id)
+    const gastos = todosLosGastos.filter((g) => g.obra_id === obra.id)
     const total = gastos.reduce((s, g) => s + g.total, 0)
     const boletas = gastos.length
     const pendientes = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
@@ -69,13 +80,9 @@ export default function Inicio() {
                 <div className="text-right shrink-0">
                   <p className="font-bold text-gray-900">{formatCLP(obra.total)}</p>
                   {obra.pendientes > 0 && (
-                    <Link
-                      href={`/pendientes?obra=${obra.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1 mt-1 bg-amber-100 text-amber-700 text-[10px] font-medium px-2 py-0.5 rounded-full"
-                    >
+                    <span className="inline-flex items-center gap-1 mt-1 bg-amber-100 text-amber-700 text-[10px] font-medium px-2 py-0.5 rounded-full">
                       ⚠ {obra.pendientes} pendiente{obra.pendientes > 1 ? 's' : ''}
-                    </Link>
+                    </span>
                   )}
                 </div>
               </div>

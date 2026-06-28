@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { OBRAS_MOCK, ETAPAS_MOCK, PARTIDAS_MOCK, CLASIFICACIONES_CONFIRMADAS_MOCK, formatCLP } from '@/lib/mock'
 import { agregarClasificacionConfirmada } from '@/lib/aprendizaje'
+import { guardarGasto, buildGasto } from '@/lib/storage'
 import type { Obra, Etapa, Partida, ItemAnalizado } from '@/lib/types'
 import SystemPromptBox from '@/components/SystemPromptBox'
 
@@ -27,6 +28,7 @@ export default function Scan() {
 
   // Paso 2
   const [imagenPreview, setImagenPreview] = useState<string | null>(null)
+  const [imagenDataUrl, setImagenDataUrl] = useState<string>('')
   const [analizando, setAnalizando] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -35,13 +37,14 @@ export default function Scan() {
   const [itemActual, setItemActual] = useState(0)
   const [tagInput, setTagInput] = useState('')
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
-  const [proveedor] = useState('Sodimac Quilicura')
-  const [rut] = useState('96.928.180-5')
-  const [fecha] = useState('2024-06-10')
+  const [proveedor, setProveedor] = useState('Sodimac Quilicura')
+  const [rut, setRut] = useState('96.928.180-5')
+  const [fecha, setFecha] = useState('2024-06-10')
+  const [totalBoleta, setTotalBoleta] = useState(0)
 
   const etapasFiltradas = ETAPAS_MOCK.filter((e) => e.obra_id === obra?.id)
   const partidasFiltradas = PARTIDAS_MOCK.filter((p) => p.etapa_id === etapa?.id)
-  const paso1Completo = obra && etapa && partida
+  const paso1Completo = !!obra
 
   // Tags existentes en la obra (de clasificaciones previas)
   const tagsObra = obra
@@ -70,22 +73,90 @@ export default function Scan() {
     setPartida(null)
   }
 
+  function setItemEtapa(etapaId: string) {
+    const etapa = ETAPAS_MOCK.find((e) => e.id === etapaId) ?? null
+    setItems((prev) => prev.map((x, idx) =>
+      idx === itemActual ? { ...x, etapa_id: etapa?.id ?? '', partida_id: '' } : x
+    ))
+  }
+
+  function setItemPartida(partidaId: string) {
+    setItems((prev) => prev.map((x, idx) =>
+      idx === itemActual ? { ...x, partida_id: partidaId } : x
+    ))
+  }
+
+  const fileSeleccionadoRef = useRef<File | null>(null)
+
   function handleCaptura(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    fileSeleccionadoRef.current = file
     const url = URL.createObjectURL(file)
     setImagenPreview(url)
   }
 
-  function handleAnalizar() {
+  async function handleAnalizar() {
+    const file = fileSeleccionadoRef.current
+    if (!file || !obra) return
+
     setAnalizando(true)
-    setTimeout(() => {
-      setAnalizando(false)
-      setItems(ITEMS_DEMO)
+    try {
+      // Leer imagen como base64
+      const { base64, dataUrl } = await new Promise<{ base64: string; dataUrl: string }>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = reader.result as string
+          resolve({ base64: result.split(',')[1], dataUrl: result })
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      setImagenDataUrl(dataUrl)
+
+      const res = await fetch('/api/analizar-boleta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imagen_base64: base64,
+          media_type: file.type || 'image/jpeg',
+          obra_id: obra.id,
+          contexto_boleta: contexto,
+        }),
+      })
+
+      if (!res.ok) throw new Error('Error al analizar')
+
+      const data = await res.json()
+      const itemsResultado = data.items ?? []
+
+      if (data.proveedor) setProveedor(data.proveedor)
+      if (data.rut) setRut(data.rut)
+      if (data.fecha) setFecha(data.fecha)
+      if (data.total) setTotalBoleta(data.total)
+
+      const base = itemsResultado.length > 0 ? itemsResultado : ITEMS_DEMO
+      setItems(base.map((i: ItemAnalizado) => ({
+        ...i,
+        etapa_id: i.etapa_id ?? etapa?.id ?? '',
+        partida_id: i.partida_id ?? partida?.id ?? '',
+      })))
       setItemActual(0)
       setTagInput('')
       setPaso(3)
-    }, 2000)
+    } catch (err) {
+      console.error(err)
+      setItems(ITEMS_DEMO.map((i) => ({
+        ...i,
+        etapa_id: etapa?.id ?? '',
+        partida_id: partida?.id ?? '',
+      })))
+      setItemActual(0)
+      setTagInput('')
+      setPaso(3)
+    } finally {
+      setAnalizando(false)
+    }
   }
 
   function addTag(tag: string) {
@@ -127,6 +198,20 @@ export default function Scan() {
   }
 
   function handleGuardar() {
+    if (obra) {
+      const gasto = buildGasto({
+        obra_id: obra.id,
+        proveedor,
+        rut,
+        fecha,
+        total: totalBoleta,
+        contexto_boleta: contexto,
+        imagen_url: imagenDataUrl,
+        items,
+      })
+      guardarGasto(gasto)
+    }
+
     items.forEach((i) => {
       if (i.etiquetas.length > 0 && obra) {
         agregarClasificacionConfirmada({
@@ -187,27 +272,31 @@ export default function Scan() {
           {obra && <SystemPromptBox obra={obra} />}
 
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Etapa</label>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Etapa <span className="text-gray-300 font-normal">(opcional)</span>
+            </label>
             <select
               value={etapa?.id ?? ''}
               onChange={(e) => handleEtapaChange(e.target.value)}
               disabled={!obra}
               className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-white disabled:opacity-40"
             >
-              <option value="">Seleccionar etapa...</option>
+              <option value="">Sin etapa</option>
               {etapasFiltradas.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
             </select>
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Partida</label>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Partida <span className="text-gray-300 font-normal">(opcional)</span>
+            </label>
             <select
               value={partida?.id ?? ''}
               onChange={(e) => setPartida(PARTIDAS_MOCK.find((p) => p.id === e.target.value) ?? null)}
               disabled={!etapa}
               className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-white disabled:opacity-40"
             >
-              <option value="">Seleccionar partida...</option>
+              <option value="">Sin partida</option>
               {partidasFiltradas.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
           </div>
@@ -345,6 +434,35 @@ export default function Scan() {
             {/* Descripción */}
             <p className="text-base font-bold text-gray-900 mb-1">{item.descripcion}</p>
             <p className="text-xs text-gray-400 mb-3">{item.categoria}</p>
+
+            {/* Etapa y Partida por ítem */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Etapa</p>
+                <select
+                  value={item.etapa_id ?? ''}
+                  onChange={(e) => setItemEtapa(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white"
+                >
+                  <option value="">Sin etapa</option>
+                  {etapasFiltradas.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                </select>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Partida</p>
+                <select
+                  value={item.partida_id ?? ''}
+                  onChange={(e) => setItemPartida(e.target.value)}
+                  disabled={!item.etapa_id}
+                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white disabled:opacity-40"
+                >
+                  <option value="">Sin partida</option>
+                  {PARTIDAS_MOCK.filter((p) => p.etapa_id === item.etapa_id).map((p) => (
+                    <option key={p.id} value={p.id}>{p.nombre}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             {/* Montos */}
             <div className="grid grid-cols-3 gap-2 mb-4">

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { GASTOS_MOCK, OBRAS_MOCK, formatCLP } from '@/lib/mock'
+import { GASTOS_MOCK, OBRAS_MOCK, ETAPAS_MOCK, PARTIDAS_MOCK, formatCLP } from '@/lib/mock'
+import { getGastosByObra } from '@/lib/storage'
 import type { Gasto } from '@/lib/types'
 
 type AgrupacionKey = 'partida' | 'etiqueta'
@@ -11,9 +12,15 @@ export default function ObraDetalle() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [agrupacion, setAgrupacion] = useState<AgrupacionKey>('partida')
+  const [gastosLocal, setGastosLocal] = useState<Gasto[]>([])
+  const [etiquetaFiltro, setEtiquetaFiltro] = useState<string | null>(null)
+
+  useEffect(() => {
+    setGastosLocal(getGastosByObra(id))
+  }, [id])
 
   const obra = OBRAS_MOCK.find((o) => o.id === id)
-  const gastos = GASTOS_MOCK.filter((g) => g.obra_id === id)
+  const gastos = [...GASTOS_MOCK.filter((g) => g.obra_id === id), ...gastosLocal]
 
   if (!obra) return (
     <div className="flex items-center justify-center min-h-screen">
@@ -27,8 +34,11 @@ export default function ObraDetalle() {
   // Agrupación por partida
   const porPartida = agruparPorPartida(gastos)
 
-  // Agrupación por etiqueta
-  const porEtiqueta = agruparPorEtiqueta(gastos)
+  // Filtro por etiqueta
+  const etiquetasUnicas = Array.from(new Set(gastos.flatMap((g) => (g.items ?? []).flatMap((i) => i.etiquetas)))).sort()
+  const gastosFiltrados = etiquetaFiltro
+    ? gastos.filter((g) => (g.items ?? []).some((i) => i.etiquetas.includes(etiquetaFiltro)))
+    : gastos
 
   function handleExportar() {
     // TODO: conectar con lib/exportar.ts cuando esté Supabase
@@ -117,15 +127,70 @@ export default function ObraDetalle() {
 
         {agrupacion === 'etiqueta' && (
           <>
-            {porEtiqueta.length === 0 && <Vacio />}
-            {porEtiqueta.map((grupo) => (
-              <GrupoCard
-                key={grupo.nombre}
-                nombre={grupo.nombre}
-                total={grupo.total}
-                totalObra={totalObra}
-                gastos={grupo.gastos}
-              />
+            {/* Chips de etiquetas */}
+            {etiquetasUnicas.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-none">
+                <button
+                  onClick={() => setEtiquetaFiltro(null)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                    etiquetaFiltro === null
+                      ? 'bg-gray-900 text-white border-gray-900'
+                      : 'bg-white text-gray-500 border-gray-200'
+                  }`}
+                >
+                  Todas
+                </button>
+                {etiquetasUnicas.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => setEtiquetaFiltro(tag === etiquetaFiltro ? null : tag)}
+                    className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                      etiquetaFiltro === tag
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-500 border-gray-200'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Lista de boletas filtradas */}
+            {gastosFiltrados.length === 0 ? <Vacio /> : gastosFiltrados.map((gasto) => (
+              <div key={gasto.id} className="rounded-xl border border-gray-100 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{gasto.proveedor}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {formatFecha(gasto.fecha_boleta)}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold text-gray-900 shrink-0">{formatCLP(gasto.total)}</p>
+                </div>
+                {(gasto.items ?? []).length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {(gasto.items ?? []).map((item) => (
+                      <div key={item.id} className="flex items-center justify-between text-xs text-gray-500">
+                        <span className="truncate flex-1">{item.descripcion}</span>
+                        <span className="shrink-0 ml-2">{formatCLP(item.subtotal)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {Array.from(new Set((gasto.items ?? []).flatMap((i) => i.etiquetas))).map((tag) => (
+                    <span
+                      key={tag}
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                        tag === etiquetaFiltro ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
+                      }`}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
             ))}
           </>
         )}
@@ -292,41 +357,39 @@ function Vacio() {
 function agruparPorPartida(gastos: Gasto[]) {
   const mapa = new Map<string, { nombre: string; etapa: string; total: number; gastos: Gasto[] }>()
   for (const gasto of gastos) {
-    const key = gasto.partida_id
-    const nombre = gasto.partida?.nombre ?? 'Sin partida'
-    const etapa = gasto.etapa?.nombre ?? ''
-    if (!mapa.has(key)) mapa.set(key, { nombre, etapa, total: 0, gastos: [] })
-    const grupo = mapa.get(key)!
-    grupo.total += gasto.total
-    grupo.gastos.push(gasto)
-  }
-  return Array.from(mapa.values()).sort((a, b) => b.total - a.total)
-}
+    // Intentar agrupar por partida del ítem; si no, usar la del gasto
+    const items = gasto.items ?? []
+    const keysUsadas = new Set<string>()
 
-function agruparPorEtiqueta(gastos: Gasto[]) {
-  const mapa = new Map<string, { nombre: string; total: number; gastos: Gasto[] }>()
-  for (const gasto of gastos) {
-    const tags = Array.from(new Set((gasto.items ?? []).flatMap((i) => i.etiquetas)))
-    if (tags.length === 0) {
-      const key = 'sin-etiqueta'
-      if (!mapa.has(key)) mapa.set(key, { nombre: 'Sin etiqueta', total: 0, gastos: [] })
+    if (items.length > 0 && items.some((i) => i.partida_id)) {
+      for (const item of items) {
+        const partidaId = item.partida_id || gasto.partida_id || 'sin-partida'
+        const partida = PARTIDAS_MOCK.find((p) => p.id === partidaId)
+        const etapaId = item.etapa_id || gasto.etapa_id || ''
+        const etapa = ETAPAS_MOCK.find((e) => e.id === etapaId)
+        const nombre = partida?.nombre ?? 'Sin partida'
+        const etapaNombre = etapa?.nombre ?? ''
+        if (!mapa.has(partidaId)) mapa.set(partidaId, { nombre, etapa: etapaNombre, total: 0, gastos: [] })
+        const grupo = mapa.get(partidaId)!
+        grupo.total += item.subtotal
+        if (!keysUsadas.has(partidaId)) {
+          grupo.gastos.push(gasto)
+          keysUsadas.add(partidaId)
+        }
+      }
+    } else {
+      const key = gasto.partida_id || 'sin-partida'
+      const nombre = gasto.partida?.nombre ?? 'Sin partida'
+      const etapa = gasto.etapa?.nombre ?? ''
+      if (!mapa.has(key)) mapa.set(key, { nombre, etapa, total: 0, gastos: [] })
       const grupo = mapa.get(key)!
       grupo.total += gasto.total
       grupo.gastos.push(gasto)
-    } else {
-      for (const tag of tags) {
-        if (!mapa.has(tag)) mapa.set(tag, { nombre: tag, total: 0, gastos: [] })
-        const grupo = mapa.get(tag)!
-        // evitar duplicar el gasto si ya fue contado para este tag
-        if (!grupo.gastos.find((g) => g.id === gasto.id)) {
-          grupo.total += gasto.total
-          grupo.gastos.push(gasto)
-        }
-      }
     }
   }
   return Array.from(mapa.values()).sort((a, b) => b.total - a.total)
 }
+
 
 function formatFecha(fecha: string): string {
   return new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', {

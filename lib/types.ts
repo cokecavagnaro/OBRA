@@ -62,6 +62,8 @@ export interface ItemGasto {
   categoria: string
   etiquetas: string[]
   confianza_ia: number
+  etapa_id: string
+  partida_id: string
   estado: EstadoItem
   created_at: string
 }
@@ -85,6 +87,8 @@ export interface ItemAnalizado {
   categoria: string
   etiquetas: string[]
   confianza: number
+  etapa_id?: string
+  partida_id?: string
 }
 
 // Estado del formulario de escaneo
