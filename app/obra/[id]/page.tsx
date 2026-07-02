@@ -34,7 +34,7 @@ export default function ObraDetalle() {
   const etapasObra = ETAPAS_MOCK.filter((e) => e.obra_id === id)
   const partidasDisponibles = filtroEtapa
     ? PARTIDAS_MOCK.filter((p) => p.etapa_id === filtroEtapa)
-    : PARTIDAS_MOCK.filter((p) => etapasObra.some((e) => e.id === p.etapa_id))
+    : PARTIDAS_MOCK.filter((p) => p.obra_id === id)
   const etiquetasUnicas = Array.from(new Set(gastos.flatMap((g) => (g.items ?? []).flatMap((i) => i.etiquetas)))).sort()
 
   // Filtrado combinado

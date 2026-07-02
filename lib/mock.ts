@@ -42,14 +42,14 @@ export const ETAPAS_MOCK: Etapa[] = [
 ]
 
 export const PARTIDAS_MOCK: Partida[] = [
-  { id: '1', etapa_id: '1', nombre: 'Excavaciones' },
-  { id: '2', etapa_id: '1', nombre: 'Hormigón' },
-  { id: '3', etapa_id: '2', nombre: 'Enfierraduras' },
-  { id: '4', etapa_id: '2', nombre: 'Moldaje' },
-  { id: '5', etapa_id: '3', nombre: 'Pintura' },
-  { id: '6', etapa_id: '3', nombre: 'Cerámicas' },
-  { id: '7', etapa_id: '4', nombre: 'Tabiquería' },
-  { id: '8', etapa_id: '5', nombre: 'Pisos' },
+  { id: '1', obra_id: '1', etapa_id: '1', nombre: 'Excavaciones' },
+  { id: '2', obra_id: '1', etapa_id: '1', nombre: 'Hormigón' },
+  { id: '3', obra_id: '1', etapa_id: '2', nombre: 'Enfierraduras' },
+  { id: '4', obra_id: '1', etapa_id: '2', nombre: 'Moldaje' },
+  { id: '5', obra_id: '1', etapa_id: '3', nombre: 'Pintura' },
+  { id: '6', obra_id: '1', etapa_id: '3', nombre: 'Cerámicas' },
+  { id: '7', obra_id: '2', etapa_id: '4', nombre: 'Tabiquería' },
+  { id: '8', obra_id: '2', etapa_id: '5', nombre: 'Pisos' },
 ]
 
 export const ITEMS_MOCK: ItemGasto[] = [

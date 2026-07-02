@@ -19,7 +19,8 @@ export interface Etapa {
 
 export interface Partida {
   id: string
-  etapa_id: string
+  obra_id: string
+  etapa_id?: string
   nombre: string
 }
 

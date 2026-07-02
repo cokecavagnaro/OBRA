@@ -453,11 +453,10 @@ export default function Scan() {
                 <select
                   value={item.partida_id ?? ''}
                   onChange={(e) => setItemPartida(e.target.value)}
-                  disabled={!item.etapa_id}
-                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white disabled:opacity-40"
+                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white"
                 >
                   <option value="">Sin partida</option>
-                  {PARTIDAS_MOCK.filter((p) => p.etapa_id === item.etapa_id).map((p) => (
+                  {PARTIDAS_MOCK.filter((p) => p.obra_id === obra?.id).map((p) => (
                     <option key={p.id} value={p.id}>{p.nombre}</option>
                   ))}
                 </select>
