@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
-import { OBRAS_MOCK, ETAPAS_MOCK, PARTIDAS_MOCK } from '@/lib/mock'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { getObras, createObra, updateObraPrompt, getEtapas, createEtapa, getPartidas, createPartida } from '@/lib/supabase/db'
 import type { Obra, Etapa, Partida } from '@/lib/types'
 
 export default function Config() {
-  const [obras, setObras] = useState<Obra[]>(OBRAS_MOCK)
-  const [etapas, setEtapas] = useState<Etapa[]>(ETAPAS_MOCK)
-  const [partidas, setPartidas] = useState<Partida[]>(PARTIDAS_MOCK)
+  const [obras, setObras] = useState<Obra[]>([])
+  const [etapas, setEtapas] = useState<Etapa[]>([])
+  const [partidas, setPartidas] = useState<Partida[]>([])
+  const [loading, setLoading] = useState(true)
 
   const [obraSeleccionada, setObraSeleccionada] = useState<Obra | null>(null)
   const [editandoPrompt, setEditandoPrompt] = useState(false)
@@ -19,66 +21,93 @@ export default function Config() {
 
   const [nuevaObra, setNuevaObra] = useState('')
   const [creandoObra, setCreandoObra] = useState(false)
+  const [guardando, setGuardando] = useState(false)
 
-  function seleccionar(obra: Obra) {
+  useEffect(() => {
+    getObras().then((data) => {
+      setObras(data)
+      setLoading(false)
+    })
+  }, [])
+
+  async function seleccionar(obra: Obra) {
     setObraSeleccionada(obra)
     setEditandoPrompt(false)
     setNuevaEtapa('')
     setNuevaPartida('')
+    setEtapaParaPartida('')
+    const [e, p] = await Promise.all([getEtapas(obra.id), getPartidas(obra.id)])
+    setEtapas(e)
+    setPartidas(p)
   }
 
-  function guardarPrompt() {
+  async function guardarPrompt() {
     if (!obraSeleccionada) return
+    await updateObraPrompt(obraSeleccionada.id, promptDraft)
     setObras((prev) => prev.map((o) => o.id === obraSeleccionada.id ? { ...o, system_prompt: promptDraft } : o))
     setObraSeleccionada((prev) => prev ? { ...prev, system_prompt: promptDraft } : null)
     setEditandoPrompt(false)
   }
 
-  function agregarEtapa() {
+  async function agregarEtapa() {
     if (!obraSeleccionada || !nuevaEtapa.trim()) return
-    const nueva: Etapa = {
-      id: Date.now().toString(),
-      obra_id: obraSeleccionada.id,
-      nombre: nuevaEtapa.trim(),
-      orden: etapasFiltradas.length + 1,
-    }
-    setEtapas((prev) => [...prev, nueva])
+    setGuardando(true)
+    const nueva = await createEtapa(obraSeleccionada.id, nuevaEtapa.trim(), etapas.length + 1)
+    if (nueva) setEtapas((prev) => [...prev, nueva])
     setNuevaEtapa('')
+    setGuardando(false)
   }
 
-  function agregarPartida() {
+  async function agregarPartida() {
     if (!obraSeleccionada || !nuevaPartida.trim()) return
-    const nueva: Partida = {
-      id: Date.now().toString(),
-      obra_id: obraSeleccionada.id,
-      ...(etapaParaPartida ? { etapa_id: etapaParaPartida } : {}),
-      nombre: nuevaPartida.trim(),
-    }
-    setPartidas((prev) => [...prev, nueva])
+    setGuardando(true)
+    const nueva = await createPartida(obraSeleccionada.id, nuevaPartida.trim(), etapaParaPartida || undefined)
+    if (nueva) setPartidas((prev) => [...prev, nueva])
     setNuevaPartida('')
+    setGuardando(false)
   }
 
-  function crearObra() {
+  async function crearObra() {
     if (!nuevaObra.trim()) return
-    const nueva: Obra = {
-      id: Date.now().toString(),
-      nombre: nuevaObra.trim(),
-      system_prompt: '',
-      created_at: new Date().toISOString(),
+    setGuardando(true)
+    const nueva = await createObra(nuevaObra.trim())
+    if (nueva) {
+      setObras((prev) => [...prev, nueva])
+      setNuevaObra('')
+      setCreandoObra(false)
+      seleccionar(nueva)
     }
-    setObras((prev) => [...prev, nueva])
-    setNuevaObra('')
-    setCreandoObra(false)
-    setObraSeleccionada(nueva)
+    setGuardando(false)
+  }
+
+  async function handleCerrarSesion() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
   }
 
   const etapasFiltradas = etapas.filter((e) => e.obra_id === obraSeleccionada?.id)
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-gray-400 text-sm">Cargando...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <div className="px-4 pt-12 pb-4 border-b border-gray-100">
-        <h1 className="text-xl font-bold text-gray-900">Configuración</h1>
-        <p className="text-xs text-gray-400 mt-0.5">Obras, etapas y partidas</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Configuración</h1>
+            <p className="text-xs text-gray-400 mt-0.5">Obras, etapas y partidas</p>
+          </div>
+          <button onClick={handleCerrarSesion} className="text-xs text-gray-400 border border-gray-200 rounded-lg px-3 py-1.5">
+            Cerrar sesión
+          </button>
+        </div>
       </div>
 
       <div className="px-4 py-4 space-y-4">
@@ -86,10 +115,7 @@ export default function Config() {
         <div>
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Obras</p>
-            <button
-              onClick={() => setCreandoObra(true)}
-              className="text-xs font-medium text-blue-600"
-            >
+            <button onClick={() => setCreandoObra(true)} className="text-xs font-medium text-blue-600">
               + Nueva obra
             </button>
           </div>
@@ -105,20 +131,21 @@ export default function Config() {
                 placeholder="Nombre de la obra"
                 className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
               />
-              <button onClick={crearObra} className="bg-blue-600 text-white px-3 rounded-lg text-sm font-medium">Crear</button>
+              <button onClick={crearObra} disabled={guardando} className="bg-blue-600 text-white px-3 rounded-lg text-sm font-medium disabled:opacity-40">Crear</button>
               <button onClick={() => setCreandoObra(false)} className="text-gray-400 px-2 text-sm">✕</button>
             </div>
           )}
 
           <div className="space-y-1.5">
+            {obras.length === 0 && !creandoObra && (
+              <p className="text-xs text-gray-300 italic py-2">Sin obras — crea la primera</p>
+            )}
             {obras.map((obra) => (
               <button
                 key={obra.id}
                 onClick={() => seleccionar(obra)}
                 className={`w-full text-left rounded-xl border px-4 py-3 transition-colors ${
-                  obraSeleccionada?.id === obra.id
-                    ? 'border-blue-300 bg-blue-50'
-                    : 'border-gray-100 hover:border-gray-200'
+                  obraSeleccionada?.id === obra.id ? 'border-blue-300 bg-blue-50' : 'border-gray-100 hover:border-gray-200'
                 }`}
               >
                 <p className="text-sm font-medium text-gray-900">{obra.nombre}</p>
@@ -169,13 +196,11 @@ export default function Config() {
               )}
             </div>
 
-            {/* Etapas — solo etapas, sin partidas */}
+            {/* Etapas */}
             <div className="rounded-xl border border-gray-100 p-4">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Etapas</p>
               <div className="space-y-1.5 mb-3">
-                {etapasFiltradas.length === 0 && (
-                  <p className="text-xs text-gray-300 italic">Sin etapas</p>
-                )}
+                {etapasFiltradas.length === 0 && <p className="text-xs text-gray-300 italic">Sin etapas</p>}
                 {etapasFiltradas.map((etapa) => (
                   <p key={etapa.id} className="text-sm text-gray-700 py-1 border-b border-gray-50 last:border-0">{etapa.nombre}</p>
                 ))}
@@ -189,20 +214,19 @@ export default function Config() {
                   placeholder="Nueva etapa..."
                   className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
                 />
-                <button onClick={agregarEtapa} className="bg-gray-900 text-white px-3 rounded-lg text-sm font-medium">+</button>
+                <button onClick={agregarEtapa} disabled={guardando} className="bg-gray-900 text-white px-3 rounded-lg text-sm font-medium disabled:opacity-40">+</button>
               </div>
             </div>
 
-            {/* Partidas — sección completamente separada */}
+            {/* Partidas */}
             <div className="rounded-xl border border-gray-100 p-4">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Partidas</p>
 
-              {/* Lista de partidas existentes */}
               <div className="space-y-1.5 mb-3">
-                {partidas.filter((p) => p.obra_id === obraSeleccionada?.id).length === 0 && (
+                {partidas.filter((p) => p.obra_id === obraSeleccionada.id).length === 0 && (
                   <p className="text-xs text-gray-300 italic">Sin partidas</p>
                 )}
-                {partidas.filter((p) => p.obra_id === obraSeleccionada?.id).map((p) => {
+                {partidas.filter((p) => p.obra_id === obraSeleccionada.id).map((p) => {
                   const etapa = etapas.find((e) => e.id === p.etapa_id)
                   return (
                     <div key={p.id} className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">
@@ -213,7 +237,6 @@ export default function Config() {
                 })}
               </div>
 
-              {/* Agregar partida */}
               <div className="space-y-2">
                 <p className="text-[10px] text-gray-400">Etapa (opcional)</p>
                 <select
@@ -233,7 +256,7 @@ export default function Config() {
                     placeholder="Nueva partida..."
                     className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
                   />
-                  <button onClick={agregarPartida} className="bg-gray-900 text-white px-3 rounded-lg text-sm font-medium">+</button>
+                  <button onClick={agregarPartida} disabled={guardando} className="bg-gray-900 text-white px-3 rounded-lg text-sm font-medium disabled:opacity-40">+</button>
                 </div>
               </div>
             </div>

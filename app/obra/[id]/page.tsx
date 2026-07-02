@@ -2,24 +2,43 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { GASTOS_MOCK, OBRAS_MOCK, ETAPAS_MOCK, PARTIDAS_MOCK, formatCLP } from '@/lib/mock'
-import { getGastosByObra } from '@/lib/storage'
-import type { Gasto } from '@/lib/types'
+import { formatCLP } from '@/lib/mock'
+import { getObras, getEtapas, getPartidas, getGastos } from '@/lib/supabase/db'
+import type { Obra, Etapa, Partida, Gasto } from '@/lib/types'
 
 export default function ObraDetalle() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const [gastosLocal, setGastosLocal] = useState<Gasto[]>([])
+
+  const [obra, setObra] = useState<Obra | null>(null)
+  const [etapas, setEtapas] = useState<Etapa[]>([])
+  const [partidas, setPartidas] = useState<Partida[]>([])
+  const [gastos, setGastos] = useState<Gasto[]>([])
+  const [loading, setLoading] = useState(true)
+
   const [filtroEtapa, setFiltroEtapa] = useState<string | null>(null)
   const [filtroPartida, setFiltroPartida] = useState<string | null>(null)
   const [filtrosEtiqueta, setFiltrosEtiqueta] = useState<string[]>([])
 
   useEffect(() => {
-    setGastosLocal(getGastosByObra(id))
+    Promise.all([getObras(), getEtapas(id), getPartidas(id), getGastos(id)]).then(
+      ([obras, e, p, g]) => {
+        setObra(obras.find((o) => o.id === id) ?? null)
+        setEtapas(e)
+        setPartidas(p)
+        setGastos(g)
+        setLoading(false)
+      }
+    )
   }, [id])
 
-  const obra = OBRAS_MOCK.find((o) => o.id === id)
-  const gastos = [...GASTOS_MOCK.filter((g) => g.obra_id === id), ...gastosLocal]
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-gray-400 text-sm">Cargando...</p>
+      </div>
+    )
+  }
 
   if (!obra) return (
     <div className="flex items-center justify-center min-h-screen">
@@ -30,21 +49,13 @@ export default function ObraDetalle() {
   const totalObra = gastos.reduce((s, g) => s + g.total, 0)
   const pendientesCount = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
 
-  // Datos para filtros
-  const etapasObra = ETAPAS_MOCK.filter((e) => e.obra_id === id)
   const partidasDisponibles = filtroEtapa
-    ? PARTIDAS_MOCK.filter((p) => p.etapa_id === filtroEtapa)
-    : PARTIDAS_MOCK.filter((p) => p.obra_id === id)
-  const etiquetasUnicas = Array.from(new Set(gastos.flatMap((g) => (g.items ?? []).flatMap((i) => i.etiquetas)))).sort()
+    ? partidas.filter((p) => p.etapa_id === filtroEtapa)
+    : partidas
 
-  // Filtrado combinado
-  const gastosFiltrados = gastos.filter((g) => {
-    const items = g.items ?? []
-    if (filtroEtapa && !items.some((i) => i.etapa_id === filtroEtapa)) return false
-    if (filtroPartida && !items.some((i) => i.partida_id === filtroPartida)) return false
-    if (filtrosEtiqueta.length > 0 && !filtrosEtiqueta.every((tag) => items.some((i) => i.etiquetas.includes(tag)))) return false
-    return true
-  })
+  const etiquetasUnicas = Array.from(
+    new Set(gastos.flatMap((g) => (g.items ?? []).flatMap((i) => i.etiquetas)))
+  ).sort()
 
   const hayFiltros = filtroEtapa || filtroPartida || filtrosEtiqueta.length > 0
 
@@ -71,8 +82,7 @@ export default function ObraDetalle() {
   }
 
   function handleExportar() {
-    // TODO: conectar con lib/exportar.ts cuando esté Supabase
-    alert('Exportación Excel disponible cuando se conecte Supabase')
+    alert('Exportación Excel próximamente')
   }
 
   return (
@@ -95,8 +105,6 @@ export default function ObraDetalle() {
             </span>
           )}
         </div>
-
-        {/* Total grande */}
         <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
           <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Total gastado</p>
           <p className="text-3xl font-bold text-gray-900 mt-1">{formatCLP(totalObra)}</p>
@@ -110,39 +118,28 @@ export default function ObraDetalle() {
             Boletas escaneadas ({gastos.length})
           </p>
           <div className="grid grid-cols-3 gap-2">
-            {gastos.map((g) => (
-              <GaleriaThumbnail key={g.id} gasto={g} />
-            ))}
+            {gastos.map((g) => <GaleriaThumbnail key={g.id} gasto={g} />)}
           </div>
         </div>
       )}
 
-      {/* Panel de filtros combinados */}
+      {/* Panel de filtros */}
       <div className="px-4 py-3 border-b border-gray-100 space-y-3">
-
         {/* Filtro Etapa */}
-        {etapasObra.length > 0 && (
+        {etapas.length > 0 && (
           <div>
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Etapa</p>
             <div className="flex gap-2 overflow-x-auto scrollbar-none">
               <button
                 onClick={() => { setFiltroEtapa(null); setFiltroPartida(null) }}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                  !filtroEtapa ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'
-                }`}
-              >
-                Todas
-              </button>
-              {etapasObra.map((e) => (
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${!filtroEtapa ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
+              >Todas</button>
+              {etapas.map((e) => (
                 <button
                   key={e.id}
                   onClick={() => { setFiltroEtapa(e.id === filtroEtapa ? null : e.id); setFiltroPartida(null) }}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                    filtroEtapa === e.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'
-                  }`}
-                >
-                  {e.nombre}
-                </button>
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${filtroEtapa === e.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
+                >{e.nombre}</button>
               ))}
             </div>
           </div>
@@ -155,28 +152,20 @@ export default function ObraDetalle() {
             <div className="flex gap-2 overflow-x-auto scrollbar-none">
               <button
                 onClick={() => setFiltroPartida(null)}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                  !filtroPartida ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'
-                }`}
-              >
-                Todas
-              </button>
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${!filtroPartida ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
+              >Todas</button>
               {partidasDisponibles.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setFiltroPartida(p.id === filtroPartida ? null : p.id)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                    filtroPartida === p.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'
-                  }`}
-                >
-                  {p.nombre}
-                </button>
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${filtroPartida === p.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
+                >{p.nombre}</button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Filtro Etiquetas (multi-selección) */}
+        {/* Filtro Etiquetas */}
         {etiquetasUnicas.length > 0 && (
           <div>
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Etiquetas</p>
@@ -185,20 +174,13 @@ export default function ObraDetalle() {
                 <button
                   key={tag}
                   onClick={() => toggleEtiqueta(tag)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                    filtrosEtiqueta.includes(tag)
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-500 border-gray-200'
-                  }`}
-                >
-                  {tag}
-                </button>
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${filtrosEtiqueta.includes(tag) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}`}
+                >{tag}</button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Limpiar filtros */}
         {hayFiltros && (
           <button onClick={limpiarFiltros} className="text-xs text-blue-600 font-medium">
             Limpiar filtros
@@ -210,7 +192,6 @@ export default function ObraDetalle() {
       <div className="px-4 py-4 space-y-3">
         {hayFiltros ? (
           <>
-            {/* Banner subtotal */}
             <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
               <p className="text-xs text-gray-500">{itemsFiltrados.length} ítem{itemsFiltrados.length !== 1 ? 's' : ''} encontrado{itemsFiltrados.length !== 1 ? 's' : ''}</p>
               <div className="text-right">
@@ -218,8 +199,6 @@ export default function ObraDetalle() {
                 <p className="text-sm font-bold text-gray-900">{formatCLP(subtotalFiltrado)}</p>
               </div>
             </div>
-
-            {/* Ítems filtrados */}
             {itemsFiltrados.length === 0 ? <Vacio /> : itemsFiltrados.map((item) => (
               <div key={item.id} className="rounded-xl border border-gray-100 p-4">
                 <div className="flex items-start justify-between gap-2">
@@ -229,14 +208,7 @@ export default function ObraDetalle() {
                 <p className="text-xs text-gray-400 mt-0.5">{item.cantidad} {item.unidad}</p>
                 <div className="flex flex-wrap gap-1 mt-2">
                   {item.etiquetas.map((tag) => (
-                    <span
-                      key={tag}
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                        filtrosEtiqueta.includes(tag) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
-                      }`}
-                    >
-                      {tag}
-                    </span>
+                    <span key={tag} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${filtrosEtiqueta.includes(tag) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>{tag}</span>
                   ))}
                 </div>
                 <p className="text-[10px] text-gray-300 mt-2">{item.gasto.proveedor} · {formatFecha(item.gasto.fecha_boleta)}</p>
@@ -244,7 +216,6 @@ export default function ObraDetalle() {
             ))}
           </>
         ) : (
-          /* Vista sin filtros: boletas completas */
           gastos.length === 0 ? <Vacio /> : gastos.map((gasto) => (
             <div key={gasto.id} className="rounded-xl border border-gray-100 p-4">
               <div className="flex items-start justify-between gap-2">
@@ -266,9 +237,7 @@ export default function ObraDetalle() {
               )}
               <div className="flex flex-wrap gap-1 mt-2">
                 {Array.from(new Set((gasto.items ?? []).flatMap((i) => i.etiquetas))).map((tag) => (
-                  <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
-                    {tag}
-                  </span>
+                  <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">{tag}</span>
                 ))}
               </div>
             </div>
@@ -292,11 +261,8 @@ export default function ObraDetalle() {
   )
 }
 
-// ---- Componentes auxiliares ----
-
 function GaleriaThumbnail({ gasto }: { gasto: Gasto }) {
   const [expandido, setExpandido] = useState(false)
-
   return (
     <>
       <button onClick={() => setExpandido(true)} className="rounded-xl overflow-hidden border border-gray-100 text-left w-full">
@@ -310,19 +276,9 @@ function GaleriaThumbnail({ gasto }: { gasto: Gasto }) {
           <p className="text-[10px] text-gray-400">{formatCLP(gasto.total)}</p>
         </div>
       </button>
-
-      {/* Modal visor boleta */}
       {expandido && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center"
-          onClick={() => setExpandido(false)}
-        >
-          <div
-            className="bg-white rounded-t-2xl w-full max-w-[390px] flex flex-col"
-            style={{ maxHeight: '90vh' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header fijo */}
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={() => setExpandido(false)}>
+          <div className="bg-white rounded-t-2xl w-full max-w-[390px] flex flex-col" style={{ maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 shrink-0">
               <div>
                 <p className="text-sm font-semibold text-gray-900">{gasto.proveedor}</p>
@@ -331,28 +287,16 @@ function GaleriaThumbnail({ gasto }: { gasto: Gasto }) {
               </div>
               <div className="flex flex-col gap-2 items-end shrink-0 ml-3">
                 {gasto.imagen_url && (
-                  <a
-                    href={gasto.imagen_url}
-                    download={`boleta-${gasto.proveedor}.jpg`}
-                    className="flex items-center gap-1 bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  <a href={gasto.imagen_url} download={`boleta-${gasto.proveedor}.jpg`} className="flex items-center gap-1 bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg" onClick={(e) => e.stopPropagation()}>
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
                     Descargar
                   </a>
                 )}
-                <button
-                  onClick={() => setExpandido(false)}
-                  className="text-xs text-gray-400 px-3 py-1.5 border border-gray-200 rounded-lg"
-                >
-                  Cerrar
-                </button>
+                <button onClick={() => setExpandido(false)} className="text-xs text-gray-400 px-3 py-1.5 border border-gray-200 rounded-lg">Cerrar</button>
               </div>
             </div>
-
-            {/* Imagen scrolleable */}
             <div className="overflow-y-auto flex-1">
               {gasto.imagen_url ? (
                 <img src={gasto.imagen_url} alt={gasto.proveedor} className="w-full" />
@@ -375,12 +319,6 @@ function Vacio() {
   )
 }
 
-// ---- Helpers de agrupación ----
-
-
-
 function formatFecha(fecha: string): string {
-  return new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', {
-    day: 'numeric', month: 'short', year: 'numeric',
-  })
+  return new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })
 }

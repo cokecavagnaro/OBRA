@@ -2,30 +2,42 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { GASTOS_MOCK, OBRAS_MOCK, formatCLP } from '@/lib/mock'
-import { getGastosStorage } from '@/lib/storage'
-import type { Gasto } from '@/lib/types'
+import { formatCLP } from '@/lib/mock'
+import { getObras, getAllGastos } from '@/lib/supabase/db'
+import type { Obra, Gasto } from '@/lib/types'
 
 export default function Inicio() {
-  const [gastosLocal, setGastosLocal] = useState<Gasto[]>([])
+  const [obras, setObras] = useState<Obra[]>([])
+  const [gastos, setGastos] = useState<Gasto[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setGastosLocal(getGastosStorage())
+    Promise.all([getObras(), getAllGastos()]).then(([o, g]) => {
+      setObras(o)
+      setGastos(g)
+      setLoading(false)
+    })
   }, [])
 
-  const todosLosGastos = [...GASTOS_MOCK, ...gastosLocal]
+  const pendientesCount = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
+  const totalGlobal = gastos.reduce((s, g) => s + g.total, 0)
+  const totalBoletas = gastos.length
 
-  const pendientesCount = todosLosGastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
-  const totalGlobal = todosLosGastos.reduce((s, g) => s + g.total, 0)
-  const totalBoletas = todosLosGastos.length
-
-  const obrasConTotales = OBRAS_MOCK.map((obra) => {
-    const gastos = todosLosGastos.filter((g) => g.obra_id === obra.id)
-    const total = gastos.reduce((s, g) => s + g.total, 0)
-    const boletas = gastos.length
-    const pendientes = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
+  const obrasConTotales = obras.map((obra) => {
+    const gastosObra = gastos.filter((g) => g.obra_id === obra.id)
+    const total = gastosObra.reduce((s, g) => s + g.total, 0)
+    const boletas = gastosObra.length
+    const pendientes = gastosObra.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
     return { ...obra, total, boletas, pendientes }
   })
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-gray-400 text-sm">Cargando...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -34,7 +46,7 @@ export default function Inicio() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Obra360</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Administrador</p>
+            <p className="text-xs text-gray-400 mt-0.5">Tus obras</p>
           </div>
           <div className="flex items-center gap-2">
             {pendientesCount > 0 && (
@@ -86,20 +98,17 @@ export default function Inicio() {
                   )}
                 </div>
               </div>
-
               <div className="mt-3 flex items-center justify-between">
-                {obra.total > 0 ? (
-                  <div className="flex-1 bg-gray-100 rounded-full h-1.5 mr-3">
+                <div className="flex-1 bg-gray-100 rounded-full h-1.5 mr-3">
+                  {totalGlobal > 0 && (
                     <div
                       className="bg-blue-500 h-1.5 rounded-full"
                       style={{ width: `${Math.min((obra.total / totalGlobal) * 100, 100)}%` }}
                     />
-                  </div>
-                ) : (
-                  <div className="flex-1 bg-gray-100 rounded-full h-1.5 mr-3" />
-                )}
+                  )}
+                </div>
                 <div className="flex items-center gap-1 text-gray-400 shrink-0">
-                  <span className="text-xs">{obra.total > 0 ? Math.round((obra.total / totalGlobal) * 100) : 0}%</span>
+                  <span className="text-xs">{totalGlobal > 0 ? Math.round((obra.total / totalGlobal) * 100) : 0}%</span>
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>

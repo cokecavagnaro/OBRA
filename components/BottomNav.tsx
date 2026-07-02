@@ -13,6 +13,8 @@ const tabs = [
 export default function BottomNav({ pendientes = 0 }: { pendientes?: number }) {
   const pathname = usePathname()
 
+  if (pathname === '/login' || pathname.startsWith('/auth')) return null
+
   return (
     <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] bg-white border-t border-gray-200 z-50">
       <div className="flex items-center justify-around h-16 px-2">

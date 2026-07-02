@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { OBRAS_MOCK, ETAPAS_MOCK, PARTIDAS_MOCK, CLASIFICACIONES_CONFIRMADAS_MOCK, formatCLP } from '@/lib/mock'
-import { agregarClasificacionConfirmada } from '@/lib/aprendizaje'
-import { guardarGasto, buildGasto } from '@/lib/storage'
+import { formatCLP } from '@/lib/mock'
+import { getObras, getEtapas, getPartidas, saveGasto } from '@/lib/supabase/db'
 import type { Obra, Etapa, Partida, ItemAnalizado } from '@/lib/types'
 import SystemPromptBox from '@/components/SystemPromptBox'
 
@@ -42,41 +41,46 @@ export default function Scan() {
   const [fecha, setFecha] = useState('2024-06-10')
   const [totalBoleta, setTotalBoleta] = useState(0)
 
-  const etapasFiltradas = ETAPAS_MOCK.filter((e) => e.obra_id === obra?.id)
-  const partidasFiltradas = PARTIDAS_MOCK.filter((p) => p.etapa_id === etapa?.id)
-  const paso1Completo = !!obra
+  const [obras, setObras] = useState<Obra[]>([])
+  const [etapasFiltradas, setEtapasFiltradas] = useState<Etapa[]>([])
+  const [partidasFiltradas, setPartidasFiltradas] = useState<Partida[]>([])
 
-  // Tags existentes en la obra (de clasificaciones previas)
-  const tagsObra = obra
-    ? Array.from(new Set(
-        CLASIFICACIONES_CONFIRMADAS_MOCK
-          .filter((c) => c.obra_id === obra.id)
-          .flatMap((c) => c.etiquetas)
-      ))
-    : []
+  useEffect(() => {
+    getObras().then(setObras)
+  }, [])
+
+  const paso1Completo = !!obra
+  const tagsObra: string[] = []
 
   const item = items[itemActual]
   const esUltimo = itemActual === items.length - 1
   const confirmados = items.filter((i) => i.etiquetas.length > 0).length
   const pendientes = items.filter((i) => i.etiquetas.length === 0).length
 
-  function handleObraChange(id: string) {
-    const o = OBRAS_MOCK.find((x) => x.id === id) ?? null
+  async function handleObraChange(id: string) {
+    const o = obras.find((x) => x.id === id) ?? null
     setObra(o)
     setEtapa(null)
     setPartida(null)
+    if (o) {
+      const [e, p] = await Promise.all([getEtapas(o.id), getPartidas(o.id)])
+      setEtapasFiltradas(e)
+      setPartidasFiltradas(p)
+    } else {
+      setEtapasFiltradas([])
+      setPartidasFiltradas([])
+    }
   }
 
   function handleEtapaChange(id: string) {
-    const e = ETAPAS_MOCK.find((x) => x.id === id) ?? null
+    const e = etapasFiltradas.find((x) => x.id === id) ?? null
     setEtapa(e)
     setPartida(null)
   }
 
   function setItemEtapa(etapaId: string) {
-    const etapa = ETAPAS_MOCK.find((e) => e.id === etapaId) ?? null
     setItems((prev) => prev.map((x, idx) =>
-      idx === itemActual ? { ...x, etapa_id: etapa?.id ?? '', partida_id: '' } : x
+      idx === itemActual ? { ...x, etapa_id: etapaId, partida_id: '' } : x
     ))
   }
 
@@ -197,31 +201,31 @@ export default function Scan() {
     setItemActual((i) => Math.max(0, i - 1))
   }
 
-  function handleGuardar() {
+  async function handleGuardar() {
     if (obra) {
-      const gasto = buildGasto({
+      await saveGasto({
         obra_id: obra.id,
         proveedor,
-        rut,
-        fecha,
-        total: totalBoleta,
+        rut_proveedor: rut,
+        fecha_boleta: fecha,
+        total: totalBoleta || items.reduce((s, i) => s + i.subtotal, 0),
         contexto_boleta: contexto,
         imagen_url: imagenDataUrl,
-        items,
-      })
-      guardarGasto(gasto)
-    }
-
-    items.forEach((i) => {
-      if (i.etiquetas.length > 0 && obra) {
-        agregarClasificacionConfirmada({
-          obra_id: obra.id,
+        items: items.map((i) => ({
           descripcion: i.descripcion,
+          cantidad: i.cantidad,
+          unidad: i.unidad,
+          precio_unitario: i.precio_unitario,
+          subtotal: i.subtotal,
           categoria: i.categoria,
           etiquetas: i.etiquetas,
-        })
-      }
-    })
+          confianza_ia: i.confianza,
+          etapa_id: i.etapa_id,
+          partida_id: i.partida_id,
+          estado: i.etiquetas.length > 0 ? 'confirmado' : 'pendiente',
+        })),
+      })
+    }
     router.push('/')
   }
 
@@ -265,7 +269,7 @@ export default function Scan() {
               className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-white"
             >
               <option value="">Seleccionar obra...</option>
-              {OBRAS_MOCK.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+              {obras.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
             </select>
           </div>
 
@@ -292,7 +296,7 @@ export default function Scan() {
             </label>
             <select
               value={partida?.id ?? ''}
-              onChange={(e) => setPartida(PARTIDAS_MOCK.find((p) => p.id === e.target.value) ?? null)}
+              onChange={(e) => setPartida(partidasFiltradas.find((p) => p.id === e.target.value) ?? null)}
               disabled={!etapa}
               className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-white disabled:opacity-40"
             >
@@ -456,7 +460,7 @@ export default function Scan() {
                   className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white"
                 >
                   <option value="">Sin partida</option>
-                  {PARTIDAS_MOCK.filter((p) => p.obra_id === obra?.id).map((p) => (
+                  {partidasFiltradas.map((p) => (
                     <option key={p.id} value={p.id}>{p.nombre}</option>
                   ))}
                 </select>
