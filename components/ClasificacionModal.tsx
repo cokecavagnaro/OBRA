@@ -98,7 +98,7 @@ export default function ClasificacionModal({
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onCerrar}>
       <div
         className="bg-white rounded-t-2xl w-full max-w-[390px] flex flex-col"
-        style={{ maxHeight: '92vh' }}
+        style={{ height: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Encabezado */}
