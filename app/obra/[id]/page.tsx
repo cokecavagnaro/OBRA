@@ -266,31 +266,55 @@ function GaleriaThumbnail({ gasto }: { gasto: Gasto }) {
         </div>
       </button>
 
-      {/* Modal simple */}
+      {/* Modal visor boleta */}
       {expandido && (
         <div
           className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center"
           onClick={() => setExpandido(false)}
         >
           <div
-            className="bg-white rounded-t-2xl w-full max-w-[390px] p-4 pb-8"
+            className="bg-white rounded-t-2xl w-full max-w-[390px] flex flex-col"
+            style={{ maxHeight: '90vh' }}
             onClick={(e) => e.stopPropagation()}
           >
-            {gasto.imagen_url ? (
-              <img src={gasto.imagen_url} alt={gasto.proveedor} className="w-full rounded-xl mb-3 max-h-48 object-cover" />
-            ) : (
-              <div className="w-full h-32 bg-gray-100 rounded-xl flex items-center justify-center text-4xl mb-3">🧾</div>
-            )}
-            <p className="text-sm font-semibold text-gray-900">{gasto.proveedor}</p>
-            <p className="text-xs text-gray-400 mt-0.5">RUT {gasto.rut_proveedor} · {gasto.fecha_boleta}</p>
-            <p className="text-lg font-bold text-gray-900 mt-2">{formatCLP(gasto.total)}</p>
-            <p className="text-xs text-gray-400 mt-1">{gasto.etapa?.nombre} › {gasto.partida?.nombre}</p>
-            <button
-              onClick={() => setExpandido(false)}
-              className="mt-4 w-full border border-gray-200 rounded-xl py-2.5 text-sm text-gray-500"
-            >
-              Cerrar
-            </button>
+            {/* Header fijo */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 shrink-0">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{gasto.proveedor}</p>
+                <p className="text-xs text-gray-400 mt-0.5">RUT {gasto.rut_proveedor} · {gasto.fecha_boleta}</p>
+                <p className="text-base font-bold text-gray-900 mt-1">{formatCLP(gasto.total)}</p>
+              </div>
+              <div className="flex flex-col gap-2 items-end shrink-0 ml-3">
+                {gasto.imagen_url && (
+                  <a
+                    href={gasto.imagen_url}
+                    download={`boleta-${gasto.proveedor}.jpg`}
+                    className="flex items-center gap-1 bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Descargar
+                  </a>
+                )}
+                <button
+                  onClick={() => setExpandido(false)}
+                  className="text-xs text-gray-400 px-3 py-1.5 border border-gray-200 rounded-lg"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+
+            {/* Imagen scrolleable */}
+            <div className="overflow-y-auto flex-1">
+              {gasto.imagen_url ? (
+                <img src={gasto.imagen_url} alt={gasto.proveedor} className="w-full" />
+              ) : (
+                <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-5xl">🧾</div>
+              )}
+            </div>
           </div>
         </div>
       )}
