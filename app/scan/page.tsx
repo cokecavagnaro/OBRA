@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getObras, getEtapas, getPartidas, saveGasto } from '@/lib/supabase/db'
+import { getObras, getEtapas, getPartidas, saveGasto, createEtapa, createPartida } from '@/lib/supabase/db'
 import type { Obra, Etapa, Partida, ItemAnalizado } from '@/lib/types'
 import SystemPromptBox from '@/components/SystemPromptBox'
 
@@ -44,6 +44,12 @@ export default function Scan() {
   const [obras, setObras] = useState<Obra[]>([])
   const [etapasFiltradas, setEtapasFiltradas] = useState<Etapa[]>([])
   const [partidasFiltradas, setPartidasFiltradas] = useState<Partida[]>([])
+
+  // Creación inline en paso 3
+  const [creandoEtapaInline, setCreandoEtapaInline] = useState(false)
+  const [nuevaEtapaNombre, setNuevaEtapaNombre] = useState('')
+  const [creandoPartidaInline, setCreandoPartidaInline] = useState(false)
+  const [nuevaPartidaNombre, setNuevaPartidaNombre] = useState('')
 
   useEffect(() => {
     getObras().then(setObras)
@@ -183,6 +189,28 @@ export default function Scan() {
     if (e.key === 'Enter' && tagInput.trim()) {
       addTag(tagInput)
     }
+  }
+
+  async function handleCrearEtapaInline() {
+    if (!obra || !nuevaEtapaNombre.trim()) return
+    const nueva = await createEtapa(obra.id, nuevaEtapaNombre.trim(), etapasFiltradas.length + 1)
+    if (nueva) {
+      setEtapasFiltradas((prev) => [...prev, nueva])
+      setItemEtapa(nueva.id)
+    }
+    setNuevaEtapaNombre('')
+    setCreandoEtapaInline(false)
+  }
+
+  async function handleCrearPartidaInline() {
+    if (!obra || !nuevaPartidaNombre.trim()) return
+    const nueva = await createPartida(obra.id, nuevaPartidaNombre.trim(), items[itemActual]?.etapa_id || undefined)
+    if (nueva) {
+      setPartidasFiltradas((prev) => [...prev, nueva])
+      setItemPartida(nueva.id)
+    }
+    setNuevaPartidaNombre('')
+    setCreandoPartidaInline(false)
   }
 
   function handleSiguiente() {
@@ -442,28 +470,64 @@ export default function Scan() {
             {/* Etapa y Partida por ítem */}
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Etapa</p>
-                <select
-                  value={item.etapa_id ?? ''}
-                  onChange={(e) => setItemEtapa(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white"
-                >
-                  <option value="">Sin etapa</option>
-                  {etapasFiltradas.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-                </select>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Etapa</p>
+                  <button onClick={() => setCreandoEtapaInline(true)} className="text-[10px] text-blue-600 font-medium">+ Nueva</button>
+                </div>
+                {creandoEtapaInline ? (
+                  <div className="flex gap-1">
+                    <input
+                      autoFocus
+                      value={nuevaEtapaNombre}
+                      onChange={(e) => setNuevaEtapaNombre(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleCrearEtapaInline()}
+                      placeholder="Nombre..."
+                      className="flex-1 border border-blue-300 rounded-lg px-2 py-1.5 text-xs text-gray-700 min-w-0"
+                    />
+                    <button onClick={handleCrearEtapaInline} className="bg-blue-600 text-white rounded-lg px-2 text-xs font-bold">✓</button>
+                    <button onClick={() => { setCreandoEtapaInline(false); setNuevaEtapaNombre('') }} className="text-gray-400 text-xs px-1">✕</button>
+                  </div>
+                ) : (
+                  <select
+                    value={item.etapa_id ?? ''}
+                    onChange={(e) => setItemEtapa(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white"
+                  >
+                    <option value="">Sin etapa</option>
+                    {etapasFiltradas.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                  </select>
+                )}
               </div>
               <div>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Partida</p>
-                <select
-                  value={item.partida_id ?? ''}
-                  onChange={(e) => setItemPartida(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white"
-                >
-                  <option value="">Sin partida</option>
-                  {partidasFiltradas.map((p) => (
-                    <option key={p.id} value={p.id}>{p.nombre}</option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Partida</p>
+                  <button onClick={() => setCreandoPartidaInline(true)} className="text-[10px] text-blue-600 font-medium">+ Nueva</button>
+                </div>
+                {creandoPartidaInline ? (
+                  <div className="flex gap-1">
+                    <input
+                      autoFocus
+                      value={nuevaPartidaNombre}
+                      onChange={(e) => setNuevaPartidaNombre(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleCrearPartidaInline()}
+                      placeholder="Nombre..."
+                      className="flex-1 border border-blue-300 rounded-lg px-2 py-1.5 text-xs text-gray-700 min-w-0"
+                    />
+                    <button onClick={handleCrearPartidaInline} className="bg-blue-600 text-white rounded-lg px-2 text-xs font-bold">✓</button>
+                    <button onClick={() => { setCreandoPartidaInline(false); setNuevaPartidaNombre('') }} className="text-gray-400 text-xs px-1">✕</button>
+                  </div>
+                ) : (
+                  <select
+                    value={item.partida_id ?? ''}
+                    onChange={(e) => setItemPartida(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white"
+                  >
+                    <option value="">Sin partida</option>
+                    {partidasFiltradas.map((p) => (
+                      <option key={p.id} value={p.id}>{p.nombre}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 
