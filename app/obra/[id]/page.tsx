@@ -48,6 +48,18 @@ export default function ObraDetalle() {
 
   const hayFiltros = filtroEtapa || filtroPartida || filtrosEtiqueta.length > 0
 
+  const itemsFiltrados = hayFiltros
+    ? gastos
+        .flatMap((g) => (g.items ?? []).map((i) => ({ ...i, gasto: g })))
+        .filter((i) => {
+          if (filtroEtapa && i.etapa_id !== filtroEtapa) return false
+          if (filtroPartida && i.partida_id !== filtroPartida) return false
+          if (filtrosEtiqueta.length > 0 && !filtrosEtiqueta.every((tag) => i.etiquetas.includes(tag))) return false
+          return true
+        })
+    : []
+  const subtotalFiltrado = itemsFiltrados.reduce((s, i) => s + i.subtotal, 0)
+
   function toggleEtiqueta(tag: string) {
     setFiltrosEtiqueta((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])
   }
@@ -194,41 +206,74 @@ export default function ObraDetalle() {
         )}
       </div>
 
-      {/* Lista de boletas filtradas */}
+      {/* Lista de resultados */}
       <div className="px-4 py-4 space-y-3">
-        {gastosFiltrados.length === 0 ? <Vacio /> : gastosFiltrados.map((gasto) => (
-          <div key={gasto.id} className="rounded-xl border border-gray-100 p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{gasto.proveedor}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{formatFecha(gasto.fecha_boleta)}</p>
+        {hayFiltros ? (
+          <>
+            {/* Banner subtotal */}
+            <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+              <p className="text-xs text-gray-500">{itemsFiltrados.length} ítem{itemsFiltrados.length !== 1 ? 's' : ''} encontrado{itemsFiltrados.length !== 1 ? 's' : ''}</p>
+              <div className="text-right">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Subtotal filtrado</p>
+                <p className="text-sm font-bold text-gray-900">{formatCLP(subtotalFiltrado)}</p>
               </div>
-              <p className="text-sm font-bold text-gray-900 shrink-0">{formatCLP(gasto.total)}</p>
             </div>
-            {(gasto.items ?? []).length > 0 && (
-              <div className="mt-2 space-y-1">
-                {(gasto.items ?? []).map((item) => (
-                  <div key={item.id} className="flex items-center justify-between text-xs text-gray-500">
-                    <span className="truncate flex-1">{item.descripcion}</span>
-                    <span className="shrink-0 ml-2">{formatCLP(item.subtotal)}</span>
-                  </div>
+
+            {/* Ítems filtrados */}
+            {itemsFiltrados.length === 0 ? <Vacio /> : itemsFiltrados.map((item) => (
+              <div key={item.id} className="rounded-xl border border-gray-100 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-gray-900 flex-1">{item.descripcion}</p>
+                  <p className="text-sm font-bold text-gray-900 shrink-0">{formatCLP(item.subtotal)}</p>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">{item.cantidad} {item.unidad}</p>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {item.etiquetas.map((tag) => (
+                    <span
+                      key={tag}
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                        filtrosEtiqueta.includes(tag) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
+                      }`}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-[10px] text-gray-300 mt-2">{item.gasto.proveedor} · {formatFecha(item.gasto.fecha_boleta)}</p>
+              </div>
+            ))}
+          </>
+        ) : (
+          /* Vista sin filtros: boletas completas */
+          gastos.length === 0 ? <Vacio /> : gastos.map((gasto) => (
+            <div key={gasto.id} className="rounded-xl border border-gray-100 p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{gasto.proveedor}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{formatFecha(gasto.fecha_boleta)}</p>
+                </div>
+                <p className="text-sm font-bold text-gray-900 shrink-0">{formatCLP(gasto.total)}</p>
+              </div>
+              {(gasto.items ?? []).length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {(gasto.items ?? []).map((item) => (
+                    <div key={item.id} className="flex items-center justify-between text-xs text-gray-500">
+                      <span className="truncate flex-1">{item.descripcion}</span>
+                      <span className="shrink-0 ml-2">{formatCLP(item.subtotal)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-1 mt-2">
+                {Array.from(new Set((gasto.items ?? []).flatMap((i) => i.etiquetas))).map((tag) => (
+                  <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
+                    {tag}
+                  </span>
                 ))}
               </div>
-            )}
-            <div className="flex flex-wrap gap-1 mt-2">
-              {Array.from(new Set((gasto.items ?? []).flatMap((i) => i.etiquetas))).map((tag) => (
-                <span
-                  key={tag}
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                    filtrosEtiqueta.includes(tag) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
-                  }`}
-                >
-                  {tag}
-                </span>
-              ))}
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Botón exportar */}
