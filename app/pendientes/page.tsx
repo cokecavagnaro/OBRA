@@ -1,40 +1,46 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { GASTOS_MOCK, OBRAS_MOCK, formatCLP } from '@/lib/mock'
-import type { ItemGasto } from '@/lib/types'
+import { formatCLP } from '@/lib/mock'
+import { getObras, getAllGastos } from '@/lib/supabase/db'
+import type { Obra, ItemGasto } from '@/lib/types'
 
 interface ItemConGasto extends ItemGasto {
   obra_id: string
   proveedor: string
   fecha: string
-  obra: string
-  etapa: string
-  partida: string
+  obra_nombre: string
 }
-
-const itemsBase: ItemConGasto[] = GASTOS_MOCK.flatMap((g) =>
-  (g.items ?? [])
-    .filter((i) => i.estado === 'pendiente')
-    .map((i) => ({
-      ...i,
-      obra_id: g.obra_id,
-      proveedor: g.proveedor,
-      fecha: g.fecha_boleta,
-      obra: g.obra?.nombre ?? '',
-      etapa: g.etapa?.nombre ?? '',
-      partida: g.partida?.nombre ?? '',
-    }))
-)
 
 function PendientesContenido() {
   const searchParams = useSearchParams()
   const obraParam = searchParams.get('obra') ?? 'todas'
 
-  const [items, setItems] = useState<ItemConGasto[]>(itemsBase)
+  const [obras, setObras] = useState<Obra[]>([])
+  const [items, setItems] = useState<ItemConGasto[]>([])
   const [obraFiltro, setObraFiltro] = useState(obraParam)
   const [tagsEdit, setTagsEdit] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([getObras(), getAllGastos()]).then(([obras, gastos]) => {
+      setObras(obras)
+      const pendientes = gastos.flatMap((g) =>
+        (g.items ?? [])
+          .filter((i) => i.estado === 'pendiente')
+          .map((i) => ({
+            ...i,
+            obra_id: g.obra_id,
+            proveedor: g.proveedor,
+            fecha: g.fecha_boleta,
+            obra_nombre: obras.find((o) => o.id === g.obra_id)?.nombre ?? '',
+          }))
+      )
+      setItems(pendientes)
+      setLoading(false)
+    })
+  }, [])
 
   const activos = items.filter(
     (i) => i.estado === 'pendiente' && (obraFiltro === 'todas' || i.obra_id === obraFiltro)
@@ -67,6 +73,14 @@ function PendientesContenido() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-gray-400 text-sm">Cargando...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <div className="px-4 pt-12 pb-3 border-b border-gray-100">
@@ -75,14 +89,13 @@ function PendientesContenido() {
           {activos.length} ítem{activos.length !== 1 ? 's' : ''} por revisar
         </p>
 
-        {/* Filtro por obra */}
         <select
           value={obraFiltro}
           onChange={(e) => setObraFiltro(e.target.value)}
           className="mt-3 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 bg-white"
         >
           <option value="todas">Todas las obras</option>
-          {OBRAS_MOCK.map((o) => (
+          {obras.map((o) => (
             <option key={o.id} value={o.id}>{o.nombre}</option>
           ))}
         </select>
@@ -103,18 +116,16 @@ function PendientesContenido() {
 
         {activos.map((item) => (
           <div key={item.id} className="rounded-xl border border-amber-200 bg-amber-50/20 p-4">
-            {/* Header */}
             <div className="flex items-start justify-between gap-2 mb-1">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-900">{item.descripcion}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{item.proveedor} · {item.fecha}</p>
               </div>
               <span className="bg-amber-100 text-amber-700 text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0">
-                ⚠ {Math.round(item.confianza_ia * 100)}%
+                ⚠ {Math.round((item.confianza_ia ?? 0) * 100)}%
               </span>
             </div>
 
-            {/* Montos */}
             <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
               <span>{item.cantidad} {item.unidad}</span>
               <span>·</span>
@@ -123,12 +134,8 @@ function PendientesContenido() {
               <span className="font-semibold text-gray-700">{formatCLP(item.subtotal)}</span>
             </div>
 
-            {/* Ruta */}
-            <p className="text-xs text-gray-400 mb-3 truncate">
-              {item.obra} › {item.etapa} › {item.partida}
-            </p>
+            <p className="text-xs text-gray-400 mb-3 truncate">{item.obra_nombre}</p>
 
-            {/* Tags editables */}
             <div className="mb-3">
               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Etiquetas</p>
               <div className="flex flex-wrap gap-1 items-center">
@@ -152,17 +159,16 @@ function PendientesContenido() {
               </div>
             </div>
 
-            {/* Acciones */}
             <div className="flex gap-2">
               <button
                 onClick={() => rechazar(item.id)}
-                className="flex-1 border border-gray-200 rounded-lg py-2 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+                className="flex-1 border border-gray-200 rounded-lg py-2 text-xs font-medium text-gray-500"
               >
                 Rechazar
               </button>
               <button
                 onClick={() => confirmar(item.id)}
-                className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-xs font-semibold hover:bg-blue-700 transition-colors"
+                className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-xs font-semibold"
               >
                 Confirmar
               </button>

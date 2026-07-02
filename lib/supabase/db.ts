@@ -11,7 +11,14 @@ export async function getObras(): Promise<Obra[]> {
 
 export async function createObra(nombre: string, system_prompt = ''): Promise<Obra | null> {
   const supabase = createClient()
-  const { data } = await supabase.from('obras').insert({ nombre, system_prompt }).select().single()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data, error } = await supabase
+    .from('obras')
+    .insert({ nombre, system_prompt, user_id: user.id })
+    .select()
+    .single()
+  if (error) console.error('createObra:', error)
   return data as Obra | null
 }
 
@@ -130,16 +137,20 @@ export async function saveGasto(params: {
   const supabase = createClient()
 
   const estado = params.items.every((i) => i.estado === 'confirmado') ? 'confirmado' : 'pendiente'
-  const fecha = params.fecha_boleta || new Date().toISOString().split('T')[0]
+  const hoy = new Date().toISOString().split('T')[0]
+  const fechaValida = /^\d{4}-\d{2}-\d{2}$/.test(params.fecha_boleta) ? params.fecha_boleta : hoy
+  const totalValido = typeof params.total === 'number' && params.total > 0
+    ? params.total
+    : params.items.reduce((s, i) => s + (i.subtotal || 0), 0)
 
   const { data: gasto, error } = await supabase
     .from('gastos')
     .insert({
       obra_id: params.obra_id,
-      proveedor: params.proveedor,
-      rut_proveedor: params.rut_proveedor,
-      fecha_boleta: fecha,
-      total: params.total,
+      proveedor: params.proveedor || 'Sin proveedor',
+      rut_proveedor: params.rut_proveedor || '',
+      fecha_boleta: fechaValida,
+      total: totalValido,
       imagen_url: params.imagen_url,
       contexto_boleta: params.contexto_boleta,
       estado,
