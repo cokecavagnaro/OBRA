@@ -65,7 +65,7 @@ export default function ObraDetalle() {
         .filter((i) => {
           if (filtroEtapa && i.etapa_id !== filtroEtapa) return false
           if (filtroPartida && i.partida_id !== filtroPartida) return false
-          if (filtrosEtiqueta.length > 0 && !filtrosEtiqueta.every((tag) => i.etiquetas.includes(tag))) return false
+          if (filtrosEtiqueta.length > 0 && !filtrosEtiqueta.some((tag) => i.etiquetas.includes(tag))) return false
           return true
         })
     : []
