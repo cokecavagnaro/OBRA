@@ -112,6 +112,24 @@ export async function getAllGastos(): Promise<Gasto[]> {
   })) as Gasto[]
 }
 
+export async function updateItemGasto(id: string, params: {
+  etapa_id?: string | null
+  partida_id?: string | null
+  etiquetas?: string[]
+}): Promise<boolean> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('items_gasto')
+    .update({
+      etapa_id: params.etapa_id ?? null,
+      partida_id: params.partida_id ?? null,
+      etiquetas: params.etiquetas ?? [],
+    })
+    .eq('id', id)
+  if (error) console.error('updateItemGasto:', error)
+  return !error
+}
+
 export async function saveGasto(params: {
   obra_id: string
   proveedor: string
