@@ -232,7 +232,7 @@ export default function ClasificacionModal({
         </div>
 
         {/* Guardar */}
-        <div className="px-4 pb-6 pt-3 border-t border-gray-100 shrink-0">
+        <div className="px-4 pt-3 border-t border-gray-100 shrink-0" style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px) + 64px)' }}>
           <button
             onClick={handleGuardar}
             disabled={guardando}
