@@ -71,18 +71,18 @@ export async function getGastos(obra_id: string): Promise<Gasto[]> {
 
   if (!data) return []
 
-  return data.map((g: any) => ({
+  return data.map((g: Record<string, unknown>) => ({
     ...g,
     etapa_id: '',
     partida_id: '',
-    moneda: g.moneda ?? 'CLP',
+    moneda: (g.moneda as string) ?? 'CLP',
     created_by: 'usuario',
-    items: (g.items_gasto ?? []).map((i: any) => ({
+    items: ((g.items_gasto as Record<string, unknown>[]) ?? []).map((i) => ({
       ...i,
-      etapa_id: i.etapa_id ?? '',
-      partida_id: i.partida_id ?? '',
-      confianza_ia: i.confianza_ia ?? 0,
-      etiquetas: i.etiquetas ?? [],
+      etapa_id: (i.etapa_id as string) ?? '',
+      partida_id: (i.partida_id as string) ?? '',
+      confianza_ia: (i.confianza_ia as number) ?? 0,
+      etiquetas: (i.etiquetas as string[]) ?? [],
     })),
   })) as Gasto[]
 }
@@ -96,18 +96,18 @@ export async function getAllGastos(): Promise<Gasto[]> {
 
   if (!data) return []
 
-  return data.map((g: any) => ({
+  return data.map((g: Record<string, unknown>) => ({
     ...g,
     etapa_id: '',
     partida_id: '',
-    moneda: g.moneda ?? 'CLP',
+    moneda: (g.moneda as string) ?? 'CLP',
     created_by: 'usuario',
-    items: (g.items_gasto ?? []).map((i: any) => ({
+    items: ((g.items_gasto as Record<string, unknown>[]) ?? []).map((i) => ({
       ...i,
-      etapa_id: i.etapa_id ?? '',
-      partida_id: i.partida_id ?? '',
-      confianza_ia: i.confianza_ia ?? 0,
-      etiquetas: i.etiquetas ?? [],
+      etapa_id: (i.etapa_id as string) ?? '',
+      partida_id: (i.partida_id as string) ?? '',
+      confianza_ia: (i.confianza_ia as number) ?? 0,
+      etiquetas: (i.etiquetas as string[]) ?? [],
     })),
   })) as Gasto[]
 }
