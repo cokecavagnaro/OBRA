@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
 import { getObras, getEtapas, getPartidas, getGastos } from '@/lib/supabase/db'
+import * as XLSX from 'xlsx'
 import ClasificacionModal from '@/components/ClasificacionModal'
 import type { Obra, Etapa, Partida, Gasto, ItemGasto } from '@/lib/types'
 
@@ -96,7 +97,27 @@ export default function ObraDetalle() {
   }
 
   function handleExportar() {
-    alert('Exportación Excel próximamente')
+    const filas = gastos.flatMap((g) =>
+      (g.items ?? []).map((i) => ({
+        Proveedor: g.proveedor || '',
+        RUT: g.rut_proveedor || '',
+        Fecha: g.fecha_boleta || '',
+        Descripción: i.descripcion || '',
+        Categoría: i.categoria || '',
+        Cantidad: i.cantidad,
+        Unidad: i.unidad || '',
+        'Precio unitario': i.precio_unitario,
+        Subtotal: i.subtotal,
+        Etapa: etapas.find((e) => e.id === i.etapa_id)?.nombre ?? '',
+        Partida: partidas.find((p) => p.id === i.partida_id)?.nombre ?? '',
+        Etiquetas: i.etiquetas.join(', '),
+        Estado: i.estado || '',
+      }))
+    )
+    const ws = XLSX.utils.json_to_sheet(filas)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, (obra?.nombre ?? 'Obra').slice(0, 31))
+    XLSX.writeFile(wb, `${obra?.nombre ?? 'Obra'}.xlsx`)
   }
 
   return (
