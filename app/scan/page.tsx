@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getObras, getEtapas, getPartidas, saveGasto, createEtapa, createPartida } from '@/lib/supabase/db'
+import { getObras, getEtapas, getPartidas, saveGasto, createEtapa, createPartida, upsertClasificacionAprendida } from '@/lib/supabase/db'
 import { normalizarImagenParaSubida } from '@/lib/imagen'
 import type { Obra, Etapa, Partida, ItemAnalizado } from '@/lib/types'
 import SystemPromptBox from '@/components/SystemPromptBox'
@@ -277,6 +277,17 @@ export default function Scan() {
           estado: i.etiquetas.length > 0 ? 'confirmado' : 'pendiente',
         })),
       })
+
+      for (const i of items) {
+        if (i.etiquetas.length > 0) {
+          await upsertClasificacionAprendida({
+            obra_id: obra.id,
+            descripcion: i.descripcion,
+            categoria: i.categoria,
+            etiquetas: i.etiquetas,
+          })
+        }
+      }
     }
     router.push('/')
   }

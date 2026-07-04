@@ -99,3 +99,14 @@ export interface FormularioEscaneo {
   partida: Partida | null
   contexto_boleta: string
 }
+
+// Clasificación de un producto aprendida de escaneos anteriores
+export interface ClasificacionAprendida {
+  id: string
+  obra_id: string
+  descripcion_normalizada: string
+  categoria: string
+  etiquetas: string[]
+  veces_confirmado: number
+  updated_at: string
+}

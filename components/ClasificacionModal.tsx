@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createEtapa, createPartida, updateItemGasto } from '@/lib/supabase/db'
+import { createEtapa, createPartida, updateItemGasto, upsertClasificacionAprendida } from '@/lib/supabase/db'
 import { formatCLP } from '@/lib/mock'
 import type { ItemGasto, Etapa, Partida } from '@/lib/types'
 
@@ -96,6 +96,14 @@ export default function ClasificacionModal({
       subtotal,
     })
     if (ok) {
+      if (etiquetas.length > 0) {
+        await upsertClasificacionAprendida({
+          obra_id: obraId,
+          descripcion: item.descripcion,
+          categoria: item.categoria,
+          etiquetas,
+        })
+      }
       onGuardado({ ...item, etapa_id: etapaId, partida_id: partidaId, etiquetas, cantidad, precio_unitario: precioUnitario, subtotal }, etapas, partidas)
     }
     setGuardando(false)

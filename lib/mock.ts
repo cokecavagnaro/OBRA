@@ -4,18 +4,6 @@ import type { Obra, Etapa, Partida, Gasto, ItemGasto } from './types'
 const IMG_OBRA_1 = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="200" height="150" fill="#DBEAFE"/><text x="100" y="70" text-anchor="middle" fill="#3B82F6" font-size="28">🧾</text><text x="100" y="100" text-anchor="middle" fill="#60A5FA" font-size="11">Sodimac Quilicura</text></svg>')}`
 const IMG_OBRA_2 = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150"><rect width="200" height="150" fill="#D1FAE5"/><text x="100" y="70" text-anchor="middle" fill="#059669" font-size="28">🧾</text><text x="100" y="100" text-anchor="middle" fill="#34D399" font-size="11">Construmart San Bernardo</text></svg>')}`
 
-export interface ClasificacionConfirmada {
-  obra_id: string
-  descripcion: string
-  categoria: string
-  etiquetas: string[]
-}
-
-export const CLASIFICACIONES_CONFIRMADAS_MOCK: ClasificacionConfirmada[] = [
-  { obra_id: '1', descripcion: 'Pintura látex blanca 20L', categoria: 'Pinturas', etiquetas: ['pintura', 'látex', 'terminaciones'] },
-  { obra_id: '1', descripcion: 'Rodillo lana 23cm', categoria: 'Herramientas', etiquetas: ['pintura', 'herramienta'] },
-]
-
 export const OBRAS_MOCK: Obra[] = [
   {
     id: '1',

@@ -1,5 +1,6 @@
 import { createClient } from './client'
-import type { Obra, Etapa, Partida, Gasto } from '../types'
+import { normalizarDescripcion } from '../aprendizaje'
+import type { Obra, Etapa, Partida, Gasto, ClasificacionAprendida } from '../types'
 
 // ---- Obras ----
 
@@ -209,4 +210,44 @@ export async function saveGasto(params: {
   }
 
   return gasto.id
+}
+
+// ---- Aprendizaje de clasificación ----
+
+export async function getClasificacionesAprendidas(obra_id: string): Promise<ClasificacionAprendida[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('clasificaciones_aprendidas')
+    .select('*')
+    .eq('obra_id', obra_id)
+  return (data ?? []) as ClasificacionAprendida[]
+}
+
+export async function upsertClasificacionAprendida(params: {
+  obra_id: string
+  descripcion: string
+  categoria: string
+  etiquetas: string[]
+}): Promise<void> {
+  const supabase = createClient()
+  const descripcion_normalizada = normalizarDescripcion(params.descripcion)
+
+  const { data: existente } = await supabase
+    .from('clasificaciones_aprendidas')
+    .select('id, veces_confirmado')
+    .eq('obra_id', params.obra_id)
+    .eq('descripcion_normalizada', descripcion_normalizada)
+    .maybeSingle()
+
+  await supabase.from('clasificaciones_aprendidas').upsert(
+    {
+      obra_id: params.obra_id,
+      descripcion_normalizada,
+      categoria: params.categoria,
+      etiquetas: params.etiquetas,
+      veces_confirmado: (existente?.veces_confirmado ?? 0) + 1,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'obra_id,descripcion_normalizada' }
+  )
 }
