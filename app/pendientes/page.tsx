@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getObras, getAllGastos } from '@/lib/supabase/db'
+import { getObras, getAllGastos, updateItemGasto } from '@/lib/supabase/db'
 import type { Obra, ItemGasto } from '@/lib/types'
 
 interface ItemConGasto extends ItemGasto {
@@ -64,6 +64,26 @@ function PendientesContenido() {
     setItems((prev) => prev.map((i) =>
       i.id === id ? { ...i, etiquetas: i.etiquetas.filter((t) => t !== tag) } : i
     ))
+  }
+
+  function actualizarMonto(id: string, campo: 'cantidad' | 'precio_unitario', valor: number) {
+    setItems((prev) => prev.map((i) => {
+      if (i.id !== id) return i
+      const actualizado = { ...i, [campo]: valor }
+      actualizado.subtotal = actualizado.cantidad * actualizado.precio_unitario
+      return actualizado
+    }))
+  }
+
+  function guardarMonto(item: ItemConGasto) {
+    updateItemGasto(item.id, {
+      etapa_id: item.etapa_id || null,
+      partida_id: item.partida_id || null,
+      etiquetas: item.etiquetas,
+      cantidad: item.cantidad,
+      precio_unitario: item.precio_unitario,
+      subtotal: item.subtotal,
+    })
   }
 
   function handleTagKey(e: React.KeyboardEvent<HTMLInputElement>, id: string) {
@@ -127,9 +147,25 @@ function PendientesContenido() {
             </div>
 
             <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-              <span>{item.cantidad} {item.unidad}</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={item.cantidad}
+                onChange={(e) => actualizarMonto(item.id, 'cantidad', Number(e.target.value))}
+                onBlur={() => guardarMonto(items.find((i) => i.id === item.id)!)}
+                className="w-10 text-right outline-none border border-gray-200 rounded px-1 bg-white focus:border-blue-400"
+              />
+              <span>{item.unidad}</span>
               <span>·</span>
-              <span>{formatCLP(item.precio_unitario)} c/u</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={item.precio_unitario}
+                onChange={(e) => actualizarMonto(item.id, 'precio_unitario', Number(e.target.value))}
+                onBlur={() => guardarMonto(items.find((i) => i.id === item.id)!)}
+                className="w-16 outline-none border border-gray-200 rounded px-1 bg-white focus:border-blue-400"
+              />
+              <span>c/u</span>
               <span>·</span>
               <span className="font-semibold text-gray-700">{formatCLP(item.subtotal)}</span>
             </div>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createEtapa, createPartida, updateItemGasto } from '@/lib/supabase/db'
+import { formatCLP } from '@/lib/mock'
 import type { ItemGasto, Etapa, Partida } from '@/lib/types'
 
 interface Props {
@@ -29,6 +30,9 @@ export default function ClasificacionModal({
   const [etapaId, setEtapaId] = useState<string>(item.etapa_id ?? '')
   const [partidaId, setPartidaId] = useState<string>(item.partida_id ?? '')
   const [etiquetas, setEtiquetas] = useState<string[]>(item.etiquetas)
+  const [cantidad, setCantidad] = useState<number>(item.cantidad)
+  const [precioUnitario, setPrecioUnitario] = useState<number>(item.precio_unitario)
+  const subtotal = cantidad * precioUnitario
 
   const [tagInput, setTagInput] = useState('')
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
@@ -87,9 +91,12 @@ export default function ClasificacionModal({
       etapa_id: etapaId || null,
       partida_id: partidaId || null,
       etiquetas,
+      cantidad,
+      precio_unitario: precioUnitario,
+      subtotal,
     })
     if (ok) {
-      onGuardado({ ...item, etapa_id: etapaId, partida_id: partidaId, etiquetas }, etapas, partidas)
+      onGuardado({ ...item, etapa_id: etapaId, partida_id: partidaId, etiquetas, cantidad, precio_unitario: precioUnitario, subtotal }, etapas, partidas)
     }
     setGuardando(false)
   }
@@ -176,6 +183,37 @@ export default function ClasificacionModal({
                   ))}
                 </select>
               )}
+            </div>
+          </div>
+
+          {/* Montos */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-gray-50 rounded-xl p-2 text-center border border-gray-100">
+              <p className="text-[10px] text-gray-400">Cantidad</p>
+              <div className="flex items-center justify-center gap-1">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={cantidad}
+                  onChange={(e) => setCantidad(Number(e.target.value))}
+                  className="w-12 text-sm font-bold text-gray-900 text-right outline-none border border-gray-200 rounded-lg px-1 bg-white focus:border-blue-400"
+                />
+                <span className="text-sm font-bold text-gray-900">{item.unidad}</span>
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-2 text-center border border-gray-100">
+              <p className="text-[10px] text-gray-400">Precio unit.</p>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={precioUnitario}
+                onChange={(e) => setPrecioUnitario(Number(e.target.value))}
+                className="w-full text-sm font-bold text-gray-900 text-center outline-none border border-gray-200 rounded-lg px-1 bg-white focus:border-blue-400"
+              />
+            </div>
+            <div className="bg-blue-50 rounded-xl p-2 text-center border border-blue-100">
+              <p className="text-[10px] text-blue-400">Subtotal</p>
+              <p className="text-sm font-bold text-blue-700">{formatCLP(subtotal)}</p>
             </div>
           </div>
 

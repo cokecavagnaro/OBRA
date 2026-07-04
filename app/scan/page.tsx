@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
 import { getObras, getEtapas, getPartidas, saveGasto, createEtapa, createPartida } from '@/lib/supabase/db'
+import { normalizarImagenParaSubida } from '@/lib/imagen'
 import type { Obra, Etapa, Partida, ItemAnalizado } from '@/lib/types'
 import SystemPromptBox from '@/components/SystemPromptBox'
 
@@ -29,7 +30,9 @@ export default function Scan() {
   const [imagenPreview, setImagenPreview] = useState<string | null>(null)
   const [imagenDataUrl, setImagenDataUrl] = useState<string>('')
   const [analizando, setAnalizando] = useState(false)
+  const [procesandoImagen, setProcesandoImagen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const fileGaleriaRef = useRef<HTMLInputElement>(null)
 
   // Paso 3 — one item at a time
   const [items, setItems] = useState<ItemAnalizado[]>(ITEMS_DEMO)
@@ -96,14 +99,35 @@ export default function Scan() {
     ))
   }
 
+  function setItemCantidad(cantidad: number) {
+    setItems((prev) => prev.map((x, idx) =>
+      idx === itemActual ? { ...x, cantidad, subtotal: cantidad * x.precio_unitario } : x
+    ))
+  }
+
+  function setItemPrecio(precio_unitario: number) {
+    setItems((prev) => prev.map((x, idx) =>
+      idx === itemActual ? { ...x, precio_unitario, subtotal: x.cantidad * precio_unitario } : x
+    ))
+  }
+
   const fileSeleccionadoRef = useRef<File | null>(null)
 
-  function handleCaptura(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleCaptura(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    fileSeleccionadoRef.current = file
-    const url = URL.createObjectURL(file)
-    setImagenPreview(url)
+    setProcesandoImagen(true)
+    try {
+      const { blob, dataUrl } = await normalizarImagenParaSubida(file)
+      fileSeleccionadoRef.current = new File([blob], 'boleta.jpg', { type: 'image/jpeg' })
+      setImagenPreview(dataUrl)
+    } catch (err) {
+      console.error('Error al procesar imagen:', err)
+      fileSeleccionadoRef.current = file
+      setImagenPreview(URL.createObjectURL(file))
+    } finally {
+      setProcesandoImagen(false)
+    }
   }
 
   async function handleAnalizar() {
@@ -360,6 +384,7 @@ export default function Scan() {
       {paso === 2 && (
         <div className="px-4 py-5 space-y-4">
           <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleCaptura} className="hidden" />
+          <input ref={fileGaleriaRef} type="file" accept="image/*" onChange={handleCaptura} className="hidden" />
 
           {!imagenPreview ? (
             <button
@@ -386,7 +411,7 @@ export default function Scan() {
           )}
 
           <button
-            onClick={() => fileRef.current?.click()}
+            onClick={() => fileGaleriaRef.current?.click()}
             className="w-full border border-gray-200 rounded-xl py-2.5 text-sm text-gray-500 font-medium"
           >
             Subir desde galería
@@ -394,10 +419,10 @@ export default function Scan() {
 
           <button
             onClick={handleAnalizar}
-            disabled={!imagenPreview || analizando}
+            disabled={!imagenPreview || analizando || procesandoImagen}
             className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-40 flex items-center justify-center gap-2"
           >
-            {analizando ? (
+            {procesandoImagen ? 'Procesando imagen...' : analizando ? (
               <>
                 <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -535,11 +560,26 @@ export default function Scan() {
             <div className="grid grid-cols-3 gap-2 mb-4">
               <div className="bg-white rounded-xl p-2 text-center border border-gray-100">
                 <p className="text-[10px] text-gray-400">Cantidad</p>
-                <p className="text-sm font-bold text-gray-900">{item.cantidad} {item.unidad}</p>
+                <div className="flex items-center justify-center gap-1">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={item.cantidad}
+                    onChange={(e) => setItemCantidad(Number(e.target.value))}
+                    className="w-12 text-sm font-bold text-gray-900 text-right outline-none border border-gray-200 rounded-lg px-1 bg-white focus:border-blue-400"
+                  />
+                  <span className="text-sm font-bold text-gray-900">{item.unidad}</span>
+                </div>
               </div>
               <div className="bg-white rounded-xl p-2 text-center border border-gray-100">
                 <p className="text-[10px] text-gray-400">Precio unit.</p>
-                <p className="text-sm font-bold text-gray-900">{formatCLP(item.precio_unitario)}</p>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={item.precio_unitario}
+                  onChange={(e) => setItemPrecio(Number(e.target.value))}
+                  className="w-full text-sm font-bold text-gray-900 text-center outline-none border border-gray-200 rounded-lg px-1 bg-white focus:border-blue-400"
+                />
               </div>
               <div className="bg-white rounded-xl p-2 text-center border border-blue-100 bg-blue-50">
                 <p className="text-[10px] text-blue-400">Subtotal</p>
