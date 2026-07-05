@@ -21,6 +21,8 @@ export default function ObraDetalle() {
   const [filtroEtapa, setFiltroEtapa] = useState<string | null>(null)
   const [filtroPartida, setFiltroPartida] = useState<string | null>(null)
   const [filtrosEtiqueta, setFiltrosEtiqueta] = useState<string[]>([])
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState('')
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
   const [itemEditando, setItemEditando] = useState<ItemGasto | null>(null)
 
   useEffect(() => {
@@ -60,7 +62,7 @@ export default function ObraDetalle() {
     new Set(gastos.flatMap((g) => (g.items ?? []).flatMap((i) => i.etiquetas)))
   ).sort()
 
-  const hayFiltros = filtroEtapa || filtroPartida || filtrosEtiqueta.length > 0
+  const hayFiltros = !!(filtroEtapa || filtroPartida || filtrosEtiqueta.length > 0 || filtroFechaDesde || filtroFechaHasta)
 
   const itemsFiltrados = hayFiltros
     ? gastos
@@ -69,6 +71,8 @@ export default function ObraDetalle() {
           if (filtroEtapa && i.etapa_id !== filtroEtapa) return false
           if (filtroPartida && i.partida_id !== filtroPartida) return false
           if (filtrosEtiqueta.length > 0 && !filtrosEtiqueta.some((tag) => i.etiquetas.includes(tag))) return false
+          if (filtroFechaDesde && i.gasto.fecha_boleta < filtroFechaDesde) return false
+          if (filtroFechaHasta && i.gasto.fecha_boleta > filtroFechaHasta) return false
           return true
         })
     : []
@@ -82,6 +86,8 @@ export default function ObraDetalle() {
     setFiltroEtapa(null)
     setFiltroPartida(null)
     setFiltrosEtiqueta([])
+    setFiltroFechaDesde('')
+    setFiltroFechaHasta('')
   }
 
   function handleItemGuardado(itemActualizado: ItemGasto, nuevasEtapas: Etapa[], nuevasPartidas: Partida[]) {
@@ -215,6 +221,25 @@ export default function ObraDetalle() {
             </div>
           </div>
         )}
+
+        {/* Filtro Fecha */}
+        <div>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Fecha</p>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={filtroFechaDesde}
+              onChange={(e) => setFiltroFechaDesde(e.target.value)}
+              className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white"
+            />
+            <input
+              type="date"
+              value={filtroFechaHasta}
+              onChange={(e) => setFiltroFechaHasta(e.target.value)}
+              className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white"
+            />
+          </div>
+        </div>
 
         {hayFiltros && (
           <button onClick={limpiarFiltros} className="text-xs text-blue-600 font-medium">
