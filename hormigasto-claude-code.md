@@ -1,4 +1,4 @@
-# Obra360 — Prompt maestro para Claude Code
+# Hormigasto — Prompt maestro para Claude Code
 
 Pega esto completo al inicio de tu sesión en Claude Code antes de cualquier otra cosa.
 
@@ -6,7 +6,7 @@ Pega esto completo al inicio de tu sesión en Claude Code antes de cualquier otr
 
 ## CONTEXTO DEL PROYECTO
 
-Estoy construyendo una app web mobile-first llamada **Obra360**. Es una herramienta de gestión de gastos para empresas constructoras chilenas. El usuario fotografía boletas y facturas con la cámara del celular, la IA (Claude) extrae cada ítem individual de la boleta y los clasifica automáticamente.
+Estoy construyendo una app web mobile-first llamada **Hormigasto**. Es una herramienta de gestión de gastos para empresas constructoras chilenas. El usuario fotografía boletas y facturas con la cámara del celular, la IA (Claude) extrae cada ítem individual de la boleta y los clasifica automáticamente.
 
 Tengo un prototipo funcional en React que ya contiene toda la lógica de negocio y los flujos de UI. Vamos a construir la versión real con Next.js y Supabase siguiendo exactamente esa lógica.
 
@@ -165,7 +165,7 @@ create policy "usuarios autenticados insertan items" on items_gasto for insert w
 ## ESTRUCTURA DE CARPETAS
 
 ```
-obra360/
+hormigasto/
 ├── app/
 │   ├── layout.tsx              ← layout principal con BottomNav
 │   ├── page.tsx                ← pantalla de inicio (lista de gastos)
@@ -282,7 +282,7 @@ El prompt al modelo debe especificar:
 
 ## PANTALLA DE INICIO
 
-- Header: "Obra360" + rol del usuario + botón ⚙ Obras + badge de pendientes
+- Header: "Hormigasto" + rol del usuario + botón ⚙ Obras + badge de pendientes
 - 2 metric cards: Total registrado en CLP / Número de boletas
 - Filtros pills: Por fecha | Por monto | Por obra + select de obra + select de partida
 - Lista de gastos (cards): proveedor, RUT, fecha, total, obra › etapa › partida, tags, contador de ítems
@@ -309,7 +309,7 @@ Archivo `lib/exportar.ts` con dos hojas:
 
 **Hoja 2 "Ítems detalle"**: fecha, proveedor, obra, etapa, partida, descripción, cantidad, unidad, precio unitario, subtotal, categoría, etiquetas
 
-Nombre del archivo: `obra360_export_YYYY-MM-DD.xlsx`
+Nombre del archivo: `hormigasto_export_YYYY-MM-DD.xlsx`
 Montos formateados con separador de miles chileno.
 
 ---

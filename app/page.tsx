@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { formatCLP } from '@/lib/mock'
 import { getObras, getAllGastos } from '@/lib/supabase/db'
 import type { Obra, Gasto } from '@/lib/types'
+import AntLogo from '@/components/AntLogo'
 
 export default function Inicio() {
   const [obras, setObras] = useState<Obra[]>([])
@@ -44,9 +45,12 @@ export default function Inicio() {
       {/* Header */}
       <div className="px-4 pt-12 pb-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Obra360</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Tus obras</p>
+          <div className="flex items-center gap-2">
+            <AntLogo size={28} className="text-gray-900" />
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Hormigasto</h1>
+              <p className="text-xs text-gray-400 mt-0.5">Tus obras</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {pendientesCount > 0 && (
