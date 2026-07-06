@@ -1,12 +1,19 @@
 export type Moneda = 'CLP' | 'UF'
-export type RolUsuario = 'admin' | 'operario' | 'visor'
+export type RolUsuario = 'super_admin' | 'admin' | 'usuario'
 export type EstadoGasto = 'confirmado' | 'pendiente'
 export type EstadoItem = 'confirmado' | 'pendiente' | 'rechazado'
+
+export interface Cuenta {
+  id: string
+  nombre: string
+  created_at: string
+}
 
 export interface Obra {
   id: string
   nombre: string
   system_prompt: string
+  cuenta_id?: string
   created_at: string
 }
 
@@ -26,7 +33,9 @@ export interface Partida {
 
 export interface Usuario {
   id: string
+  cuenta_id: string
   nombre: string
+  email: string
   rol: RolUsuario
 }
 

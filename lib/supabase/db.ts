@@ -1,6 +1,16 @@
 import { createClient } from './client'
 import { normalizarDescripcion } from '../aprendizaje'
-import type { Obra, Etapa, Partida, Gasto, ClasificacionAprendida } from '../types'
+import type { Obra, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario } from '../types'
+
+// ---- Usuarios / cuenta ----
+
+export async function getUsuarioActual(): Promise<Usuario | null> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
+  return data as Usuario | null
+}
 
 // ---- Obras ----
 
@@ -14,9 +24,10 @@ export async function createObra(nombre: string, system_prompt = ''): Promise<Ob
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+  const usuarioActual = await getUsuarioActual()
   const { data, error } = await supabase
     .from('obras')
-    .insert({ nombre, system_prompt, user_id: user.id })
+    .insert({ nombre, system_prompt, user_id: user.id, cuenta_id: usuarioActual?.cuenta_id })
     .select()
     .single()
   if (error) console.error('createObra:', error)
