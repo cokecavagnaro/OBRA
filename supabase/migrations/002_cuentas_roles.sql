@@ -30,6 +30,13 @@ create table usuarios (
 
 alter table obras add column if not exists cuenta_id uuid references cuentas(id);
 
+-- Las tablas nuevas creadas por SQL no heredan automáticamente los permisos
+-- de lectura del rol `authenticated` — sin este grant, cualquier política RLS
+-- de otra tabla (ej. obras) que consulte `usuarios` por dentro falla con 403,
+-- aunque los datos y la política estén bien.
+grant select on usuarios to authenticated;
+grant select on cuentas to authenticated;
+
 -- ---------- Bootstrap automático al registrarse ----------
 -- Todo usuario nuevo en auth.users arma su propia cuenta y queda como
 -- super_admin de ella. (En Fase B se ajusta para que un usuario invitado
