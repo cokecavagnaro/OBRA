@@ -102,28 +102,32 @@ export default function ObraDetalle() {
     setItemEditando(null)
   }
 
+  function itemARow(i: ItemGasto, gasto: Gasto) {
+    return {
+      Proveedor: gasto.proveedor || '',
+      RUT: gasto.rut_proveedor || '',
+      Fecha: gasto.fecha_boleta || '',
+      Descripción: i.descripcion || '',
+      Categoría: i.categoria || '',
+      Cantidad: i.cantidad,
+      Unidad: i.unidad || '',
+      'Precio unitario': i.precio_unitario,
+      Subtotal: i.subtotal,
+      Etapa: etapas.find((e) => e.id === i.etapa_id)?.nombre ?? '',
+      Partida: partidas.find((p) => p.id === i.partida_id)?.nombre ?? '',
+      Etiquetas: i.etiquetas.join(', '),
+      Estado: i.estado || '',
+    }
+  }
+
   function handleExportar() {
-    const filas = gastos.flatMap((g) =>
-      (g.items ?? []).map((i) => ({
-        Proveedor: g.proveedor || '',
-        RUT: g.rut_proveedor || '',
-        Fecha: g.fecha_boleta || '',
-        Descripción: i.descripcion || '',
-        Categoría: i.categoria || '',
-        Cantidad: i.cantidad,
-        Unidad: i.unidad || '',
-        'Precio unitario': i.precio_unitario,
-        Subtotal: i.subtotal,
-        Etapa: etapas.find((e) => e.id === i.etapa_id)?.nombre ?? '',
-        Partida: partidas.find((p) => p.id === i.partida_id)?.nombre ?? '',
-        Etiquetas: i.etiquetas.join(', '),
-        Estado: i.estado || '',
-      }))
-    )
+    const filas = hayFiltros
+      ? itemsFiltrados.map((i) => itemARow(i, i.gasto))
+      : gastos.flatMap((g) => (g.items ?? []).map((i) => itemARow(i, g)))
     const ws = XLSX.utils.json_to_sheet(filas)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, (obra?.nombre ?? 'Obra').slice(0, 31))
-    XLSX.writeFile(wb, `${obra?.nombre ?? 'Obra'}.xlsx`)
+    XLSX.writeFile(wb, `${obra?.nombre ?? 'Obra'}${hayFiltros ? ' (filtrado)' : ''}.xlsx`)
   }
 
   return (
