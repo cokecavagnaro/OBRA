@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import AntLogo from '@/components/AntLogo'
 
 type Pantalla = 'login' | 'signup'
 type ModoLogin = 'password' | 'magic'
@@ -83,7 +84,10 @@ export default function Login() {
     <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Obra360</h1>
+          <div className="flex items-center justify-center gap-2">
+            <AntLogo size={32} className="text-gray-900" />
+            <h1 className="text-2xl font-bold text-gray-900">Hormigasto</h1>
+          </div>
           <p className="text-sm text-gray-400 mt-1">Gestión de gastos de construcción</p>
         </div>
 

@@ -1,6 +1,6 @@
 import type { Gasto, ItemGasto } from './types'
 
-const KEY_GASTOS = 'obra360_gastos'
+const KEY_GASTOS = 'hormigasto_gastos'
 
 export function getGastosStorage(): Gasto[] {
   if (typeof window === 'undefined') return []

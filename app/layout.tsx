@@ -6,7 +6,7 @@ import BottomNav from '@/components/BottomNav'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Obra360',
+  title: 'Hormigasto',
   description: 'Gestión de gastos para obras de construcción',
 }
 

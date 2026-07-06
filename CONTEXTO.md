@@ -1,4 +1,4 @@
-# Obra360 — Contexto del proyecto
+# Hormigasto — Contexto del proyecto
 
 ## Stack
 - Next.js 14 App Router + TypeScript strict
@@ -65,7 +65,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
    - Devuelve: array de `ItemAnalizado[]` con descripcion, cantidad, unidad, precio_unitario, subtotal, categoria, etiquetas, confianza
    - Conectar en `app/scan/page.tsx` reemplazando `handleAnalizar()` mock
 
-2. **Supabase** — ejecutar schema SQL (ver `obra360-claude-code.md`) y reemplazar mock data
+2. **Supabase** — ejecutar schema SQL (ver `hormigasto-claude-code.md`) y reemplazar mock data
 
 3. **Excel export** — construir `lib/exportar.ts` con `xlsx` o `exceljs`
 
