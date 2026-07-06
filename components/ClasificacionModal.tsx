@@ -11,6 +11,7 @@ interface Props {
   etapas: Etapa[]
   partidas: Partida[]
   etiquetasSugeridas: string[]
+  puedeEtiquetar?: boolean
   onGuardado: (item: ItemGasto, nuevasEtapas: Etapa[], nuevasPartidas: Partida[]) => void
   onCerrar: () => void
 }
@@ -21,6 +22,7 @@ export default function ClasificacionModal({
   etapas: etapasIniciales,
   partidas: partidasIniciales,
   etiquetasSugeridas,
+  puedeEtiquetar = true,
   onGuardado,
   onCerrar,
 }: Props) {
@@ -233,7 +235,8 @@ export default function ClasificacionModal({
                 <button
                   key={tag}
                   onClick={() => removeTag(tag)}
-                  className="flex items-center gap-1 bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full font-medium hover:bg-red-500 transition-colors"
+                  disabled={!puedeEtiquetar}
+                  className="flex items-center gap-1 bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full font-medium hover:bg-red-500 transition-colors disabled:opacity-60"
                 >
                   {tag} ×
                 </button>
@@ -242,31 +245,33 @@ export default function ClasificacionModal({
                 <span className="text-xs text-gray-400 italic">Sin etiquetas</span>
               )}
             </div>
-            <div className="relative">
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => { setTagInput(e.target.value); setMostrarSugerencias(true) }}
-                onKeyDown={handleTagKey}
-                onFocus={() => setMostrarSugerencias(true)}
-                placeholder="+ Agregar etiqueta..."
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 placeholder-gray-300 outline-none focus:border-blue-300"
-              />
-              {mostrarSugerencias && sugerenciasFiltradas.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden">
-                  {sugerenciasFiltradas.map((t) => (
-                    <button
-                      key={t}
-                      onMouseDown={() => addTag(t)}
-                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 border-b border-gray-50 last:border-0"
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {tagInput.trim() && (
+            {puedeEtiquetar && (
+              <div className="relative">
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => { setTagInput(e.target.value); setMostrarSugerencias(true) }}
+                  onKeyDown={handleTagKey}
+                  onFocus={() => setMostrarSugerencias(true)}
+                  placeholder="+ Agregar etiqueta..."
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 placeholder-gray-300 outline-none focus:border-blue-300"
+                />
+                {mostrarSugerencias && sugerenciasFiltradas.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden">
+                    {sugerenciasFiltradas.map((t) => (
+                      <button
+                        key={t}
+                        onMouseDown={() => addTag(t)}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 border-b border-gray-50 last:border-0"
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {puedeEtiquetar && tagInput.trim() && (
               <button
                 onClick={() => addTag(tagInput)}
                 className="mt-1.5 text-xs text-blue-600 font-medium px-2"

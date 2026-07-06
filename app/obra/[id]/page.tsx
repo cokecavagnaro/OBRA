@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getObras, getEtapas, getPartidas, getGastos } from '@/lib/supabase/db'
+import { getObras, getEtapas, getPartidas, getGastos, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
+import { tienePermiso } from '@/lib/permisos'
 import * as XLSX from 'xlsx'
 import ClasificacionModal from '@/components/ClasificacionModal'
-import type { Obra, Etapa, Partida, Gasto, ItemGasto } from '@/lib/types'
+import type { Obra, Etapa, Partida, Gasto, ItemGasto, Usuario, PermissionOverride } from '@/lib/types'
 
 export default function ObraDetalle() {
   const { id } = useParams<{ id: string }>()
@@ -25,6 +26,11 @@ export default function ObraDetalle() {
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
   const [itemEditando, setItemEditando] = useState<ItemGasto | null>(null)
 
+  const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
+  const [overrides, setOverrides] = useState<PermissionOverride[]>([])
+  const puedeExportar = usuarioActual ? tienePermiso(usuarioActual, overrides, 'export_excel') : false
+  const puedeEditarItems = usuarioActual ? tienePermiso(usuarioActual, overrides, 'edit_scanned_items') : false
+
   useEffect(() => {
     Promise.all([getObras(), getEtapas(id), getPartidas(id), getGastos(id)]).then(
       ([obras, e, p, g]) => {
@@ -35,6 +41,10 @@ export default function ObraDetalle() {
         setLoading(false)
       }
     )
+    getUsuarioActual().then(async (u) => {
+      setUsuarioActual(u)
+      if (u) setOverrides(await getPermisosOverrides(u.id))
+    })
   }, [id])
 
   if (loading) {
@@ -269,14 +279,16 @@ export default function ObraDetalle() {
                   <p className="text-sm font-semibold text-gray-900 flex-1">{item.descripcion}</p>
                   <div className="flex items-center gap-2 shrink-0">
                     <p className="text-sm font-bold text-gray-900">{formatCLP(item.subtotal)}</p>
-                    <button
-                      onClick={() => setItemEditando(item)}
-                      className="text-gray-400 hover:text-blue-600 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
+                    {puedeEditarItems && (
+                      <button
+                        onClick={() => setItemEditando(item)}
+                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mt-0.5">{item.cantidad} {item.unidad}</p>
@@ -306,14 +318,16 @@ export default function ObraDetalle() {
                       <span className="truncate flex-1">{item.descripcion}</span>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
                         <span>{formatCLP(item.subtotal)}</span>
-                        <button
-                          onClick={() => setItemEditando(item)}
-                          className="text-gray-300 hover:text-blue-500 transition-colors"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
+                        {puedeEditarItems && (
+                          <button
+                            onClick={() => setItemEditando(item)}
+                            className="text-gray-300 hover:text-blue-500 transition-colors"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -330,17 +344,19 @@ export default function ObraDetalle() {
       </div>
 
       {/* Botón exportar */}
-      <div className="px-4 pb-6 pt-2">
-        <button
-          onClick={handleExportar}
-          className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white rounded-xl py-3.5 text-sm font-semibold"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          Exportar Excel — {obra.nombre}
-        </button>
-      </div>
+      {puedeExportar && (
+        <div className="px-4 pb-6 pt-2">
+          <button
+            onClick={handleExportar}
+            className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white rounded-xl py-3.5 text-sm font-semibold"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Exportar Excel — {obra.nombre}
+          </button>
+        </div>
+      )}
 
       {/* Modal de edición de clasificación */}
       {itemEditando && (
@@ -350,6 +366,7 @@ export default function ObraDetalle() {
           etapas={etapas}
           partidas={partidas}
           etiquetasSugeridas={etiquetasUnicas}
+          puedeEtiquetar={usuarioActual ? tienePermiso(usuarioActual, overrides, 'tag_items') : false}
           onGuardado={handleItemGuardado}
           onCerrar={() => setItemEditando(null)}
         />

@@ -3,8 +3,9 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getObras, getAllGastos, updateItemGasto } from '@/lib/supabase/db'
-import type { Obra, ItemGasto } from '@/lib/types'
+import { getObras, getAllGastos, updateItemGasto, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
+import { tienePermiso } from '@/lib/permisos'
+import type { Obra, ItemGasto, Usuario, PermissionOverride } from '@/lib/types'
 
 interface ItemConGasto extends ItemGasto {
   obra_id: string
@@ -23,6 +24,12 @@ function PendientesContenido() {
   const [tagsEdit, setTagsEdit] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
+  const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
+  const [overrides, setOverrides] = useState<PermissionOverride[]>([])
+  const puedeEtiquetar = usuarioActual ? tienePermiso(usuarioActual, overrides, 'tag_items') : false
+  const puedeEditar = usuarioActual ? tienePermiso(usuarioActual, overrides, 'edit_scanned_items') : false
+  const puedeEliminar = usuarioActual ? tienePermiso(usuarioActual, overrides, 'delete_scanned_items') : false
+
   useEffect(() => {
     Promise.all([getObras(), getAllGastos()]).then(([obras, gastos]) => {
       setObras(obras)
@@ -39,6 +46,10 @@ function PendientesContenido() {
       )
       setItems(pendientes)
       setLoading(false)
+    })
+    getUsuarioActual().then(async (u) => {
+      setUsuarioActual(u)
+      if (u) setOverrides(await getPermisosOverrides(u.id))
     })
   }, [])
 
@@ -151,9 +162,10 @@ function PendientesContenido() {
                 type="number"
                 inputMode="decimal"
                 value={item.cantidad}
+                disabled={!puedeEditar}
                 onChange={(e) => actualizarMonto(item.id, 'cantidad', Number(e.target.value))}
                 onBlur={() => guardarMonto(items.find((i) => i.id === item.id)!)}
-                className="w-10 text-right outline-none border border-gray-200 rounded px-1 bg-white focus:border-blue-400"
+                className="w-10 text-right outline-none border border-gray-200 rounded px-1 bg-white focus:border-blue-400 disabled:opacity-60"
               />
               <span>{item.unidad}</span>
               <span>·</span>
@@ -161,9 +173,10 @@ function PendientesContenido() {
                 type="number"
                 inputMode="decimal"
                 value={item.precio_unitario}
+                disabled={!puedeEditar}
                 onChange={(e) => actualizarMonto(item.id, 'precio_unitario', Number(e.target.value))}
                 onBlur={() => guardarMonto(items.find((i) => i.id === item.id)!)}
-                className="w-16 outline-none border border-gray-200 rounded px-1 bg-white focus:border-blue-400"
+                className="w-16 outline-none border border-gray-200 rounded px-1 bg-white focus:border-blue-400 disabled:opacity-60"
               />
               <span>c/u</span>
               <span>·</span>
@@ -179,29 +192,34 @@ function PendientesContenido() {
                   <button
                     key={tag}
                     onClick={() => removeTag(item.id, tag)}
-                    className="flex items-center gap-1 bg-gray-100 text-gray-600 text-[10px] px-2 py-0.5 rounded-full hover:bg-red-50 hover:text-red-400 transition-colors"
+                    disabled={!puedeEtiquetar}
+                    className="flex items-center gap-1 bg-gray-100 text-gray-600 text-[10px] px-2 py-0.5 rounded-full hover:bg-red-50 hover:text-red-400 transition-colors disabled:opacity-60"
                   >
                     {tag} ×
                   </button>
                 ))}
-                <input
-                  type="text"
-                  value={tagsEdit[item.id] ?? ''}
-                  onChange={(e) => setTagsEdit((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                  onKeyDown={(e) => handleTagKey(e, item.id)}
-                  placeholder="+ etiqueta"
-                  className="text-[10px] text-gray-500 bg-transparent outline-none border border-dashed border-gray-300 rounded-full px-2 py-0.5 w-20 placeholder-gray-300"
-                />
+                {puedeEtiquetar && (
+                  <input
+                    type="text"
+                    value={tagsEdit[item.id] ?? ''}
+                    onChange={(e) => setTagsEdit((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                    onKeyDown={(e) => handleTagKey(e, item.id)}
+                    placeholder="+ etiqueta"
+                    className="text-[10px] text-gray-500 bg-transparent outline-none border border-dashed border-gray-300 rounded-full px-2 py-0.5 w-20 placeholder-gray-300"
+                  />
+                )}
               </div>
             </div>
 
             <div className="flex gap-2">
-              <button
-                onClick={() => rechazar(item.id)}
-                className="flex-1 border border-gray-200 rounded-lg py-2 text-xs font-medium text-gray-500"
-              >
-                Rechazar
-              </button>
+              {puedeEliminar && (
+                <button
+                  onClick={() => rechazar(item.id)}
+                  className="flex-1 border border-gray-200 rounded-lg py-2 text-xs font-medium text-gray-500"
+                >
+                  Rechazar
+                </button>
+              )}
               <button
                 onClick={() => confirmar(item.id)}
                 className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-xs font-semibold"

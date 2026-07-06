@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getObras, getEtapas, getPartidas, saveGasto, createEtapa, createPartida, upsertClasificacionAprendida } from '@/lib/supabase/db'
+import { getObras, getEtapas, getPartidas, saveGasto, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { normalizarImagenParaSubida } from '@/lib/imagen'
-import type { Obra, Etapa, Partida, ItemAnalizado } from '@/lib/types'
+import { tienePermiso } from '@/lib/permisos'
+import type { Obra, Etapa, Partida, ItemAnalizado, Usuario, PermissionOverride } from '@/lib/types'
 import SystemPromptBox from '@/components/SystemPromptBox'
 
 type Paso = 1 | 2 | 3
@@ -54,8 +55,18 @@ export default function Scan() {
   const [creandoPartidaInline, setCreandoPartidaInline] = useState(false)
   const [nuevaPartidaNombre, setNuevaPartidaNombre] = useState('')
 
+  const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
+  const [overrides, setOverrides] = useState<PermissionOverride[]>([])
+  const [permisosCargados, setPermisosCargados] = useState(false)
+  const puedeEscanear = usuarioActual ? tienePermiso(usuarioActual, overrides, 'scan_receipts') : false
+
   useEffect(() => {
     getObras().then(setObras)
+    getUsuarioActual().then(async (u) => {
+      setUsuarioActual(u)
+      if (u) setOverrides(await getPermisosOverrides(u.id))
+      setPermisosCargados(true)
+    })
   }, [])
 
   const paso1Completo = !!obra
@@ -295,6 +306,15 @@ export default function Scan() {
   const sugerenciasFiltradas = tagsObra.filter(
     (t) => t.includes(tagInput.toLowerCase()) && !item?.etiquetas.includes(t)
   )
+
+  if (permisosCargados && !puedeEscanear) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center">
+        <p className="text-sm font-medium text-gray-600">No tienes permiso para escanear boletas</p>
+        <p className="text-xs text-gray-400 mt-1">Pídele a un administrador de tu cuenta que te lo habilite.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-white">

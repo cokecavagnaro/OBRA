@@ -37,6 +37,23 @@ export interface Usuario {
   nombre: string
   email: string
   rol: RolUsuario
+  activo: boolean
+}
+
+export interface Invitacion {
+  id: string
+  cuenta_id: string
+  email: string
+  rol: 'admin' | 'usuario'
+  invitado_por: string
+  usada: boolean
+  created_at: string
+}
+
+export interface PermissionOverride {
+  user_id: string
+  permission_key: string
+  granted: boolean
 }
 
 export interface Gasto {

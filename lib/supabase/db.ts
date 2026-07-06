@@ -1,6 +1,7 @@
 import { createClient } from './client'
 import { normalizarDescripcion } from '../aprendizaje'
-import type { Obra, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario } from '../types'
+import type { Obra, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta } from '../types'
+import type { PermisoKey } from '../permisos'
 
 // ---- Usuarios / cuenta ----
 
@@ -10,6 +11,93 @@ export async function getUsuarioActual(): Promise<Usuario | null> {
   if (!user) return null
   const { data } = await supabase.from('usuarios').select('*').eq('id', user.id).single()
   return data as Usuario | null
+}
+
+export async function getUsuariosDeCuenta(cuentaId: string): Promise<Usuario[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('usuarios').select('*').eq('cuenta_id', cuentaId).order('created_at')
+  return (data ?? []) as Usuario[]
+}
+
+export async function actualizarRolUsuario(id: string, rol: 'admin' | 'usuario'): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('usuarios').update({ rol }).eq('id', id)
+}
+
+export async function darDeBajaUsuario(id: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('usuarios').update({ activo: false }).eq('id', id)
+}
+
+export async function reactivarUsuario(id: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('usuarios').update({ activo: true }).eq('id', id)
+}
+
+export async function updateCuentaNombre(cuentaId: string, nombre: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('cuentas').update({ nombre }).eq('id', cuentaId)
+}
+
+export async function getCuenta(cuentaId: string): Promise<Cuenta | null> {
+  const supabase = createClient()
+  const { data } = await supabase.from('cuentas').select('*').eq('id', cuentaId).single()
+  return data as Cuenta | null
+}
+
+// ---- Invitaciones ----
+
+export async function crearInvitacion(cuentaId: string, email: string, rol: 'admin' | 'usuario'): Promise<boolean> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+
+  const { error } = await supabase
+    .from('invitaciones')
+    .insert({ cuenta_id: cuentaId, email, rol, invitado_por: user.id })
+  if (error) {
+    console.error('crearInvitacion:', error)
+    return false
+  }
+
+  const { error: otpError } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+  })
+  if (otpError) console.error('crearInvitacion (magic link):', otpError)
+
+  return true
+}
+
+export async function getInvitacionesPendientes(cuentaId: string): Promise<Invitacion[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('invitaciones')
+    .select('*')
+    .eq('cuenta_id', cuentaId)
+    .eq('usada', false)
+    .order('created_at')
+  return (data ?? []) as Invitacion[]
+}
+
+export async function cancelarInvitacion(id: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('invitaciones').delete().eq('id', id)
+}
+
+// ---- Permisos ----
+
+export async function getPermisosOverrides(usuarioId: string): Promise<PermissionOverride[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('user_permission_overrides').select('*').eq('user_id', usuarioId)
+  return (data ?? []) as PermissionOverride[]
+}
+
+export async function setPermisoOverride(usuarioId: string, permiso: PermisoKey, granted: boolean): Promise<void> {
+  const supabase = createClient()
+  await supabase
+    .from('user_permission_overrides')
+    .upsert({ user_id: usuarioId, permission_key: permiso, granted }, { onConflict: 'user_id,permission_key' })
 }
 
 // ---- Obras ----

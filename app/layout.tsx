@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <div className="app-container">
           <main className="pb-16">{children}</main>
-          <BottomNav pendientes={2} />
+          <BottomNav />
         </div>
       </body>
     </html>
