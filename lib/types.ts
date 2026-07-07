@@ -56,6 +56,12 @@ export interface PermissionOverride {
   granted: boolean
 }
 
+export interface InvitacionPermissionOverride {
+  invitacion_id: string
+  permission_key: string
+  granted: boolean
+}
+
 export interface Gasto {
   id: string
   obra_id: string

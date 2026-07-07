@@ -1,4 +1,4 @@
-import type { Usuario, PermissionOverride } from './types'
+import type { Usuario } from './types'
 
 export const PERMISOS = [
   { key: 'scan_receipts', label: 'Escanear boletas' },
@@ -19,8 +19,8 @@ const DEFAULTS_POR_ROL: Record<'admin' | 'usuario', PermisoKey[]> = {
 }
 
 export function tienePermiso(
-  usuario: Usuario,
-  overrides: PermissionOverride[],
+  usuario: Pick<Usuario, 'rol'>,
+  overrides: { permission_key: string; granted: boolean }[],
   permiso: PermisoKey
 ): boolean {
   if (usuario.rol === 'super_admin') return true

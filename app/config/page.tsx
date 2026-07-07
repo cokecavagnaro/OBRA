@@ -8,7 +8,7 @@ import {
   crearInvitacion, getInvitacionesPendientes, cancelarInvitacion,
   darDeBajaUsuario, reactivarUsuario, getPermisosOverrides,
 } from '@/lib/supabase/db'
-import { tienePermiso } from '@/lib/permisos'
+import { tienePermiso, PERMISOS, type PermisoKey } from '@/lib/permisos'
 import EditarUsuarioModal from '@/components/EditarUsuarioModal'
 import type { Obra, Etapa, Partida, Usuario, Cuenta, Invitacion, PermissionOverride } from '@/lib/types'
 
@@ -46,6 +46,7 @@ export default function Config() {
   const [invitaciones, setInvitaciones] = useState<Invitacion[]>([])
   const [emailInvitar, setEmailInvitar] = useState('')
   const [rolInvitar, setRolInvitar] = useState<'admin' | 'usuario'>('usuario')
+  const [overridesInvitar, setOverridesInvitar] = useState<{ permission_key: PermisoKey; granted: boolean }[]>([])
   const [invitando, setInvitando] = useState(false)
   const [usuarioEditando, setUsuarioEditando] = useState<Usuario | null>(null)
 
@@ -116,14 +117,26 @@ export default function Config() {
   async function handleInvitar() {
     if (!usuarioActual || !emailInvitar.trim()) return
     setInvitando(true)
-    const ok = await crearInvitacion(usuarioActual.cuenta_id, emailInvitar.trim(), rolInvitar)
+    const ok = await crearInvitacion(emailInvitar.trim(), rolInvitar, overridesInvitar)
     if (ok) {
       const nuevas = await getInvitacionesPendientes(usuarioActual.cuenta_id)
       setInvitaciones(nuevas)
       setEmailInvitar('')
       setRolInvitar('usuario')
+      setOverridesInvitar([])
     }
     setInvitando(false)
+  }
+
+  // A diferencia de EditarUsuarioModal (que graba cada override al toque, porque el
+  // usuario ya existe), acá todavía no hay invitación creada — todo queda en estado
+  // local y se manda junto recién al enviar el formulario completo.
+  function toggleOverrideInvitar(permiso: PermisoKey) {
+    const actual = tienePermiso({ rol: rolInvitar }, overridesInvitar, permiso)
+    setOverridesInvitar((prev) => [
+      ...prev.filter((o) => o.permission_key !== permiso),
+      { permission_key: permiso, granted: !actual },
+    ])
   }
 
   async function handleCancelarInvitacion(id: string) {
@@ -502,6 +515,27 @@ export default function Config() {
                 <option value="usuario">Usuario</option>
                 <option value="admin">Admin</option>
               </select>
+
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Permisos</p>
+                <div className="space-y-1">
+                  {PERMISOS.map((p) => (
+                    <label
+                      key={p.key}
+                      className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0"
+                    >
+                      <span className="text-sm text-gray-700">{p.label}</span>
+                      <input
+                        type="checkbox"
+                        checked={tienePermiso({ rol: rolInvitar }, overridesInvitar, p.key)}
+                        onChange={() => toggleOverrideInvitar(p.key)}
+                        className="w-4 h-4"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <button
                 onClick={handleInvitar}
                 disabled={invitando || !emailInvitar.trim()}

@@ -47,25 +47,23 @@ export async function getCuenta(cuentaId: string): Promise<Cuenta | null> {
 
 // ---- Invitaciones ----
 
-export async function crearInvitacion(cuentaId: string, email: string, rol: 'admin' | 'usuario'): Promise<boolean> {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return false
-
-  const { error } = await supabase
-    .from('invitaciones')
-    .insert({ cuenta_id: cuentaId, email, rol, invitado_por: user.id })
-  if (error) {
-    console.error('crearInvitacion:', error)
+export async function crearInvitacion(
+  email: string,
+  rol: 'admin' | 'usuario',
+  overrides: { permission_key: PermisoKey; granted: boolean }[] = []
+): Promise<boolean> {
+  // Se manda al servidor (no se llama a Supabase directo desde el navegador) porque
+  // invitar a otra persona necesita la Admin API de Supabase, que requiere la
+  // service role key (secreta) y no puede vivir en el cliente.
+  const res = await fetch('/api/invitar-usuario', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, rol, overrides }),
+  })
+  if (!res.ok) {
+    console.error('crearInvitacion:', await res.text())
     return false
   }
-
-  const { error: otpError } = await supabase.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-  })
-  if (otpError) console.error('crearInvitacion (magic link):', otpError)
-
   return true
 }
 
