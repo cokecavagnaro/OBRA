@@ -60,6 +60,7 @@ export default function Config() {
 
   const puedeCrearObras = usuarioActual ? tienePermiso(usuarioActual, misOverrides, 'create_obras') : false
   const puedeGestionarUsuarios = usuarioActual ? tienePermiso(usuarioActual, misOverrides, 'invite_users') : false
+  const puedeVerCuenta = !!usuarioActual
 
   useEffect(() => {
     getObras().then((data) => {
@@ -237,7 +238,7 @@ export default function Config() {
           </button>
         </div>
 
-        {puedeGestionarUsuarios && (
+        {puedeVerCuenta && (
           <div className="flex gap-2 mt-4 bg-gray-100 rounded-xl p-1">
             <button
               onClick={() => setTab('obras')}
@@ -419,7 +420,7 @@ export default function Config() {
           <div className="rounded-xl border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Nombre de la empresa</p>
-              {!editandoNombreCuenta && (
+              {puedeGestionarUsuarios && !editandoNombreCuenta && (
                 <button onClick={() => setEditandoNombreCuenta(true)} className="text-xs text-blue-600 font-medium">✏ Editar</button>
               )}
             </div>
@@ -470,116 +471,120 @@ export default function Config() {
             </div>
           </div>
 
-          {/* Usuarios */}
-          <div className="rounded-xl border border-gray-100 p-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Usuarios</p>
-            <div className="space-y-1.5 mb-3">
-              {usuariosCuenta.map((u) => (
-                <div key={u.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-900 truncate">{u.email}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[10px] text-gray-400 uppercase">{u.rol}</span>
-                      {!u.activo && (
-                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">Inactivo</span>
+          {puedeGestionarUsuarios && (
+            <>
+              {/* Usuarios */}
+              <div className="rounded-xl border border-gray-100 p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Usuarios</p>
+                <div className="space-y-1.5 mb-3">
+                  {usuariosCuenta.map((u) => (
+                    <div key={u.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-gray-900 truncate">{u.email}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-gray-400 uppercase">{u.rol}</span>
+                          {!u.activo && (
+                            <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">Inactivo</span>
+                          )}
+                        </div>
+                      </div>
+                      {u.rol !== 'super_admin' && (
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <button onClick={() => abrirEdicionUsuario(u)} className="text-xs text-blue-600 font-medium">Editar</button>
+                          <button onClick={() => handleDarDeBaja(u)} className="text-xs text-gray-400 font-medium">
+                            {u.activo ? 'Dar de baja' : 'Reactivar'}
+                          </button>
+                        </div>
                       )}
                     </div>
-                  </div>
-                  {u.rol !== 'super_admin' && (
-                    <div className="flex items-center gap-2 shrink-0 ml-2">
-                      <button onClick={() => abrirEdicionUsuario(u)} className="text-xs text-blue-600 font-medium">Editar</button>
-                      <button onClick={() => handleDarDeBaja(u)} className="text-xs text-gray-400 font-medium">
-                        {u.activo ? 'Dar de baja' : 'Reactivar'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Invitar usuario */}
-          <div className="rounded-xl border border-gray-100 p-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Invitar usuario</p>
-            <div className="space-y-2">
-              <input
-                type="email"
-                value={emailInvitar}
-                onChange={(e) => setEmailInvitar(e.target.value)}
-                placeholder="correo@ejemplo.com"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              />
-              <select
-                value={rolInvitar}
-                onChange={(e) => setRolInvitar(e.target.value as 'admin' | 'usuario')}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
-              >
-                <option value="usuario">Usuario</option>
-                <option value="admin">Admin</option>
-              </select>
-
-              <div>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Permisos</p>
-                <div className="space-y-1">
-                  {PERMISOS.map((p) => (
-                    <label
-                      key={p.key}
-                      className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0"
-                    >
-                      <span className="text-sm text-gray-700">{p.label}</span>
-                      <input
-                        type="checkbox"
-                        checked={tienePermiso({ rol: rolInvitar }, overridesInvitar, p.key)}
-                        onChange={() => toggleOverrideInvitar(p.key)}
-                        className="w-4 h-4"
-                      />
-                    </label>
                   ))}
                 </div>
               </div>
 
-              <button
-                onClick={handleInvitar}
-                disabled={invitando || !emailInvitar.trim()}
-                className="w-full bg-blue-600 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40"
-              >
-                {invitando ? 'Generando...' : 'Invitar (genera link)'}
-              </button>
+              {/* Invitar usuario */}
+              <div className="rounded-xl border border-gray-100 p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Invitar usuario</p>
+                <div className="space-y-2">
+                  <input
+                    type="email"
+                    value={emailInvitar}
+                    onChange={(e) => setEmailInvitar(e.target.value)}
+                    placeholder="correo@ejemplo.com"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  />
+                  <select
+                    value={rolInvitar}
+                    onChange={(e) => setRolInvitar(e.target.value as 'admin' | 'usuario')}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+                  >
+                    <option value="usuario">Usuario</option>
+                    <option value="admin">Admin</option>
+                  </select>
 
-              {linkInvitacion && (
-                <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-2">
-                  <p className="text-xs text-gray-600">Copiá este link y mandaselo a la persona invitada:</p>
-                  <p className="text-xs text-gray-500 break-all">{linkInvitacion}</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => navigator.clipboard.writeText(linkInvitacion)}
-                      className="flex-1 bg-gray-900 text-white rounded-lg py-1.5 text-xs font-semibold"
-                    >
-                      Copiar link
-                    </button>
-                    <button
-                      onClick={() => setLinkInvitacion(null)}
-                      className="text-xs text-gray-400 px-2"
-                    >
-                      Cerrar
-                    </button>
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Permisos</p>
+                    <div className="space-y-1">
+                      {PERMISOS.map((p) => (
+                        <label
+                          key={p.key}
+                          className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0"
+                        >
+                          <span className="text-sm text-gray-700">{p.label}</span>
+                          <input
+                            type="checkbox"
+                            checked={tienePermiso({ rol: rolInvitar }, overridesInvitar, p.key)}
+                            onChange={() => toggleOverrideInvitar(p.key)}
+                            className="w-4 h-4"
+                          />
+                        </label>
+                      ))}
+                    </div>
                   </div>
+
+                  <button
+                    onClick={handleInvitar}
+                    disabled={invitando || !emailInvitar.trim()}
+                    className="w-full bg-blue-600 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40"
+                  >
+                    {invitando ? 'Generando...' : 'Invitar (genera link)'}
+                  </button>
+
+                  {linkInvitacion && (
+                    <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-2">
+                      <p className="text-xs text-gray-600">Copiá este link y mandaselo a la persona invitada:</p>
+                      <p className="text-xs text-gray-500 break-all">{linkInvitacion}</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => navigator.clipboard.writeText(linkInvitacion)}
+                          className="flex-1 bg-gray-900 text-white rounded-lg py-1.5 text-xs font-semibold"
+                        >
+                          Copiar link
+                        </button>
+                        <button
+                          onClick={() => setLinkInvitacion(null)}
+                          className="text-xs text-gray-400 px-2"
+                        >
+                          Cerrar
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {invitaciones.length > 0 && (
-              <div className="mt-3 space-y-1.5">
-                <p className="text-[10px] text-gray-400 uppercase">Pendientes</p>
-                {invitaciones.map((inv) => (
-                  <div key={inv.id} className="flex items-center justify-between py-1">
-                    <p className="text-sm text-gray-700">{inv.email} <span className="text-xs text-gray-400">({inv.rol})</span></p>
-                    <button onClick={() => handleCancelarInvitacion(inv.id)} className="text-xs text-gray-400">Cancelar</button>
+                {invitaciones.length > 0 && (
+                  <div className="mt-3 space-y-1.5">
+                    <p className="text-[10px] text-gray-400 uppercase">Pendientes</p>
+                    {invitaciones.map((inv) => (
+                      <div key={inv.id} className="flex items-center justify-between py-1">
+                        <p className="text-sm text-gray-700">{inv.email} <span className="text-xs text-gray-400">({inv.rol})</span></p>
+                        <button onClick={() => handleCancelarInvitacion(inv.id)} className="text-xs text-gray-400">Cancelar</button>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
       )}
 

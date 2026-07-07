@@ -32,6 +32,8 @@ export default function Scan() {
   const [imagenDataUrl, setImagenDataUrl] = useState<string>('')
   const [analizando, setAnalizando] = useState(false)
   const [procesandoImagen, setProcesandoImagen] = useState(false)
+  const [errorImagen, setErrorImagen] = useState<string | null>(null)
+  const [errorAnalisis, setErrorAnalisis] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const fileGaleriaRef = useRef<HTMLInputElement>(null)
 
@@ -123,21 +125,32 @@ export default function Scan() {
   }
 
   const fileSeleccionadoRef = useRef<File | null>(null)
+  const capturaTokenRef = useRef(0)
 
   async function handleCaptura(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+    const input = e.target
+    const file = input.files?.[0]
     if (!file) return
+    setErrorImagen(null)
     setProcesandoImagen(true)
+    const token = ++capturaTokenRef.current
     try {
       const { blob, dataUrl } = await normalizarImagenParaSubida(file)
+      if (capturaTokenRef.current !== token) return
       fileSeleccionadoRef.current = new File([blob], 'boleta.jpg', { type: 'image/jpeg' })
       setImagenPreview(dataUrl)
     } catch (err) {
       console.error('Error al procesar imagen:', err)
-      fileSeleccionadoRef.current = file
-      setImagenPreview(URL.createObjectURL(file))
+      if (capturaTokenRef.current !== token) return
+      const esHeic = /^image\/hei[cf]$/.test(file.type) || /\.hei[cf]$/i.test(file.name)
+      setErrorImagen(
+        esHeic
+          ? 'Esta foto es formato HEIC y no se pudo leer acá. Probá sacarla con la cámara en vez de elegirla de Fotos.'
+          : 'No pudimos procesar esta imagen. Probá con otra foto.'
+      )
     } finally {
-      setProcesandoImagen(false)
+      if (capturaTokenRef.current === token) setProcesandoImagen(false)
+      input.value = ''
     }
   }
 
@@ -145,6 +158,7 @@ export default function Scan() {
     const file = fileSeleccionadoRef.current
     if (!file || !obra) return
 
+    setErrorAnalisis(null)
     setAnalizando(true)
     try {
       // Leer imagen como base64
@@ -157,7 +171,6 @@ export default function Scan() {
         reader.onerror = reject
         reader.readAsDataURL(file)
       })
-      setImagenDataUrl(dataUrl)
 
       const res = await fetch('/api/analizar-boleta', {
         method: 'POST',
@@ -170,18 +183,26 @@ export default function Scan() {
         }),
       })
 
-      if (!res.ok) throw new Error('Error al analizar')
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || 'No pudimos analizar la boleta. Intentá de nuevo.')
+      }
 
       const data = await res.json()
       const itemsResultado = data.items ?? []
 
+      if (itemsResultado.length === 0) {
+        setErrorAnalisis('No pudimos identificar ítems en esta boleta. Probá con otra foto o volvé a intentar.')
+        return
+      }
+
+      setImagenDataUrl(dataUrl)
       if (data.proveedor) setProveedor(data.proveedor)
       if (data.rut) setRut(data.rut)
       if (data.fecha) setFecha(data.fecha)
       if (data.total) setTotalBoleta(data.total)
 
-      const base = itemsResultado.length > 0 ? itemsResultado : ITEMS_DEMO
-      setItems(base.map((i: ItemAnalizado) => ({
+      setItems(itemsResultado.map((i: ItemAnalizado) => ({
         ...i,
         etapa_id: i.etapa_id ?? etapa?.id ?? '',
         partida_id: i.partida_id ?? partida?.id ?? '',
@@ -191,14 +212,7 @@ export default function Scan() {
       setPaso(3)
     } catch (err) {
       console.error(err)
-      setItems(ITEMS_DEMO.map((i) => ({
-        ...i,
-        etapa_id: etapa?.id ?? '',
-        partida_id: partida?.id ?? '',
-      })))
-      setItemActual(0)
-      setTagInput('')
-      setPaso(3)
+      setErrorAnalisis(err instanceof Error ? err.message : 'No pudimos analizar la boleta. Intentá de nuevo.')
     } finally {
       setAnalizando(false)
     }
@@ -417,6 +431,21 @@ export default function Scan() {
           <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleCaptura} className="hidden" />
           <input ref={fileGaleriaRef} type="file" accept="image/*" onChange={handleCaptura} className="hidden" />
 
+          {(errorImagen || errorAnalisis) && (
+            <div className="bg-red-50 border border-red-100 rounded-xl p-3">
+              <p className="text-sm text-red-600">{errorImagen || errorAnalisis}</p>
+              {errorAnalisis && (
+                <button
+                  onClick={handleAnalizar}
+                  disabled={analizando || procesandoImagen}
+                  className="mt-2 text-xs font-semibold text-red-700 disabled:opacity-40"
+                >
+                  Reintentar
+                </button>
+              )}
+            </div>
+          )}
+
           {!imagenPreview ? (
             <button
               onClick={() => fileRef.current?.click()}
@@ -433,7 +462,13 @@ export default function Scan() {
             <div className="relative">
               <img src={imagenPreview} alt="Boleta capturada" className="w-full rounded-2xl object-cover max-h-72" />
               <button
-                onClick={() => setImagenPreview(null)}
+                onClick={() => {
+                  setImagenPreview(null)
+                  setErrorImagen(null)
+                  setErrorAnalisis(null)
+                  if (fileRef.current) fileRef.current.value = ''
+                  if (fileGaleriaRef.current) fileGaleriaRef.current.value = ''
+                }}
                 className="absolute top-2 right-2 bg-black/50 text-white rounded-full w-8 h-8 flex items-center justify-center text-xs"
               >
                 ✕
