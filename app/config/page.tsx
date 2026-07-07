@@ -47,6 +47,7 @@ export default function Config() {
   const [emailInvitar, setEmailInvitar] = useState('')
   const [rolInvitar, setRolInvitar] = useState<'admin' | 'usuario'>('usuario')
   const [overridesInvitar, setOverridesInvitar] = useState<{ permission_key: PermisoKey; granted: boolean }[]>([])
+  const [linkInvitacion, setLinkInvitacion] = useState<string | null>(null)
   const [invitando, setInvitando] = useState(false)
   const [usuarioEditando, setUsuarioEditando] = useState<Usuario | null>(null)
 
@@ -117,13 +118,14 @@ export default function Config() {
   async function handleInvitar() {
     if (!usuarioActual || !emailInvitar.trim()) return
     setInvitando(true)
-    const ok = await crearInvitacion(emailInvitar.trim(), rolInvitar, overridesInvitar)
-    if (ok) {
+    const resultado = await crearInvitacion(emailInvitar.trim(), rolInvitar, overridesInvitar)
+    if (resultado.ok) {
       const nuevas = await getInvitacionesPendientes(usuarioActual.cuenta_id)
       setInvitaciones(nuevas)
       setEmailInvitar('')
       setRolInvitar('usuario')
       setOverridesInvitar([])
+      setLinkInvitacion(resultado.link ?? null)
     }
     setInvitando(false)
   }
@@ -541,8 +543,29 @@ export default function Config() {
                 disabled={invitando || !emailInvitar.trim()}
                 className="w-full bg-blue-600 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40"
               >
-                {invitando ? 'Enviando...' : 'Invitar (envía link mágico)'}
+                {invitando ? 'Generando...' : 'Invitar (genera link)'}
               </button>
+
+              {linkInvitacion && (
+                <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-2">
+                  <p className="text-xs text-gray-600">Copiá este link y mandaselo a la persona invitada:</p>
+                  <p className="text-xs text-gray-500 break-all">{linkInvitacion}</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigator.clipboard.writeText(linkInvitacion)}
+                      className="flex-1 bg-gray-900 text-white rounded-lg py-1.5 text-xs font-semibold"
+                    >
+                      Copiar link
+                    </button>
+                    <button
+                      onClick={() => setLinkInvitacion(null)}
+                      className="text-xs text-gray-400 px-2"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {invitaciones.length > 0 && (

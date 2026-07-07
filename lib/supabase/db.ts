@@ -51,10 +51,12 @@ export async function crearInvitacion(
   email: string,
   rol: 'admin' | 'usuario',
   overrides: { permission_key: PermisoKey; granted: boolean }[] = []
-): Promise<boolean> {
+): Promise<{ ok: boolean; link?: string }> {
   // Se manda al servidor (no se llama a Supabase directo desde el navegador) porque
   // invitar a otra persona necesita la Admin API de Supabase, que requiere la
-  // service role key (secreta) y no puede vivir en el cliente.
+  // service role key (secreta) y no puede vivir en el cliente. No se manda ningún
+  // email automático (Supabase no deja editar esa plantilla sin SMTP propio) — se
+  // devuelve el link para que el admin lo copie y lo mande él mismo.
   const res = await fetch('/api/invitar-usuario', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -62,9 +64,10 @@ export async function crearInvitacion(
   })
   if (!res.ok) {
     console.error('crearInvitacion:', await res.text())
-    return false
+    return { ok: false }
   }
-  return true
+  const data = await res.json()
+  return { ok: true, link: data.link }
 }
 
 export async function getInvitacionesPendientes(cuentaId: string): Promise<Invitacion[]> {

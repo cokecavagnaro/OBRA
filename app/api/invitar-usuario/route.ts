@@ -57,13 +57,21 @@ export async function POST(request: NextRequest) {
     if (overridesError) console.error('invitar-usuario (overrides):', overridesError)
   }
 
-  const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${new URL(request.url).origin}/auth/callback`,
+  // No usamos inviteUserByEmail porque dispara el email automático de Supabase con
+  // la plantilla por defecto, que no se puede editar sin SMTP propio configurado.
+  // generateLink no manda ningún email — devolvemos el link para que el admin lo
+  // copie y se lo mande él mismo a la persona invitada por el medio que prefiera.
+  const origin = new URL(request.url).origin
+  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+    type: 'invite',
+    email,
+    options: { redirectTo: `${origin}/auth/callback` },
   })
-  if (inviteError) {
-    console.error('invitar-usuario (email):', inviteError)
-    return NextResponse.json({ error: inviteError.message }, { status: 500 })
+  if (linkError || !linkData) {
+    console.error('invitar-usuario (link):', linkError)
+    return NextResponse.json({ error: linkError?.message ?? 'No se pudo generar el link' }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true })
+  const link = `${origin}/auth/callback?token_hash=${linkData.properties.hashed_token}&type=invite`
+  return NextResponse.json({ ok: true, link })
 }
