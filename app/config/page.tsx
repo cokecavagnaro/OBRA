@@ -8,7 +8,7 @@ import {
   crearInvitacion, getInvitacionesPendientes, cancelarInvitacion,
   darDeBajaUsuario, reactivarUsuario, getPermisosOverrides,
 } from '@/lib/supabase/db'
-import { tienePermiso } from '@/lib/permisos'
+import { tienePermiso, PERMISOS, type PermisoKey } from '@/lib/permisos'
 import EditarUsuarioModal from '@/components/EditarUsuarioModal'
 import type { Obra, Etapa, Partida, Usuario, Cuenta, Invitacion, PermissionOverride } from '@/lib/types'
 
@@ -46,6 +46,8 @@ export default function Config() {
   const [invitaciones, setInvitaciones] = useState<Invitacion[]>([])
   const [emailInvitar, setEmailInvitar] = useState('')
   const [rolInvitar, setRolInvitar] = useState<'admin' | 'usuario'>('usuario')
+  const [overridesInvitar, setOverridesInvitar] = useState<{ permission_key: PermisoKey; granted: boolean }[]>([])
+  const [linkInvitacion, setLinkInvitacion] = useState<string | null>(null)
   const [invitando, setInvitando] = useState(false)
   const [usuarioEditando, setUsuarioEditando] = useState<Usuario | null>(null)
 
@@ -116,14 +118,27 @@ export default function Config() {
   async function handleInvitar() {
     if (!usuarioActual || !emailInvitar.trim()) return
     setInvitando(true)
-    const ok = await crearInvitacion(usuarioActual.cuenta_id, emailInvitar.trim(), rolInvitar)
-    if (ok) {
+    const resultado = await crearInvitacion(emailInvitar.trim(), rolInvitar, overridesInvitar)
+    if (resultado.ok) {
       const nuevas = await getInvitacionesPendientes(usuarioActual.cuenta_id)
       setInvitaciones(nuevas)
       setEmailInvitar('')
       setRolInvitar('usuario')
+      setOverridesInvitar([])
+      setLinkInvitacion(resultado.link ?? null)
     }
     setInvitando(false)
+  }
+
+  // A diferencia de EditarUsuarioModal (que graba cada override al toque, porque el
+  // usuario ya existe), acá todavía no hay invitación creada — todo queda en estado
+  // local y se manda junto recién al enviar el formulario completo.
+  function toggleOverrideInvitar(permiso: PermisoKey) {
+    const actual = tienePermiso({ rol: rolInvitar }, overridesInvitar, permiso)
+    setOverridesInvitar((prev) => [
+      ...prev.filter((o) => o.permission_key !== permiso),
+      { permission_key: permiso, granted: !actual },
+    ])
   }
 
   async function handleCancelarInvitacion(id: string) {
@@ -502,13 +517,55 @@ export default function Config() {
                 <option value="usuario">Usuario</option>
                 <option value="admin">Admin</option>
               </select>
+
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Permisos</p>
+                <div className="space-y-1">
+                  {PERMISOS.map((p) => (
+                    <label
+                      key={p.key}
+                      className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0"
+                    >
+                      <span className="text-sm text-gray-700">{p.label}</span>
+                      <input
+                        type="checkbox"
+                        checked={tienePermiso({ rol: rolInvitar }, overridesInvitar, p.key)}
+                        onChange={() => toggleOverrideInvitar(p.key)}
+                        className="w-4 h-4"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <button
                 onClick={handleInvitar}
                 disabled={invitando || !emailInvitar.trim()}
                 className="w-full bg-blue-600 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40"
               >
-                {invitando ? 'Enviando...' : 'Invitar (envía link mágico)'}
+                {invitando ? 'Generando...' : 'Invitar (genera link)'}
               </button>
+
+              {linkInvitacion && (
+                <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-2">
+                  <p className="text-xs text-gray-600">Copiá este link y mandaselo a la persona invitada:</p>
+                  <p className="text-xs text-gray-500 break-all">{linkInvitacion}</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigator.clipboard.writeText(linkInvitacion)}
+                      className="flex-1 bg-gray-900 text-white rounded-lg py-1.5 text-xs font-semibold"
+                    >
+                      Copiar link
+                    </button>
+                    <button
+                      onClick={() => setLinkInvitacion(null)}
+                      className="text-xs text-gray-400 px-2"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {invitaciones.length > 0 && (

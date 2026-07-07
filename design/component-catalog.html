@@ -1,0 +1,995 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Hormigasto — Catálogo de componentes UI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* ============================================================
+   RESET
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111111;background:#f0f0f0;line-height:1.4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:none}
+a{color:inherit;text-decoration:none}
+svg{display:block}
+img{max-width:100%;display:block}
+
+/* ============================================================
+   PAGE CHROME (not part of the app — catalog scaffolding)
+   ============================================================ */
+.catalog-shell{display:flex;max-width:1400px;margin:0 auto}
+.catalog-nav{position:sticky;top:0;height:100vh;overflow-y:auto;width:220px;flex-shrink:0;background:#fff;border-right:1px solid #e5e7eb;padding:24px 16px}
+.catalog-nav h2{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#9ca3af;margin-bottom:10px;font-weight:600}
+.catalog-nav ul{list-style:none}
+.catalog-nav li a{display:block;padding:5px 8px;border-radius:6px;font-size:13px;color:#374151}
+.catalog-nav li a:hover{background:#f3f4f6;color:#111827}
+.catalog-main{flex:1;min-width:0;padding:32px 40px 120px;background:#f0f0f0}
+.cat-section{margin-bottom:64px;scroll-margin-top:20px}
+.cat-section h1{font-size:26px;font-weight:800;color:#111827;margin-bottom:6px}
+.cat-section h2{font-size:20px;font-weight:700;color:#111827;border-bottom:2px solid #111827;padding-bottom:8px;margin-bottom:20px}
+.cat-section h3{font-size:13px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.03em;margin:28px 0 12px}
+.cat-section h3:first-of-type{margin-top:0}
+.cat-lead{color:#6b7280;font-size:14px;max-width:720px;margin-bottom:8px}
+.cat-grid{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end}
+.cat-grid.cols{align-items:stretch}
+.example{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.example.stretch{align-items:stretch}
+.example .render{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.example .render.block{display:block}
+.caption{font-family:'SF Mono',Menlo,Consolas,monospace;font-size:10.5px;color:#6b7280;background:#f9fafb;border:1px solid #f0f0f0;padding:3px 7px;border-radius:5px;word-break:break-all;max-width:340px}
+.caption.note{color:#b45309;background:#fffbeb;border-color:#fde68a}
+.swatch-row{display:flex;flex-wrap:wrap;gap:14px}
+.swatch{width:96px}
+.swatch .box{height:56px;border-radius:8px;border:1px solid rgba(0,0,0,.08)}
+.swatch .lbl{font-size:11px;margin-top:6px;color:#374151;font-weight:600}
+.swatch .hex{font-family:monospace;font-size:10px;color:#9ca3af}
+.frame-390{width:390px;max-width:100%;border:1px dashed #9ca3af;position:relative;background:#fff}
+.frame-390::before{content:"390px";position:absolute;top:-20px;left:0;font-size:10px;color:#9ca3af;font-family:monospace}
+.type-row{display:flex;align-items:baseline;gap:16px;padding:8px 0;border-bottom:1px solid #f3f4f6}
+.inconsistency{background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:8px;padding:14px 16px;margin:16px 0}
+.inconsistency b{color:#92400e}
+.src-file{background:#0b0f19;color:#d1d5db;border-radius:10px;padding:18px;overflow-x:auto;margin-bottom:20px}
+.src-file .fname{color:#93c5fd;font-family:monospace;font-size:12px;margin-bottom:10px}
+.src-file pre{font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12px;line-height:1.6;white-space:pre-wrap}
+.toc-list{list-style:decimal;padding-left:20px}
+.toc-list li{margin-bottom:6px;font-size:14px}
+.legend-box{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:20px;max-width:720px}
+.legend-box .caption{display:inline-block;margin-top:8px}
+
+/* ============================================================
+   APP TYPOGRAPHY UTILITIES (verbatim Tailwind class names)
+   ============================================================ */
+.text-\[10px\]{font-size:10px}
+.text-\[11px\]{font-size:11px}
+.text-xs{font-size:12px}
+.text-sm{font-size:14px}
+.text-base{font-size:16px}
+.text-lg{font-size:18px}
+.text-xl{font-size:20px}
+.text-2xl{font-size:24px}
+.text-3xl{font-size:30px}
+.font-medium{font-weight:500}
+.font-semibold{font-weight:600}
+.font-bold{font-weight:700}
+.uppercase{text-transform:uppercase}
+.tracking-wide{letter-spacing:.025em}
+.italic{font-style:italic}
+.underline{text-decoration:underline}
+.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.leading-relaxed{line-height:1.625}
+.leading-snug{line-height:1.375}
+.text-center{text-align:center}
+.text-left{text-align:left}
+.text-right{text-align:right}
+
+/* ============================================================
+   APP COLOR UTILITIES
+   ============================================================ */
+.text-white{color:#fff} .bg-white{background-color:#fff} .border-white{border-color:#fff}
+.text-gray-50{color:#f9fafb} .bg-gray-50{background-color:#f9fafb}
+.text-gray-100{color:#f3f4f6} .bg-gray-100{background-color:#f3f4f6} .border-gray-100{border-color:#f3f4f6}
+.text-gray-200{color:#e5e7eb} .bg-gray-200{background-color:#e5e7eb} .border-gray-200{border-color:#e5e7eb}
+.text-gray-300{color:#d1d5db} .bg-gray-300{background-color:#d1d5db} .border-gray-300{border-color:#d1d5db}
+.text-gray-400{color:#9ca3af} .bg-gray-400{background-color:#9ca3af} .border-gray-400{border-color:#9ca3af}
+.text-gray-500{color:#6b7280} .bg-gray-500{background-color:#6b7280}
+.text-gray-600{color:#4b5563} .bg-gray-600{background-color:#4b5563}
+.text-gray-700{color:#374151} .bg-gray-700{background-color:#374151} .border-gray-50{border-color:#f9fafb}
+.text-gray-800{color:#1f2937} .bg-gray-800{background-color:#1f2937}
+.text-gray-900{color:#111827} .bg-gray-900{background-color:#111827} .border-gray-900{border-color:#111827}
+
+.text-blue-400{color:#60a5fa} .border-blue-400{border-color:#60a5fa}
+.text-blue-500{color:#3b82f6} .bg-blue-500{background-color:#3b82f6}
+.text-blue-600{color:#2563eb} .bg-blue-600{background-color:#2563eb} .border-blue-600{border-color:#2563eb}
+.text-blue-700{color:#1d4ed8} .bg-blue-700{background-color:#1d4ed8}
+.bg-blue-50{background-color:#eff6ff} .border-blue-100{border-color:#dbeafe} .bg-blue-100{background-color:#dbeafe}
+.border-blue-300{border-color:#93c5fd}
+.bg-blue-50\/30{background-color:rgba(239,246,255,.55)}
+
+.bg-amber-50{background-color:#fffbeb} .border-amber-200{border-color:#fde68a} .bg-amber-100{background-color:#fef3c7}
+.bg-amber-400{background-color:#fbbf24} .text-amber-600{color:#d97706} .text-amber-700{color:#b45309}
+.bg-amber-50\/20{background-color:rgba(255,251,235,.5)}
+
+.bg-green-50{background-color:#f0fdf4} .bg-green-100{background-color:#dcfce7} .bg-green-400{background-color:#4ade80}
+.bg-green-600{background-color:#16a34a} .text-green-500{color:#22c55e} .text-green-600{color:#16a34a} .text-green-700{color:#15803d}
+
+.text-red-400{color:#f87171} .bg-red-50{background-color:#fef2f2} .bg-red-500{background-color:#ef4444} .text-red-500{color:#ef4444}
+
+.bg-black\/50{background-color:rgba(0,0,0,.5)}
+.bg-black\/60{background-color:rgba(0,0,0,.6)}
+
+/* off-palette brand purple — inline hex only in source, reproduced here as literal values */
+.brand-purple-bg{background:#EEEDFE}
+.brand-purple-border{border-color:#AFA9EC}
+.brand-purple-text{color:#534AB7}
+
+/* ============================================================
+   BORDERS / RADIUS
+   ============================================================ */
+.border{border-width:1px;border-style:solid;border-color:#e5e7eb}
+.border-2{border-width:2px;border-style:solid}
+.border-b{border-bottom-width:1px;border-bottom-style:solid}
+.border-t{border-top-width:1px;border-top-style:solid}
+.border-dashed{border-style:dashed}
+.rounded{border-radius:4px}
+.rounded-lg{border-radius:8px}
+.rounded-xl{border-radius:12px}
+.rounded-2xl{border-radius:16px}
+.rounded-t-2xl{border-top-left-radius:16px;border-top-right-radius:16px}
+.rounded-full{border-radius:9999px}
+.last\:border-0:last-child{border-width:0}
+
+/* ============================================================
+   SPACING (padding / margin / gap) — Tailwind scale, rem
+   ============================================================ */
+.p-1{padding:.25rem} .p-1\.5{padding:.375rem} .p-2{padding:.5rem} .p-3{padding:.75rem} .p-4{padding:1rem}
+.px-1{padding-left:.25rem;padding-right:.25rem}
+.px-1\.5{padding-left:.375rem;padding-right:.375rem}
+.px-2{padding-left:.5rem;padding-right:.5rem}
+.px-2\.5{padding-left:.625rem;padding-right:.625rem}
+.px-3{padding-left:.75rem;padding-right:.75rem}
+.px-4{padding-left:1rem;padding-right:1rem}
+.px-6{padding-left:1.5rem;padding-right:1.5rem}
+.py-0\.5{padding-top:.125rem;padding-bottom:.125rem}
+.py-1{padding-top:.25rem;padding-bottom:.25rem}
+.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}
+.py-2{padding-top:.5rem;padding-bottom:.5rem}
+.py-2\.5{padding-top:.625rem;padding-bottom:.625rem}
+.py-3{padding-top:.75rem;padding-bottom:.75rem}
+.py-3\.5{padding-top:.875rem;padding-bottom:.875rem}
+.py-4{padding-top:1rem;padding-bottom:1rem}
+.pt-3{padding-top:.75rem} .pt-4{padding-top:1rem} .pt-12{padding-top:3rem}
+.pb-2{padding-bottom:.5rem} .pb-3{padding-bottom:.75rem} .pb-4{padding-bottom:1rem} .pb-6{padding-bottom:1.5rem} .pb-16{padding-bottom:4rem}
+.mt-0\.5{margin-top:.125rem} .mt-1{margin-top:.25rem} .mt-1\.5{margin-top:.375rem} .mt-2{margin-top:.5rem} .mt-3{margin-top:.75rem} .mt-4{margin-top:1rem}
+.mb-1{margin-bottom:.25rem} .mb-1\.5{margin-bottom:.375rem} .mb-2{margin-bottom:.5rem} .mb-3{margin-bottom:.75rem} .mb-4{margin-bottom:1rem} .mb-6{margin-bottom:1.5rem} .mb-8{margin-bottom:2rem}
+.ml-3{margin-left:.75rem}
+.mx-auto{margin-left:auto;margin-right:auto}
+.gap-0\.5{gap:.125rem} .gap-1{gap:.25rem} .gap-1\.5{gap:.375rem} .gap-2{gap:.5rem} .gap-3{gap:.75rem}
+.space-y-1 > * + *{margin-top:.25rem}
+.space-y-1\.5 > * + *{margin-top:.375rem}
+.space-y-2 > * + *{margin-top:.5rem}
+.space-y-3 > * + *{margin-top:.75rem}
+.space-y-4 > * + *{margin-top:1rem}
+.space-y-5 > * + *{margin-top:1.25rem}
+
+/* ============================================================
+   SIZING
+   ============================================================ */
+.w-2{width:.5rem} .h-2{height:.5rem}
+.w-3{width:.75rem} .h-3{height:.75rem}
+.w-3\.5{width:.875rem} .h-3\.5{height:.875rem}
+.w-4{width:1rem} .h-4{height:1rem}
+.w-5{width:1.25rem} .h-5{height:1.25rem}
+.w-6{width:1.5rem} .h-6{height:1.5rem}
+.w-7{width:1.75rem} .h-7{height:1.75rem}
+.w-8{width:2rem} .h-8{height:2rem}
+.w-9{width:2.25rem} .h-9{height:2.25rem}
+.w-10{width:2.5rem} .h-10{height:2.5rem}
+.w-12{width:3rem} .h-12{height:3rem}
+.w-14{width:3.5rem} .h-14{height:3.5rem}
+.w-16{width:4rem} .h-16{height:4rem}
+.w-20{width:5rem}
+.h-1{height:.25rem} .h-1\.5{height:.375rem}
+.h-48{height:12rem} .h-64{height:16rem}
+.max-h-72{max-height:18rem}
+.w-full{width:100%}
+.max-w-sm{max-width:24rem}
+.max-w-\[390px\]{max-width:390px}
+.min-w-0{min-width:0}
+.min-h-screen{min-height:100vh}
+
+/* ============================================================
+   FLEX / GRID / LAYOUT
+   ============================================================ */
+.flex{display:flex} .inline-flex{display:inline-flex} .flex-1{flex:1 1 0%} .flex-col{flex-direction:column}
+.flex-wrap{flex-wrap:wrap} .shrink-0{flex-shrink:0}
+.items-center{align-items:center} .items-start{align-items:flex-start} .items-end{align-items:flex-end}
+.justify-between{justify-content:space-between} .justify-center{justify-content:center} .justify-around{justify-content:space-around}
+.grid{display:grid} .grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))} .grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.relative{position:relative} .absolute{position:absolute} .fixed{position:fixed}
+.inset-0{top:0;right:0;bottom:0;left:0}
+.top-2{top:.5rem} .right-2{right:.5rem} .bottom-0{bottom:0}
+.-top-1{top:-.25rem} .-right-1{right:-.25rem}
+.z-10{z-index:10} .z-50{z-index:50}
+.overflow-y-auto{overflow-y:auto} .overflow-hidden{overflow:hidden} .overflow-x-auto{overflow-x:auto}
+.block{display:block} .inline-block{display:inline-block} .hidden{display:none}
+.transition-colors{transition:color .15s,background-color .15s,border-color .15s}
+.shadow-sm{box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.shadow-lg{box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1)}
+.outline-none{outline:none}
+.resize-none{resize:none}
+.bg-transparent{background:transparent}
+.placeholder-gray-300::placeholder{color:#d1d5db}
+
+/* ============================================================
+   OPACITY / DISABLED / HOVER / FOCUS (real pseudo-classes)
+   ============================================================ */
+.opacity-25{opacity:.25} .opacity-30{opacity:.3} .opacity-40{opacity:.4} .opacity-50{opacity:.5} .opacity-60{opacity:.6} .opacity-75{opacity:.75}
+[disabled].disabled\:opacity-30{opacity:.3}
+[disabled].disabled\:opacity-40{opacity:.4}
+[disabled].disabled\:opacity-50{opacity:.5}
+[disabled].disabled\:opacity-60{opacity:.6}
+[disabled].disabled\:cursor-not-allowed{cursor:not-allowed}
+.hover\:border-gray-200:hover{border-color:#e5e7eb}
+.hover\:bg-gray-50:active{background:#f9fafb}
+.hover\:text-blue-600:hover{color:#2563eb}
+.hover\:text-blue-500:hover{color:#3b82f6}
+.hover\:text-blue-400:hover{color:#60a5fa}
+.hover\:border-blue-300:hover{border-color:#93c5fd}
+.hover\:bg-blue-700:hover{background-color:#1d4ed8}
+.hover\:bg-blue-50:hover{background-color:#eff6ff}
+.hover\:text-blue-700:hover{color:#1d4ed8}
+.hover\:bg-red-50:hover{background-color:#fef2f2}
+.hover\:text-red-400:hover{color:#f87171}
+.hover\:bg-red-500:hover{background-color:#ef4444}
+.focus\:outline-none:focus{outline:none}
+.focus\:border-gray-400:focus{border-color:#9ca3af}
+.focus\:border-blue-300:focus{border-color:#93c5fd}
+.focus\:border-blue-400:focus{border-color:#60a5fa}
+.active\:bg-gray-50:active{background:#f9fafb}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+.animate-spin{animation:spin 1s linear infinite}
+</style>
+</head>
+<body>
+<div class="catalog-shell">
+
+<!-- =========================================================
+     STICKY IN-PAGE NAV
+     ========================================================= -->
+<nav class="catalog-nav">
+  <h2>Hormigasto — Catálogo</h2>
+  <ul>
+    <li><a href="#portada">0. Portada / leyenda</a></li>
+    <li><a href="#tokens">1. Design tokens</a></li>
+    <li><a href="#headers">2. Headers / branding</a></li>
+    <li><a href="#icon-buttons">3. Botones ícono</a></li>
+    <li><a href="#badges">4. Badges &amp; pills</a></li>
+    <li><a href="#buttons">5. Botones</a></li>
+    <li><a href="#forms">6. Formularios</a></li>
+    <li><a href="#cards">7. Cards</a></li>
+    <li><a href="#progress">8. Progress</a></li>
+    <li><a href="#modals">9. Modales</a></li>
+    <li><a href="#photo">10. Captura de foto</a></li>
+    <li><a href="#states">11. Loading/empty/success</a></li>
+    <li><a href="#lists">12. CRUD list rows</a></li>
+    <li><a href="#nav">13. Bottom navigation</a></li>
+    <li><a href="#inconsistencies">14. Inconsistencias</a></li>
+    <li><a href="#source">15. Archivos fuente</a></li>
+  </ul>
+</nav>
+
+<main class="catalog-main">
+
+<!-- =========================================================
+     0. PORTADA / LEYENDA
+     ========================================================= -->
+<section class="cat-section" id="portada">
+  <h1>🐜 Hormigasto — Catálogo de componentes UI</h1>
+  <p class="cat-lead">Documento de referencia generado a partir del código fuente actual (no modifica la app). Muestra cada patrón visual distinto que existe hoy: botones, cards, badges, inputs, modales, navegación, estados. Es el insumo para construir una guía de estilo formal.</p>
+  <div class="legend-box">
+    <p style="font-size:14px;margin-bottom:8px"><b>Cómo leer este documento:</b></p>
+    <p style="font-size:13px;color:#374151;margin-bottom:6px">Cada ejemplo tiene, debajo o al lado, una etiqueta monospace con el <b>className exacto</b> tal como está en el código fuente:</p>
+    <span class="caption">bg-gray-900 text-white rounded-xl py-3.5</span>
+    <p style="font-size:13px;color:#374151;margin:10px 0 6px">Los <b>hover</b> son reales — pasá el mouse sobre botones/chips para ver el estado. Los <b>disabled</b> se muestran como una segunda instancia real al lado de la normal.</p>
+    <p style="font-size:13px;color:#374151">Las cajas con borde ámbar como esta marcan una <b>inconsistencia detectada</b> en el código (no corregida, solo señalada):</p>
+    <div class="inconsistency" style="margin-top:8px"><b>⚠ Ejemplo de inconsistencia</b> — así se ven las 6 marcadas a lo largo del documento.</div>
+  </div>
+</section>
+
+<!-- =========================================================
+     1. DESIGN TOKENS
+     ========================================================= -->
+<section class="cat-section" id="tokens">
+  <h2>1. Design tokens</h2>
+
+  <h3>Colores — Neutros (gray)</h3>
+  <div class="swatch-row">
+    <div class="swatch"><div class="box bg-gray-50" style="border:1px solid #e5e7eb"></div><div class="lbl">gray-50</div><div class="hex">#f9fafb</div></div>
+    <div class="swatch"><div class="box bg-gray-100"></div><div class="lbl">gray-100</div><div class="hex">#f3f4f6</div></div>
+    <div class="swatch"><div class="box bg-gray-200"></div><div class="lbl">gray-200</div><div class="hex">#e5e7eb</div></div>
+    <div class="swatch"><div class="box bg-gray-300"></div><div class="lbl">gray-300</div><div class="hex">#d1d5db</div></div>
+    <div class="swatch"><div class="box bg-gray-400"></div><div class="lbl">gray-400</div><div class="hex">#9ca3af</div></div>
+    <div class="swatch"><div class="box bg-gray-500"></div><div class="lbl">gray-500</div><div class="hex">#6b7280</div></div>
+    <div class="swatch"><div class="box bg-gray-600"></div><div class="lbl">gray-600</div><div class="hex">#4b5563</div></div>
+    <div class="swatch"><div class="box bg-gray-700"></div><div class="lbl">gray-700</div><div class="hex">#374151</div></div>
+    <div class="swatch"><div class="box bg-gray-800"></div><div class="lbl">gray-800</div><div class="hex">#1f2937</div></div>
+    <div class="swatch"><div class="box bg-gray-900"></div><div class="lbl">gray-900</div><div class="hex">#111827</div></div>
+  </div>
+
+  <h3>Colores — Azul (marca / interactivo / info)</h3>
+  <div class="swatch-row">
+    <div class="swatch"><div class="box bg-blue-50" style="border:1px solid #e5e7eb"></div><div class="lbl">blue-50</div><div class="hex">#eff6ff</div></div>
+    <div class="swatch"><div class="box bg-blue-100"></div><div class="lbl">blue-100</div><div class="hex">#dbeafe</div></div>
+    <div class="swatch"><div class="box bg-blue-300"></div><div class="lbl">blue-300</div><div class="hex">#93c5fd</div></div>
+    <div class="swatch"><div class="box bg-blue-400"></div><div class="lbl">blue-400</div><div class="hex">#60a5fa</div></div>
+    <div class="swatch"><div class="box bg-blue-500"></div><div class="lbl">blue-500</div><div class="hex">#3b82f6</div></div>
+    <div class="swatch"><div class="box bg-blue-600"></div><div class="lbl">blue-600</div><div class="hex">#2563eb</div></div>
+    <div class="swatch"><div class="box bg-blue-700"></div><div class="lbl">blue-700</div><div class="hex">#1d4ed8</div></div>
+  </div>
+
+  <h3>Colores — Ámbar (pendiente / advertencia / baja confianza)</h3>
+  <div class="swatch-row">
+    <div class="swatch"><div class="box bg-amber-50" style="border:1px solid #e5e7eb"></div><div class="lbl">amber-50</div><div class="hex">#fffbeb</div></div>
+    <div class="swatch"><div class="box bg-amber-100"></div><div class="lbl">amber-100</div><div class="hex">#fef3c7</div></div>
+    <div class="swatch"><div class="box bg-amber-200"></div><div class="lbl">amber-200</div><div class="hex">#fde68a</div></div>
+    <div class="swatch"><div class="box bg-amber-400"></div><div class="lbl">amber-400</div><div class="hex">#fbbf24</div></div>
+    <div class="swatch"><div class="box" style="background:#d97706"></div><div class="lbl">amber-600</div><div class="hex">#d97706</div></div>
+    <div class="swatch"><div class="box" style="background:#b45309"></div><div class="lbl">amber-700</div><div class="hex">#b45309</div></div>
+  </div>
+
+  <h3>Colores — Verde (éxito / confirmado)</h3>
+  <div class="swatch-row">
+    <div class="swatch"><div class="box bg-green-50" style="border:1px solid #e5e7eb"></div><div class="lbl">green-50</div><div class="hex">#f0fdf4</div></div>
+    <div class="swatch"><div class="box bg-green-100"></div><div class="lbl">green-100</div><div class="hex">#dcfce7</div></div>
+    <div class="swatch"><div class="box bg-green-400"></div><div class="lbl">green-400</div><div class="hex">#4ade80</div></div>
+    <div class="swatch"><div class="box" style="background:#22c55e"></div><div class="lbl">green-500</div><div class="hex">#22c55e</div></div>
+    <div class="swatch"><div class="box bg-green-600"></div><div class="lbl">green-600</div><div class="hex">#16a34a</div></div>
+    <div class="swatch"><div class="box" style="background:#15803d"></div><div class="lbl">green-700</div><div class="hex">#15803d</div></div>
+  </div>
+
+  <h3>Colores — Rojo (destructivo, solo hover, sin uso estático)</h3>
+  <div class="swatch-row">
+    <div class="swatch"><div class="box bg-red-50" style="border:1px solid #e5e7eb"></div><div class="lbl">red-50</div><div class="hex">#fef2f2</div></div>
+    <div class="swatch"><div class="box" style="background:#f87171"></div><div class="lbl">red-400</div><div class="hex">#f87171</div></div>
+    <div class="swatch"><div class="box bg-red-500"></div><div class="lbl">red-500</div><div class="hex">#ef4444</div></div>
+  </div>
+
+  <h3>Overlay negro</h3>
+  <div class="swatch-row">
+    <div class="swatch"><div class="box bg-black\/50"></div><div class="lbl">black/50</div><div class="hex">rgba(0,0,0,.5)</div></div>
+    <div class="swatch"><div class="box bg-black\/60"></div><div class="lbl">black/60</div><div class="hex">rgba(0,0,0,.6)</div></div>
+  </div>
+
+  <div class="inconsistency">
+    <b>⚠ Inconsistencia #5 — Morado fuera de paleta.</b> El <code>SystemPromptBox</code> (caja "Instrucciones de obra") usa un morado de marca que <b>no existe como clase Tailwind</b>, solo como hex inline en el componente. Nunca se promovió a un token real.
+  </div>
+  <div class="swatch-row">
+    <div class="swatch"><div class="box brand-purple-bg" style="border:1px solid #AFA9EC"></div><div class="lbl">bg inline</div><div class="hex">#EEEDFE</div></div>
+    <div class="swatch"><div class="box" style="background:#AFA9EC"></div><div class="lbl">border inline</div><div class="hex">#AFA9EC</div></div>
+    <div class="swatch"><div class="box" style="background:#534AB7"></div><div class="lbl">texto inline</div><div class="hex">#534AB7</div></div>
+  </div>
+
+  <h3>Border-radius</h3>
+  <div class="swatch-row">
+    <div class="swatch"><div class="box bg-gray-200 rounded"></div><div class="lbl">rounded</div><div class="hex">4px</div></div>
+    <div class="swatch"><div class="box bg-gray-200 rounded-lg"></div><div class="lbl">rounded-lg</div><div class="hex">8px</div></div>
+    <div class="swatch"><div class="box bg-gray-200 rounded-xl"></div><div class="lbl">rounded-xl</div><div class="hex">12px</div></div>
+    <div class="swatch"><div class="box bg-gray-200 rounded-2xl"></div><div class="lbl">rounded-2xl</div><div class="hex">16px</div></div>
+    <div class="swatch"><div class="box bg-gray-200 rounded-full"></div><div class="lbl">rounded-full</div><div class="hex">9999px</div></div>
+    <div class="swatch"><div class="box bg-gray-200 rounded-t-2xl"></div><div class="lbl">rounded-t-2xl</div><div class="hex">solo arriba</div></div>
+  </div>
+
+  <h3>Escala tipográfica (de mayor a menor)</h3>
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px;max-width:760px">
+    <div class="type-row"><span class="text-3xl font-bold">Total gastado</span><span class="caption">text-3xl font-bold</span></div>
+    <div class="type-row"><span class="text-2xl font-bold">Hormigasto</span><span class="caption">text-2xl font-bold</span></div>
+    <div class="type-row"><span class="text-xl font-bold">Hormigasto</span><span class="caption">text-xl font-bold</span></div>
+    <div class="type-row"><span class="text-lg font-bold">Casa Familia González</span><span class="caption">text-lg font-bold</span></div>
+    <div class="type-row"><span class="text-base font-bold">$45.000</span><span class="caption">text-base font-bold</span></div>
+    <div class="type-row"><span class="text-sm font-bold">$496.274</span><span class="caption">text-sm font-bold</span></div>
+    <div class="type-row"><span class="text-sm font-semibold">Iniciar sesión</span><span class="caption">text-sm font-semibold</span></div>
+    <div class="type-row"><span class="text-sm font-medium">Cemento Melón 25kg</span><span class="caption">text-sm font-medium</span></div>
+    <div class="type-row"><span class="text-sm">tu@correo.com</span><span class="caption">text-sm</span></div>
+    <div class="type-row"><span class="text-xs font-semibold uppercase tracking-wide" style="color:#9ca3af">Total general</span><span class="caption">text-xs font-semibold text-gray-400 uppercase tracking-wide</span></div>
+    <div class="type-row"><span class="text-xs font-medium">3 pendientes</span><span class="caption">text-xs font-medium</span></div>
+    <div class="type-row"><span class="text-xs" style="color:#9ca3af">9 boletas</span><span class="caption">text-xs text-gray-400</span></div>
+    <div class="type-row"><span class="text-\[11px\] font-semibold">🤖 Instrucciones de obra</span><span class="caption">text-[11px] font-semibold (arbitrario)</span></div>
+    <div class="type-row"><span class="text-\[10px\] font-semibold uppercase tracking-wide" style="color:#9ca3af">Etapa</span><span class="caption">text-[10px] font-semibold text-gray-400 uppercase tracking-wide</span></div>
+    <div class="type-row"><span class="text-\[10px\]" style="color:#d1d5db">Sin etiquetas</span><span class="caption">text-[10px] text-gray-300</span></div>
+  </div>
+  <p class="cat-lead" style="margin-top:10px">Nota: la app no usa <code>font-normal</code> en ningún lado — el peso mínimo observado es <code>font-medium</code>. También usa dos tamaños "micro" fuera de la escala default de Tailwind (<code>text-[10px]</code>, <code>text-[11px]</code>) de forma deliberada.</p>
+
+  <h3>Sistema de iconos</h3>
+  <div class="cat-grid">
+    <div class="example">
+      <div class="render">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      </div>
+      <span class="caption">viewBox 0 0 24 24 · stroke-width 1.8 · fill none · stroke currentColor</span>
+    </div>
+    <div class="example">
+      <div class="render">
+        <svg width="40" height="40" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M33 22 C 37 16, 40 14, 43 12" /><path d="M34 24 C 39 20, 42 19, 45 17" />
+          <circle cx="33" cy="25" r="3.2" /><ellipse cx="24.5" cy="26" rx="4.3" ry="3.8" /><ellipse cx="13" cy="27" rx="7.5" ry="5.8" />
+          <path d="M27 28.5 L 30 34 L 33 38" /><path d="M20.5 29 L 22 35 L 24.5 39.5" /><path d="M12 32 L 10 37 L 8 41" />
+          <g transform="rotate(-12 13 16)"><rect x="5" y="11" width="15" height="10" rx="1.5" /><line x1="5" y1="16" x2="20" y2="16" /><line x1="12.5" y1="11" x2="12.5" y2="21" /></g>
+        </svg>
+      </div>
+      <span class="caption">AntLogo · viewBox 0 0 48 48 · stroke-width 1.8 (único ícono con viewBox más grande, más detalle)</span>
+    </div>
+    <div class="example">
+      <div class="render" style="font-size:20px">🧾 🤖 ⚠ ✏ ✓ ✕ ×</div>
+      <span class="caption">emoji-como-ícono (no SVG): boleta, IA, advertencia, editar, confirmar, cancelar, quitar-tag</span>
+    </div>
+  </div>
+
+  <h3>Espaciado / layout</h3>
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px;max-width:600px;font-size:13px">
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:6px 0"><b>Frame móvil</b></td><td style="color:#6b7280">max-width: 390px, centrado (<code>.app-container</code>)</td></tr>
+      <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:6px 0"><b>Padding horizontal página</b></td><td style="color:#6b7280">px-4 (px-6 en login)</td></tr>
+      <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:6px 0"><b>Padding top header</b></td><td style="color:#6b7280">pt-12 (zona segura)</td></tr>
+      <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:6px 0"><b>Padding cards</b></td><td style="color:#6b7280">p-3 (compacto) / p-4 (estándar)</td></tr>
+      <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:6px 0"><b>Padding botones</b></td><td style="color:#6b7280">py-2 (compacto) → py-3.5 (CTA principal)</td></tr>
+      <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:6px 0"><b>Bordes</b></td><td style="color:#6b7280">siempre hairline 1px — border-gray-100 (divisores), border-gray-200 (inputs)</td></tr>
+      <tr><td style="padding:6px 0"><b>Divisores de lista</b></td><td style="color:#6b7280"><code>border-b border-gray-50 last:border-0</code></td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- =========================================================
+     2. HEADERS / BRANDING
+     ========================================================= -->
+<section class="cat-section" id="headers">
+  <h2>2. Headers / branding</h2>
+
+  <h3>Logo + título (compacto, Inicio)</h3>
+  <div class="frame-390" style="padding:24px 16px 16px;margin-top:24px">
+    <div class="flex items-center gap-2">
+      <svg width="28" height="28" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="text-gray-900">
+        <path d="M33 22 C 37 16, 40 14, 43 12" /><path d="M34 24 C 39 20, 42 19, 45 17" /><circle cx="33" cy="25" r="3.2" /><ellipse cx="24.5" cy="26" rx="4.3" ry="3.8" /><ellipse cx="13" cy="27" rx="7.5" ry="5.8" /><path d="M27 28.5 L 30 34 L 33 38" /><path d="M20.5 29 L 22 35 L 24.5 39.5" /><path d="M12 32 L 10 37 L 8 41" /><g transform="rotate(-12 13 16)"><rect x="5" y="11" width="15" height="10" rx="1.5" /><line x1="5" y1="16" x2="20" y2="16" /><line x1="12.5" y1="11" x2="12.5" y2="21" /></g>
+      </svg>
+      <div>
+        <h1 class="text-xl font-bold text-gray-900">Hormigasto</h1>
+        <p class="text-xs text-gray-400 mt-0.5">Tus obras</p>
+      </div>
+    </div>
+  </div>
+  <span class="caption">AntLogo size=28 · h1: text-xl font-bold text-gray-900 · p: text-xs text-gray-400 mt-0.5</span>
+
+  <h3>Logo + título (grande, centrado, Login)</h3>
+  <div class="frame-390" style="padding:32px 24px;margin-top:24px">
+    <div class="mb-8 text-center">
+      <div class="flex items-center justify-center gap-2">
+        <svg width="32" height="32" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="text-gray-900">
+          <path d="M33 22 C 37 16, 40 14, 43 12" /><path d="M34 24 C 39 20, 42 19, 45 17" /><circle cx="33" cy="25" r="3.2" /><ellipse cx="24.5" cy="26" rx="4.3" ry="3.8" /><ellipse cx="13" cy="27" rx="7.5" ry="5.8" /><path d="M27 28.5 L 30 34 L 33 38" /><path d="M20.5 29 L 22 35 L 24.5 39.5" /><path d="M12 32 L 10 37 L 8 41" /><g transform="rotate(-12 13 16)"><rect x="5" y="11" width="15" height="10" rx="1.5" /><line x1="5" y1="16" x2="20" y2="16" /><line x1="12.5" y1="11" x2="12.5" y2="21" /></g>
+        </svg>
+        <h1 class="text-2xl font-bold text-gray-900">Hormigasto</h1>
+      </div>
+      <p class="text-sm text-gray-400 mt-1">Gestión de gastos de construcción</p>
+    </div>
+  </div>
+  <span class="caption">AntLogo size=32 · h1: text-2xl font-bold text-gray-900 · p: text-sm text-gray-400 mt-1</span>
+
+  <h3>Header con back + título truncado (Detalle obra)</h3>
+  <div class="frame-390" style="padding:20px 16px;margin-top:24px">
+    <div class="flex items-center gap-3 mb-4">
+      <button class="text-gray-400"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+      <div class="flex-1 min-w-0">
+        <h1 class="text-lg font-bold text-gray-900 truncate">Casa Familia González</h1>
+        <p class="text-xs text-gray-400">9 boletas</p>
+      </div>
+    </div>
+  </div>
+  <span class="caption">flex items-center gap-3 mb-4 · h1: text-lg font-bold text-gray-900 truncate</span>
+
+  <h3>Header con contador de paso (Escaneo)</h3>
+  <div class="frame-390" style="padding:20px 16px;margin-top:24px">
+    <div class="flex items-center justify-between mb-4">
+      <button class="text-gray-400"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+      <span class="text-sm font-semibold text-gray-900">Fotografiar boleta</span>
+      <span class="text-xs text-gray-400">Paso 2/3</span>
+    </div>
+  </div>
+  <span class="caption">flex items-center justify-between mb-4</span>
+</section>
+
+<!-- =========================================================
+     3. BOTONES ÍCONO CIRCULARES
+     ========================================================= -->
+<section class="cat-section" id="icon-buttons">
+  <h2>3. Botones ícono circulares</h2>
+  <div class="cat-grid">
+    <div class="example">
+      <button class="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-200">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </button>
+      <span class="caption">w-9 h-9 rounded-full border border-gray-200 text-gray-500 (gear/config)</span>
+    </div>
+    <div class="example">
+      <button class="text-gray-400"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+      <span class="caption">text-gray-400 (sin borde/fondo) — back chevron</span>
+    </div>
+    <div class="example">
+      <button class="text-gray-400 hover:text-blue-600 transition-colors"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+      <span class="caption">text-gray-400 hover:text-blue-600 · pencil, w-4 h-4 (nivel fila)</span>
+    </div>
+    <div class="example">
+      <button class="text-gray-300 hover:text-blue-500 transition-colors"><svg class="w-3\.5 h-3\.5" style="width:14px;height:14px" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+      <span class="caption">text-gray-300 hover:text-blue-500 · pencil, w-3.5 h-3.5 (nivel ítem anidado — más chico y más claro)</span>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     4. BADGES & PILLS
+     ========================================================= -->
+<section class="cat-section" id="badges">
+  <h2>4. Badges &amp; pills</h2>
+
+  <div class="inconsistency">
+    <b>⚠ Inconsistencia #1 — Badge de "pendientes" con 3 formas distintas</b> para el mismo significado semántico. Mostradas juntas abajo.
+  </div>
+  <h3>Pending badge — 3 variantes</h3>
+  <div class="cat-grid">
+    <div class="example">
+      <span class="flex items-center gap-1 bg-amber-50 border border-amber-200 rounded-full px-3 py-1"><span class="w-2 h-2 bg-amber-400 rounded-full"></span><span class="text-xs font-medium" style="color:#b45309">3 pendientes</span></span>
+      <span class="caption">Header Inicio: bg-amber-50 border-amber-200 rounded-full px-3 py-1 + dot</span>
+    </div>
+    <div class="example">
+      <span class="inline-flex items-center gap-1 mt-1 bg-amber-100" style="color:#b45309" class="text-\[10px\] font-medium px-2 py-0\.5 rounded-full">⚠ 2 pendientes</span>
+      <span class="caption">Lista Inicio: bg-amber-100 text-[10px] px-2 py-0.5 rounded-full</span>
+    </div>
+    <div class="example">
+      <span class="bg-amber-100 text-\[10px\] font-medium px-2 py-1 rounded-full shrink-0" style="color:#b45309">2 pendientes</span>
+      <span class="caption">Header Detalle: bg-amber-100 text-[10px] px-2 py-1 rounded-full (padding distinto)</span>
+    </div>
+  </div>
+
+  <h3>Tags / etiquetas</h3>
+  <div class="cat-grid">
+    <div class="example"><span class="text-\[10px\] px-2 py-0\.5 rounded-full font-medium bg-gray-100 text-gray-500">enfierradura</span><span class="caption">inactivo: bg-gray-100 text-gray-500</span></div>
+    <div class="example"><span class="text-\[10px\] px-2 py-0\.5 rounded-full font-medium bg-blue-100 text-blue-700">enfierradura</span><span class="caption">activo (filtro etiqueta): bg-blue-100 text-blue-700</span></div>
+    <div class="example"><span class="flex items-center gap-1 bg-blue-600 text-white text-xs px-2\.5 py-1 rounded-full font-medium hover:bg-red-500 transition-colors" style="display:inline-flex">enfierradura ×</span><span class="caption">activo/filled (ClasificacionModal): bg-blue-600 text-white — hover:bg-red-500 (pasá el mouse)</span></div>
+    <div class="example"><span class="flex items-center gap-1 bg-gray-100 text-gray-600 text-\[10px\] px-2 py-0\.5 rounded-full hover:bg-red-50 hover:text-red-400 transition-colors" style="display:inline-flex">enfierradura ×</span><span class="caption">removible/muted (Pendientes): bg-gray-100 text-gray-600 — hover:bg-red-50 hover:text-red-400</span></div>
+  </div>
+
+  <h3>Status badges</h3>
+  <div class="cat-grid">
+    <div class="example"><span class="bg-green-100 text-green-700 font-semibold px-2 py-0\.5 rounded-full text-\[10px\]">Confirmado</span><span class="caption">bg-green-100 text-green-700</span></div>
+    <div class="example"><span class="bg-amber-100 font-semibold px-2 py-0\.5 rounded-full text-\[10px\]" style="color:#b45309">Pendiente</span><span class="caption">bg-amber-100 text-amber-700</span></div>
+    <div class="example"><span class="text-\[10px\] font-bold text-blue-600 bg-blue-100 px-2 py-0\.5 rounded-full">🤖 Propuesta IA</span><span class="caption">bg-blue-100 text-blue-600 (con emoji)</span></div>
+    <div class="example"><span class="text-\[10px\] font-bold bg-amber-100 px-2 py-0\.5 rounded-full" style="color:#d97706">⚠ Confianza 62%</span><span class="caption">bg-amber-100 text-amber-600 (baja confianza IA)</span></div>
+    <div class="example"><span class="text-\[10px\] bg-gray-100 text-gray-500 px-1\.5 py-0\.5 rounded-full">Inactivo</span><span class="caption">usuario inactivo: bg-gray-100 text-gray-500</span></div>
+  </div>
+</section>
+
+<!-- =========================================================
+     5. BOTONES
+     ========================================================= -->
+<section class="cat-section" id="buttons">
+  <h2>5. Botones</h2>
+
+  <h3>Primarios (full-width)</h3>
+  <div class="cat-grid cols">
+    <div class="example"><button class="bg-gray-900 text-white rounded-xl py-3\.5 text-sm font-semibold" style="width:220px;padding-left:16px;padding-right:16px">Entrar</button><span class="caption">bg-gray-900 rounded-xl py-3.5 (negro, login/export)</span></div>
+    <div class="example"><button class="bg-blue-600 text-white rounded-xl py-3\.5 text-sm font-semibold hover:bg-blue-700" style="width:220px;padding-left:16px;padding-right:16px">Guardar</button><span class="caption">bg-blue-600 rounded-xl py-3.5 (modales/scan) — hover:bg-blue-700</span></div>
+    <div class="example"><button class="bg-green-600 text-white rounded-xl py-3 text-sm font-semibold" style="width:220px;padding-left:16px;padding-right:16px">Guardar boleta</button><span class="caption">bg-green-600 rounded-xl py-3 (último paso scan)</span></div>
+    <div class="example"><button disabled class="bg-gray-900 text-white rounded-xl py-3\.5 text-sm font-semibold disabled:opacity-40" style="width:220px;padding-left:16px;padding-right:16px">Entrar</button><span class="caption note">disabled:opacity-40 (instancia real disabled)</span></div>
+  </div>
+
+  <h3>Secundarios / outline</h3>
+  <div class="cat-grid">
+    <div class="example"><button class="w-full border border-gray-200 rounded-xl py-2\.5 text-sm text-gray-500 font-medium hover:border-gray-200" style="width:200px">Subir desde galería</button><span class="caption">border-gray-200 rounded-xl py-2.5 text-gray-500</span></div>
+    <div class="example"><button class="flex-1 border border-gray-200 rounded-xl py-3 text-sm font-semibold text-gray-500" style="width:140px">Anterior</button><span class="caption">border-gray-200 rounded-xl py-3</span></div>
+    <div class="example"><button disabled class="flex-1 border border-gray-200 rounded-xl py-3 text-sm font-semibold text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed" style="width:140px">Anterior</button><span class="caption note">disabled:opacity-30 (¡distinto del opacity-40 de arriba!)</span></div>
+    <div class="example"><button class="flex-1 border border-gray-200 rounded-lg py-2 text-xs font-medium text-gray-500" style="width:120px">Rechazar</button><span class="caption">border-gray-200 rounded-lg py-2 text-xs</span></div>
+  </div>
+
+  <div class="inconsistency"><b>⚠ Inconsistencia #6 — Opacidad de disabled inconsistente.</b> Se ven <code>disabled:opacity-40</code>, <code>disabled:opacity-30</code> y <code>disabled:opacity-60</code> en botones/inputs con el mismo rol semántico (deshabilitado).</div>
+
+  <h3>Tabs segmentados</h3>
+  <div class="example">
+    <div class="flex gap-2 bg-gray-100 rounded-xl p-1" style="width:280px">
+      <button class="flex-1 rounded-lg py-2 text-sm font-semibold bg-white text-gray-900" style="box-shadow:0 1px 2px rgba(0,0,0,.05)">Iniciar sesión</button>
+      <button class="flex-1 rounded-lg py-2 text-sm font-semibold text-gray-400">Crear cuenta</button>
+    </div>
+    <span class="caption">contenedor: bg-gray-100 rounded-xl p-1 · activo: bg-white shadow-sm text-gray-900 · inactivo: text-gray-400</span>
+  </div>
+
+  <h3>Filter chips</h3>
+  <div class="inconsistency"><b>⚠ Inconsistencia #2 — Filter chips: activo negro vs. activo azul.</b> Etapa/Partida usan negro; Etiquetas usa azul, sin razón semántica documentada.</div>
+  <div class="cat-grid">
+    <div class="example"><span class="px-3 py-1\.5 rounded-full text-xs font-semibold border bg-gray-900 text-white" style="border-color:#111827">Terminaciones</span><span class="caption">activo Etapa/Partida: bg-gray-900 border-gray-900</span></div>
+    <div class="example"><span class="px-3 py-1\.5 rounded-full text-xs font-semibold border bg-white text-gray-500 border-gray-200">Obra gruesa</span><span class="caption">inactivo: bg-white text-gray-500 border-gray-200</span></div>
+    <div class="example"><span class="px-3 py-1\.5 rounded-full text-xs font-semibold border bg-blue-600 text-white" style="border-color:#2563eb">enfierradura</span><span class="caption note">activo Etiqueta: bg-blue-600 (¡distinto de Etapa/Partida!)</span></div>
+  </div>
+
+  <h3>Text-links / botones mudos / mini-iconos</h3>
+  <div class="cat-grid">
+    <div class="example"><a class="text-xs text-blue-600 font-medium" href="#">Usar otro correo</a><span class="caption">text-xs text-blue-600 font-medium</span></div>
+    <div class="example"><a class="text-\[10px\] text-blue-600 font-medium" href="#">+ Nueva</a><span class="caption">text-[10px] text-blue-600 font-medium</span></div>
+    <div class="example"><a class="text-xs text-gray-400 font-medium" href="#">Dar de baja</a><span class="caption">text-xs text-gray-400 font-medium (mudo)</span></div>
+    <div class="example"><button class="bg-blue-600 text-white rounded-lg px-2 text-xs font-bold" style="height:26px">✓</button><span class="caption">confirmar inline: bg-blue-600 rounded-lg px-2</span></div>
+    <div class="example"><button class="text-gray-400 text-xs px-1">✕</button><span class="caption">cancelar inline: text-gray-400</span></div>
+    <div class="example"><button class="bg-gray-900 text-white px-3 rounded-lg text-sm font-medium" style="height:34px">+</button><span class="caption">"+" agregar: bg-gray-900 rounded-lg</span></div>
+  </div>
+</section>
+
+<!-- =========================================================
+     6. FORMULARIOS
+     ========================================================= -->
+<section class="cat-section" id="forms">
+  <h2>6. Formularios</h2>
+
+  <h3>Text input estándar</h3>
+  <div class="example stretch" style="max-width:340px">
+    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Correo electrónico</label>
+    <input class="mt-1\.5 w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400" style="outline:none" placeholder="tu@correo.com">
+    <span class="caption">border-gray-200 rounded-xl px-4 py-3 text-sm — focus:border-gray-400 (probá el foco)</span>
+  </div>
+
+  <h3>Selects (3 variantes de tamaño)</h3>
+  <div class="cat-grid">
+    <div class="example"><select class="w-full border border-gray-200 rounded-xl px-3 py-2\.5 text-sm text-gray-800 bg-white" style="width:200px"><option>Terminaciones</option></select><span class="caption">estándar: rounded-xl px-3 py-2.5 text-sm</span></div>
+    <div class="example"><select class="w-full border border-gray-200 rounded-lg px-2 py-1\.5 text-xs text-gray-700 bg-white" style="width:160px"><option>Pintura</option></select><span class="caption">compacto/anidado: rounded-lg px-2 py-1.5 text-xs</span></div>
+    <div class="example"><select class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white" style="width:160px"><option>Editor</option></select><span class="caption">config (rol): rounded-lg px-3 py-2 text-sm</span></div>
+  </div>
+  <div class="inconsistency"><b>⚠ Inconsistencia #4 — Dos escalas de "input" conviviendo</b> sin regla documentada de cuándo usar cada una (estándar rounded-xl/text-sm/py-3 vs. compacto rounded-lg/text-xs/py-1.5).</div>
+
+  <h3>Number inputs (4 variantes, con y sin disabled)</h3>
+  <div class="cat-grid">
+    <div class="example"><input value="2" class="text-sm font-bold text-gray-900 text-right border border-gray-200 rounded-lg px-1 bg-white focus:border-blue-400" style="width:48px;outline:none"><span class="caption">card-embedded cantidad: w-12</span></div>
+    <div class="example"><input value="12500" class="text-sm font-bold text-gray-900 text-center border border-gray-200 rounded-lg px-1 bg-white focus:border-blue-400" style="width:100%;max-width:120px;outline:none"><span class="caption">card-embedded precio: w-full</span></div>
+    <div class="example"><input value="1" disabled class="text-right border border-gray-200 rounded px-1 bg-white disabled:opacity-60" style="width:40px;outline:none"><span class="caption note">compacto pendientes cantidad: w-10, rounded (no rounded-lg) — disabled:opacity-60</span></div>
+    <div class="example"><input value="8900" disabled class="text-right border border-gray-200 rounded px-1 bg-white disabled:opacity-60" style="width:64px;outline:none"><span class="caption note">compacto pendientes precio: w-16 — disabled:opacity-60</span></div>
+  </div>
+
+  <h3>Inputs especiales</h3>
+  <div class="cat-grid">
+    <div class="example"><input placeholder="Nueva etapa..." class="border border-blue-300 rounded-lg px-2 py-1\.5 text-xs text-gray-700" style="width:150px;outline:none"><span class="caption">creación inline: border-blue-300 (señala "modo creando")</span></div>
+    <div class="example"><input placeholder="+ tag" class="text-\[10px\] text-gray-500 bg-transparent border border-dashed border-gray-300 rounded-full px-2 py-0\.5" style="width:80px;outline:none"><span class="caption">tag input estilo pill punteado (único en Pendientes): border-dashed rounded-full</span></div>
+    <div class="example"><input placeholder="+ Agregar etiqueta..." class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:border-blue-300" style="width:220px;outline:none"><span class="caption">tag freetext: rounded-xl px-3 py-2 — focus:border-blue-300</span></div>
+  </div>
+
+  <h3>Checkbox: nativo vs. custom (ambos estados)</h3>
+  <div class="cat-grid">
+    <div class="example"><input type="checkbox" class="w-4 h-4"><span class="caption">nativo, sin estilos custom (EditarUsuarioModal): w-4 h-4</span></div>
+    <div class="example">
+      <div class="w-5 h-5 rounded border-2 flex items-center justify-center border-gray-300 bg-white"></div>
+      <span class="caption">custom, sin marcar: border-2 border-gray-300 bg-white</span>
+    </div>
+    <div class="example">
+      <div class="w-5 h-5 rounded border-2 flex items-center justify-center bg-blue-600 border-blue-600"><svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>
+      <span class="caption">custom, marcado (ItemCard): bg-blue-600 border-blue-600 + check icon</span>
+    </div>
+  </div>
+
+  <p class="cat-lead" style="margin-top:8px">Texto de error: <span class="text-xs text-red-500">Las contraseñas no coinciden</span> <span class="caption">text-xs text-red-500</span></p>
+</section>
+
+<!-- =========================================================
+     7. CARDS
+     ========================================================= -->
+<section class="cat-section" id="cards">
+  <h2>7. Cards</h2>
+
+  <h3>Metric cards</h3>
+  <div class="cat-grid">
+    <div class="example">
+      <div class="bg-gray-50 rounded-xl p-3 border border-gray-100" style="width:150px">
+        <p class="text-\[11px\] text-gray-400 font-medium uppercase tracking-wide">Total general</p>
+        <p class="text-lg font-bold text-gray-900 mt-1">$513.434</p>
+      </div>
+      <span class="caption">bg-gray-50 rounded-xl p-3 border-gray-100 (2-col grid, home)</span>
+    </div>
+    <div class="example">
+      <div class="bg-gray-50 rounded-xl p-4 border border-gray-100" style="width:200px">
+        <p class="text-\[11px\] text-gray-400 font-medium uppercase tracking-wide">Total gastado</p>
+        <p class="text-3xl font-bold text-gray-900 mt-1">$496.274</p>
+      </div>
+      <span class="caption">bg-gray-50 rounded-xl p-4 (header detalle, valor grande)</span>
+    </div>
+  </div>
+
+  <h3>Obra list-item card (con progress bar)</h3>
+  <div class="frame-390" style="padding:16px">
+    <div class="rounded-xl border border-gray-100 p-4 hover:border-gray-200 active:bg-gray-50">
+      <div class="flex items-start justify-between gap-2">
+        <div><p class="text-sm font-semibold text-gray-900">Casa Container</p><p class="text-xs text-gray-400 mt-0\.5">9 boletas</p></div>
+        <div style="text-align:right"><p class="font-bold text-gray-900">$496.274</p></div>
+      </div>
+      <div class="flex items-center justify-between mt-3">
+        <div class="flex-1 bg-gray-100 rounded-full h-1\.5" style="margin-right:12px"><div class="bg-blue-500 rounded-full h-1\.5" style="width:97%"></div></div>
+        <div class="flex items-center gap-1 text-gray-400"><span class="text-xs">97%</span></div>
+      </div>
+    </div>
+  </div>
+  <span class="caption">rounded-xl border-gray-100 p-4 hover:border-gray-200 active:bg-gray-50 — probá el hover</span>
+
+  <h3>AI-proposal card (azul) vs. Pending item card (ámbar) — patrones paralelos</h3>
+  <div class="cat-grid cols">
+    <div class="example stretch" style="width:300px">
+      <div class="rounded-2xl border-2 bg-blue-50\/30" style="border-color:#dbeafe;padding:16px">
+        <div class="flex items-center justify-between mb-2"><span class="text-\[10px\] font-bold text-blue-600 bg-blue-100 px-2 py-0\.5 rounded-full">🤖 Propuesta IA</span></div>
+        <p class="text-base font-bold text-gray-900">Cemento Melón 25kg</p>
+        <p class="text-xs text-gray-400 mt-1">2 sacos · $12.500 c/u</p>
+      </div>
+      <span class="caption">rounded-2xl border-2 border-blue-100 bg-blue-50/30 (centerpiece del flujo escaneo)</span>
+    </div>
+    <div class="example stretch" style="width:300px">
+      <div class="rounded-xl border bg-amber-50\/20" style="border-color:#fde68a;padding:16px">
+        <div class="flex items-center justify-between mb-2"><span class="text-\[10px\] font-semibold bg-amber-100 px-2 py-0\.5 rounded-full" style="color:#b45309">⚠ Revisar</span></div>
+        <p class="text-base font-bold text-gray-900">Ítem sin clasificar</p>
+        <p class="text-xs text-gray-400 mt-1">Sin etiquetas — queda pendiente</p>
+      </div>
+      <span class="caption">rounded-xl border-amber-200 bg-amber-50/20 (paralelo ámbar, Pendientes)</span>
+    </div>
+  </div>
+
+  <h3>Stat mini-cards (grid 3 columnas)</h3>
+  <div class="example stretch" style="width:340px">
+    <div class="grid grid-cols-3 gap-2">
+      <div class="bg-white rounded-xl p-2 text-center border border-gray-100"><p class="text-\[10px\] text-gray-400">Cantidad</p><p class="text-sm font-bold text-gray-900">2</p></div>
+      <div class="bg-white rounded-xl p-2 text-center border border-gray-100"><p class="text-\[10px\] text-gray-400">Precio u.</p><p class="text-sm font-bold text-gray-900">$12.500</p></div>
+      <div class="rounded-xl p-2 text-center border bg-blue-50" style="border-color:#dbeafe"><p class="text-\[10px\]" style="color:#60a5fa">Subtotal</p><p class="text-sm font-bold" style="color:#1d4ed8">$25.000</p></div>
+    </div>
+  </div>
+  <span class="caption">neutral: bg-white border-gray-100 · destacado (subtotal): bg-blue-50 border-blue-100 text-blue-700</span>
+
+  <h3>Selectable list-row card (activo / inactivo)</h3>
+  <div class="cat-grid">
+    <div class="example"><div class="rounded-xl border px-4 py-3 bg-blue-50" style="border-color:#93c5fd;width:220px"><p class="text-sm font-medium text-gray-900">Casa Container</p><p class="text-xs text-gray-400 mt-0\.5">Terminaciones activas</p></div><span class="caption">seleccionado: border-blue-300 bg-blue-50</span></div>
+    <div class="example"><div class="rounded-xl border border-gray-100 px-4 py-3 hover:border-gray-200" style="width:220px"><p class="text-sm font-medium text-gray-900">Casa Chago</p><p class="text-xs text-gray-300 mt-0\.5 italic">Sin instrucciones</p></div><span class="caption">no seleccionado: border-gray-100 hover:border-gray-200</span></div>
+  </div>
+
+  <h3>Purple "AI instructions" callout box (SystemPromptBox)</h3>
+  <div class="frame-390" style="padding:16px">
+    <div class="rounded-xl border p-3 brand-purple-bg brand-purple-border">
+      <div class="flex items-center justify-between mb-1\.5">
+        <span class="text-\[11px\] font-semibold brand-purple-text">🤖 Instrucciones de obra — Casa Container</span>
+        <a class="text-\[11px\] underline brand-purple-text" href="#">✏ Editar</a>
+      </div>
+      <p class="text-xs leading-relaxed brand-purple-text">Las maderas se usan exclusivamente para cubierta de techo. Los clavos: 1/3 se contabiliza para techo y 2/3 para piso.</p>
+    </div>
+  </div>
+  <span class="caption note">rounded-xl border p-3 + style inline background:#EEEDFE border-color:#AFA9EC color:#534AB7 (no son clases Tailwind)</span>
+</section>
+
+<!-- =========================================================
+     8. PROGRESS INDICATORS
+     ========================================================= -->
+<section class="cat-section" id="progress">
+  <h2>8. Progress indicators</h2>
+
+  <h3>Barra de completitud (obra) — 3 estados</h3>
+  <div class="cat-grid">
+    <div class="example" style="width:220px"><div class="flex-1 bg-gray-100 rounded-full h-1\.5" style="width:100%"><div class="bg-blue-500 rounded-full h-1\.5" style="width:0%"></div></div><span class="caption">0%</span></div>
+    <div class="example" style="width:220px"><div class="flex-1 bg-gray-100 rounded-full h-1\.5" style="width:100%"><div class="bg-blue-500 rounded-full h-1\.5" style="width:50%"></div></div><span class="caption">50%</span></div>
+    <div class="example" style="width:220px"><div class="flex-1 bg-gray-100 rounded-full h-1\.5" style="width:100%"><div class="bg-blue-500 rounded-full h-1\.5" style="width:100%"></div></div><span class="caption">100%</span></div>
+  </div>
+
+  <h3>Step-dots (flujo de escaneo, 3 pasos)</h3>
+  <div class="cat-grid">
+    <div class="example" style="width:220px"><div class="flex gap-1" style="width:100%"><div class="h-1 rounded-full bg-blue-600" style="flex:1"></div><div class="h-1 rounded-full bg-gray-200" style="flex:1"></div><div class="h-1 rounded-full bg-gray-200" style="flex:1"></div></div><span class="caption">paso 1/3 — bg-blue-600 / bg-gray-200</span></div>
+    <div class="example" style="width:220px"><div class="flex gap-1" style="width:100%"><div class="h-1 rounded-full bg-blue-600" style="flex:1"></div><div class="h-1 rounded-full bg-blue-600" style="flex:1"></div><div class="h-1 rounded-full bg-gray-200" style="flex:1"></div></div><span class="caption">paso 2/3</span></div>
+    <div class="example" style="width:220px"><div class="flex gap-1" style="width:100%"><div class="h-1 rounded-full bg-blue-600" style="flex:1"></div><div class="h-1 rounded-full bg-blue-600" style="flex:1"></div><div class="h-1 rounded-full bg-blue-600" style="flex:1"></div></div><span class="caption">paso 3/3</span></div>
+  </div>
+
+  <h3>Barra por-ítem (3 estados: actual/etiquetado/sin revisar)</h3>
+  <div class="example" style="width:260px">
+    <div class="flex gap-1" style="width:100%">
+      <div class="h-1 rounded-full bg-green-400" style="flex:1"></div>
+      <div class="h-1 rounded-full bg-blue-500" style="flex:1"></div>
+      <div class="h-1 rounded-full bg-gray-200" style="flex:1"></div>
+      <div class="h-1 rounded-full bg-gray-200" style="flex:1"></div>
+    </div>
+    <span class="caption">verde=etiquetado (bg-green-400) · azul=actual (bg-blue-500) · gris=sin revisar (bg-gray-200)</span>
+  </div>
+</section>
+
+<!-- =========================================================
+     9. MODALES
+     ========================================================= -->
+<section class="cat-section" id="modals">
+  <h2>9. Modales (bottom-sheet)</h2>
+  <p class="cat-lead">Renderizados en flujo normal del documento (no <code>position:fixed</code>) para no romper el scroll del catálogo. En la app real usan <code>fixed inset-0 bg-black/60</code> + <code>rounded-t-2xl</code>.</p>
+
+  <div class="frame-390" style="height:420px;overflow:hidden;position:relative;background:#000">
+    <div class="bg-black\/60" style="position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center">
+      <div class="bg-white rounded-t-2xl flex flex-col" style="width:100%;max-height:85%;height:380px">
+        <div class="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100">
+          <div><p class="text-sm font-bold text-gray-900">Clasificar ítem</p><p class="text-xs text-gray-400 mt-0\.5">Cemento Melón 25kg</p></div>
+          <button class="text-gray-400 ml-3"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></path></svg></button>
+        </div>
+        <div class="overflow-y-auto flex-1 px-4 py-4" style="flex:1">
+          <p class="text-\[10px\] font-semibold text-gray-400 uppercase tracking-wide mb-2">Etapa</p>
+          <select class="w-full border border-gray-200 rounded-lg px-2 py-1\.5 text-xs text-gray-700 bg-white"><option>Terminaciones</option></select>
+        </div>
+        <div class="px-4 pt-3 border-t border-gray-100" style="padding-bottom:24px">
+          <button class="w-full bg-blue-600 text-white rounded-xl py-3\.5 text-sm font-semibold">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <span class="caption">backdrop: bg-black/60 flex items-end · sheet: rounded-t-2xl max-h 85vh · footer con padding safe-area + CTA azul full-width</span>
+</section>
+
+<!-- =========================================================
+     10. CAPTURA DE FOTO
+     ========================================================= -->
+<section class="cat-section" id="photo">
+  <h2>10. Captura de foto</h2>
+  <div class="cat-grid">
+    <div class="example">
+      <div class="border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-3 text-gray-400 hover:border-blue-300 hover:text-blue-400 transition-colors" style="width:260px;height:180px">
+        <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span class="text-sm font-medium">Fotografiar boleta</span>
+        <span class="text-xs">Toca para abrir la cámara</span>
+      </div>
+      <span class="caption">border-2 border-dashed border-gray-200 rounded-2xl — hover:border-blue-300 hover:text-blue-400</span>
+    </div>
+    <div class="example">
+      <div class="relative" style="width:260px;height:180px">
+        <div style="width:100%;height:100%;background:linear-gradient(135deg,#e5e7eb,#d1d5db);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:40px">🧾</div>
+        <button class="absolute top-2 right-2 bg-black\/50 text-white rounded-full flex items-center justify-center" style="width:32px;height:32px">✕</button>
+      </div>
+      <span class="caption">preview: rounded-2xl object-cover + botón remove absolute bg-black/50 rounded-full</span>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     11. LOADING / EMPTY / SUCCESS STATES
+     ========================================================= -->
+<section class="cat-section" id="states">
+  <h2>11. Loading / empty / success states</h2>
+  <div class="cat-grid">
+    <div class="example">
+      <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+      <span class="caption">spinner animate-spin (única animación real con movimiento)</span>
+    </div>
+    <div class="example" style="width:200px">
+      <div style="text-align:center;padding:24px 0">
+        <div class="bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3" style="width:48px;height:48px"><svg class="w-6 h-6" style="color:#22c55e" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>
+        <p class="text-sm font-medium" style="color:#4b5563">Todo al día</p>
+        <p class="text-xs text-gray-400 mt-1">No hay ítems pendientes</p>
+      </div>
+      <span class="caption">bg-green-50 rounded-full circle + checkmark</span>
+    </div>
+    <div class="example" style="width:180px">
+      <div style="text-align:center;padding:24px 0"><p class="text-gray-400 text-sm">No hay obras registradas</p></div>
+      <span class="caption">empty state genérico: text-gray-400 text-sm, py-16</span>
+    </div>
+    <div class="example" style="width:200px">
+      <div style="text-align:center">
+        <div class="bg-green-100 rounded-full flex items-center justify-center mx-auto" style="width:56px;height:56px"><svg class="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></div>
+        <p class="text-sm font-semibold text-gray-900 mt-2">Revisa tu correo</p>
+        <p class="text-xs text-gray-400 mt-1">Te enviamos un link de acceso</p>
+      </div>
+      <span class="caption">bg-green-100 rounded-full + mail-check icon (magic link / signup confirmation)</span>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     12. CRUD LIST ROWS
+     ========================================================= -->
+<section class="cat-section" id="lists">
+  <h2>12. CRUD list rows</h2>
+  <div class="example stretch" style="width:360px">
+    <div class="text-sm text-gray-700 py-1 border-b border-gray-50 last\:border-0">Obra gruesa</div>
+    <div class="flex items-center justify-between py-1 border-b border-gray-50 last\:border-0"><span class="text-sm text-gray-700">Pintura</span><span class="text-xs text-gray-400">Terminaciones</span></div>
+    <div class="flex items-center justify-between py-2 border-b border-gray-50 last\:border-0"><span class="text-sm text-gray-900 truncate">coke@empresa.cl</span><span class="text-\[10px\] text-gray-400 uppercase">Admin</span></div>
+    <div class="flex items-center justify-between py-1"><span class="text-sm text-gray-700">nuevo@empresa.cl</span><a class="text-xs text-gray-400" href="#">Cancelar</a></div>
+  </div>
+  <span class="caption">todas comparten: border-b border-gray-50 last:border-0</span>
+</section>
+
+<!-- =========================================================
+     13. BOTTOM NAVIGATION
+     ========================================================= -->
+<section class="cat-section" id="nav">
+  <h2>13. Bottom navigation</h2>
+  <div class="frame-390">
+    <div class="bg-white border-t border-gray-200" style="border-top-width:1px">
+      <div class="flex items-center justify-around" style="height:64px;padding:0 8px">
+        <div class="flex flex-col items-center gap-0\.5" style="flex:1;color:#2563eb">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+          <span class="text-\[10px\] font-medium">Inicio</span>
+        </div>
+        <div class="flex flex-col items-center gap-0\.5" style="flex:1;color:#9ca3af">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span class="text-\[10px\] font-medium">Escanear</span>
+        </div>
+        <div class="flex flex-col items-center gap-0\.5" style="flex:1;color:#9ca3af;position:relative">
+          <div style="position:relative">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span class="bg-amber-400 text-white text-\[10px\] font-bold rounded-full flex items-center justify-center" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px">9+</span>
+          </div>
+          <span class="text-\[10px\] font-medium">Pendientes</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <span class="caption">activo: text-blue-600 · inactivo: text-gray-400 · badge: bg-amber-400 rounded-full, cap "9+"</span>
+</section>
+
+<!-- =========================================================
+     14. RESUMEN DE INCONSISTENCIAS
+     ========================================================= -->
+<section class="cat-section" id="inconsistencies">
+  <h2>14. Resumen de inconsistencias detectadas</h2>
+  <p class="cat-lead">No se corrigieron — quedan documentadas para que la guía de estilo decida cómo unificarlas.</p>
+  <ol class="toc-list">
+    <li><b>Pending badge</b> con 3 variantes de padding/forma según contexto. <a href="#badges">ver ↑</a></li>
+    <li><b>Filter chips</b>: activo negro (Etapa/Partida) vs. activo azul (Etiqueta), sin razón semántica clara. <a href="#buttons">ver ↑</a></li>
+    <li><b>Text-link buttons</b> con modificadores de wrapper inconsistentes entre pantallas. <a href="#buttons">ver ↑</a></li>
+    <li>Dos escalas de <b>input</b> conviviendo (rounded-xl/text-sm/py-3 vs. rounded-lg/text-xs/py-1.5) sin regla documentada. <a href="#forms">ver ↑</a></li>
+    <li><b>Color morado de marca</b> solo como hex inline en <code>SystemPromptBox</code>, nunca token Tailwind. <a href="#cards">ver ↑</a></li>
+    <li><b>Opacidad de disabled</b> inconsistente (opacity-40 / 60 / 30) en componentes similares. <a href="#buttons">ver ↑</a></li>
+  </ol>
+</section>
+
+<!-- =========================================================
+     15. ARCHIVOS FUENTE (verbatim)
+     ========================================================= -->
+<section class="cat-section" id="source">
+  <h2>15. Archivos fuente (copiados tal cual, sin reescribir)</h2>
+  <p class="cat-lead">No existe un archivo de "design tokens" o theme separado en el proyecto. Estos son los únicos dos archivos de estilos/config globales — todo el resto de los colores viven como clases de Tailwind directo en cada componente.</p>
+
+  <div class="src-file">
+    <div class="fname">app/globals.css</div>
+    <pre>@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #f0f0f0;
+  font-family: 'Inter', sans-serif;
+  color: #111111;
+}
+
+.app-container {
+  max-width: 390px;
+  margin: 0 auto;
+  background: white;
+  min-height: 100dvh;
+  position: relative;
+}</pre>
+  </div>
+
+  <div class="src-file">
+    <div class="fname">tailwind.config.ts</div>
+    <pre>import type { Config } from "tailwindcss";
+
+const config: Config = {
+  content: [
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+      },
+    },
+  },
+  plugins: [],
+};
+export default config;</pre>
+  </div>
+  <p class="cat-lead">Nota: <code>colors.background</code>/<code>colors.foreground</code> apuntan a variables CSS <code>--background</code>/<code>--foreground</code> que no están definidas en ningún lado del proyecto (probablemente un resto sin usar del template inicial de Next.js) — el fondo/color real del body está hardcodeado en hex directo en <code>globals.css</code>.</p>
+</section>
+
+</main>
+</div>
+</body>
+</html>
