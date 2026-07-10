@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   getObras, createObra, updateObraPrompt, getEtapas, createEtapa, getPartidas, createPartida,
@@ -14,8 +15,10 @@ import type { Obra, Etapa, Partida, Usuario, Cuenta, Invitacion, PermissionOverr
 
 type Tab = 'obras' | 'cuenta'
 
-export default function Config() {
-  const [tab, setTab] = useState<Tab>('obras')
+function ConfigContenido() {
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get('tab') === 'cuenta' ? 'cuenta' : 'obras'
+  const [tab, setTab] = useState<Tab>(tabParam)
 
   const [obras, setObras] = useState<Obra[]>([])
   const [etapas, setEtapas] = useState<Etapa[]>([])
@@ -551,7 +554,7 @@ export default function Config() {
 
                   {linkInvitacion && (
                     <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-2">
-                      <p className="text-xs text-gray-600">Copiá este link y mandaselo a la persona invitada:</p>
+                      <p className="text-xs text-gray-600">Copia este link y mándaselo a la persona invitada:</p>
                       <p className="text-xs text-gray-500 break-all">{linkInvitacion}</p>
                       <div className="flex gap-2">
                         <button
@@ -600,5 +603,13 @@ export default function Config() {
         />
       )}
     </div>
+  )
+}
+
+export default function Config() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-gray-400 text-sm">Cargando...</p></div>}>
+      <ConfigContenido />
+    </Suspense>
   )
 }

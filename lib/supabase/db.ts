@@ -1,6 +1,6 @@
 import { createClient } from './client'
 import { normalizarDescripcion } from '../aprendizaje'
-import type { Obra, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta } from '../types'
+import type { Obra, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta, EstadoItem } from '../types'
 import type { PermisoKey } from '../permisos'
 
 // ---- Usuarios / cuenta ----
@@ -220,6 +220,7 @@ export async function updateItemGasto(id: string, params: {
   cantidad?: number
   precio_unitario?: number
   subtotal?: number
+  estado?: EstadoItem
 }): Promise<boolean> {
   const supabase = createClient()
   const update: Record<string, unknown> = {
@@ -230,6 +231,7 @@ export async function updateItemGasto(id: string, params: {
   if (params.cantidad !== undefined) update.cantidad = params.cantidad
   if (params.precio_unitario !== undefined) update.precio_unitario = params.precio_unitario
   if (params.subtotal !== undefined) update.subtotal = params.subtotal
+  if (params.estado !== undefined) update.estado = params.estado
 
   const { error } = await supabase
     .from('items_gasto')

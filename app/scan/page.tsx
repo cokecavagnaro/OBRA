@@ -145,8 +145,8 @@ export default function Scan() {
       const esHeic = /^image\/hei[cf]$/.test(file.type) || /\.hei[cf]$/i.test(file.name)
       setErrorImagen(
         esHeic
-          ? 'Esta foto es formato HEIC y no se pudo leer acá. Probá sacarla con la cámara en vez de elegirla de Fotos.'
-          : 'No pudimos procesar esta imagen. Probá con otra foto.'
+          ? 'Esta foto es formato HEIC y no se pudo leer aquí. Prueba sacarla con la cámara en vez de elegirla de Fotos.'
+          : 'No pudimos procesar esta imagen. Prueba con otra foto.'
       )
     } finally {
       if (capturaTokenRef.current === token) setProcesandoImagen(false)
@@ -185,14 +185,14 @@ export default function Scan() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => null)
-        throw new Error(data?.error || 'No pudimos analizar la boleta. Intentá de nuevo.')
+        throw new Error(data?.error || 'No pudimos analizar la boleta. Intenta de nuevo.')
       }
 
       const data = await res.json()
       const itemsResultado = data.items ?? []
 
       if (itemsResultado.length === 0) {
-        setErrorAnalisis('No pudimos identificar ítems en esta boleta. Probá con otra foto o volvé a intentar.')
+        setErrorAnalisis('No pudimos identificar ítems en esta boleta. Prueba con otra foto o vuelve a intentar.')
         return
       }
 
@@ -212,7 +212,7 @@ export default function Scan() {
       setPaso(3)
     } catch (err) {
       console.error(err)
-      setErrorAnalisis(err instanceof Error ? err.message : 'No pudimos analizar la boleta. Intentá de nuevo.')
+      setErrorAnalisis(err instanceof Error ? err.message : 'No pudimos analizar la boleta. Intenta de nuevo.')
     } finally {
       setAnalizando(false)
     }

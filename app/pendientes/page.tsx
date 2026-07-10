@@ -57,24 +57,52 @@ function PendientesContenido() {
     (i) => i.estado === 'pendiente' && (obraFiltro === 'todas' || i.obra_id === obraFiltro)
   )
 
+  function guardar(item: ItemConGasto, estado?: 'confirmado' | 'rechazado') {
+    updateItemGasto(item.id, {
+      etapa_id: item.etapa_id || null,
+      partida_id: item.partida_id || null,
+      etiquetas: item.etiquetas,
+      cantidad: item.cantidad,
+      precio_unitario: item.precio_unitario,
+      subtotal: item.subtotal,
+      ...(estado ? { estado } : {}),
+    })
+  }
+
   function confirmar(id: string) {
+    const item = items.find((i) => i.id === id)
+    if (!item) return
+    guardar(item, 'confirmado')
     setItems((prev) => prev.map((i) => i.id === id ? { ...i, estado: 'confirmado' as const } : i))
   }
 
   function rechazar(id: string) {
+    const item = items.find((i) => i.id === id)
+    if (!item) return
+    guardar(item, 'rechazado')
     setItems((prev) => prev.filter((i) => i.id !== id))
   }
 
   function addTag(id: string, tag: string) {
-    setItems((prev) => prev.map((i) =>
-      i.id === id ? { ...i, etiquetas: [...i.etiquetas, tag.toLowerCase().trim()] } : i
-    ))
+    setItems((prev) => {
+      const actualizado = prev.map((i) =>
+        i.id === id ? { ...i, etiquetas: [...i.etiquetas, tag.toLowerCase().trim()] } : i
+      )
+      const item = actualizado.find((i) => i.id === id)
+      if (item) guardar(item)
+      return actualizado
+    })
   }
 
   function removeTag(id: string, tag: string) {
-    setItems((prev) => prev.map((i) =>
-      i.id === id ? { ...i, etiquetas: i.etiquetas.filter((t) => t !== tag) } : i
-    ))
+    setItems((prev) => {
+      const actualizado = prev.map((i) =>
+        i.id === id ? { ...i, etiquetas: i.etiquetas.filter((t) => t !== tag) } : i
+      )
+      const item = actualizado.find((i) => i.id === id)
+      if (item) guardar(item)
+      return actualizado
+    })
   }
 
   function actualizarMonto(id: string, campo: 'cantidad' | 'precio_unitario', valor: number) {
@@ -87,14 +115,7 @@ function PendientesContenido() {
   }
 
   function guardarMonto(item: ItemConGasto) {
-    updateItemGasto(item.id, {
-      etapa_id: item.etapa_id || null,
-      partida_id: item.partida_id || null,
-      etiquetas: item.etiquetas,
-      cantidad: item.cantidad,
-      precio_unitario: item.precio_unitario,
-      subtotal: item.subtotal,
-    })
+    guardar(item)
   }
 
   function handleTagKey(e: React.KeyboardEvent<HTMLInputElement>, id: string) {

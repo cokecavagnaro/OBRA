@@ -3,13 +3,15 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { formatCLP } from '@/lib/mock'
-import { getObras, getAllGastos } from '@/lib/supabase/db'
-import type { Obra, Gasto } from '@/lib/types'
+import { getObras, getAllGastos, getUsuarioActual, getCuenta } from '@/lib/supabase/db'
+import type { Obra, Gasto, Usuario, Cuenta } from '@/lib/types'
 import AntLogo from '@/components/AntLogo'
 
 export default function Inicio() {
   const [obras, setObras] = useState<Obra[]>([])
   const [gastos, setGastos] = useState<Gasto[]>([])
+  const [usuario, setUsuario] = useState<Usuario | null>(null)
+  const [cuenta, setCuenta] = useState<Cuenta | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -18,7 +20,13 @@ export default function Inicio() {
       setGastos(g)
       setLoading(false)
     })
+    getUsuarioActual().then((u) => {
+      setUsuario(u)
+      if (u) getCuenta(u.cuenta_id).then(setCuenta)
+    })
   }, [])
+
+  const nombreUsuario = usuario?.nombre?.trim() || usuario?.email?.split('@')[0] || ''
 
   const pendientesCount = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
   const totalGlobal = gastos.reduce((s, g) => s + g.total, 0)
@@ -44,11 +52,14 @@ export default function Inicio() {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="px-4 pt-12 pb-4 border-b border-gray-100">
+        {cuenta?.nombre && (
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{cuenta.nombre}</p>
+        )}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AntLogo size={28} className="text-gray-900" />
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Hormigasto</h1>
+              <h1 className="text-xl font-bold text-gray-900">{nombreUsuario ? `Hola, ${nombreUsuario}` : 'Hormigasto'}</h1>
               <p className="text-xs text-gray-400 mt-0.5">Tus obras</p>
             </div>
           </div>

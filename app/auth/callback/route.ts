@@ -31,7 +31,10 @@ export async function GET(request: NextRequest) {
     // del navegador de quien inició la invitación, que sería el navegador equivocado.
     if (token_hash && type) {
       const { error } = await supabase.auth.verifyOtp({ token_hash, type })
-      if (!error) return NextResponse.redirect(`${origin}/`)
+      if (!error) {
+        const destino = type === 'invite' ? '/config?tab=cuenta' : '/'
+        return NextResponse.redirect(`${origin}${destino}`)
+      }
     } else if (code) {
       const { error } = await supabase.auth.exchangeCodeForSession(code)
       if (!error) return NextResponse.redirect(`${origin}/`)
