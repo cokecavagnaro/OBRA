@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Hormigasto',
-  description: 'Gestión de gastos para obras de construcción',
+  description: 'Gestión de gastos para proyectos de construcción',
 }
 
 export const viewport: Viewport = {

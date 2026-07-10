@@ -9,7 +9,7 @@ export interface Cuenta {
   created_at: string
 }
 
-export interface Obra {
+export interface Proyecto {
   id: string
   nombre: string
   system_prompt: string
@@ -19,14 +19,14 @@ export interface Obra {
 
 export interface Etapa {
   id: string
-  obra_id: string
+  proyecto_id: string
   nombre: string
   orden: number
 }
 
 export interface Partida {
   id: string
-  obra_id: string
+  proyecto_id: string
   etapa_id?: string
   nombre: string
 }
@@ -64,7 +64,7 @@ export interface InvitacionPermissionOverride {
 
 export interface Gasto {
   id: string
-  obra_id: string
+  proyecto_id: string
   etapa_id: string
   partida_id: string
   proveedor: string
@@ -78,7 +78,7 @@ export interface Gasto {
   estado: EstadoGasto
   created_at: string
   // relaciones expandidas
-  obra?: Obra
+  proyecto?: Proyecto
   etapa?: Etapa
   partida?: Partida
   items?: ItemGasto[]
@@ -126,7 +126,7 @@ export interface ItemAnalizado {
 
 // Estado del formulario de escaneo
 export interface FormularioEscaneo {
-  obra: Obra | null
+  proyecto: Proyecto | null
   etapa: Etapa | null
   partida: Partida | null
   contexto_boleta: string
@@ -135,7 +135,7 @@ export interface FormularioEscaneo {
 // Clasificación de un producto aprendida de escaneos anteriores
 export interface ClasificacionAprendida {
   id: string
-  obra_id: string
+  proyecto_id: string
   descripcion_normalizada: string
   categoria: string
   etiquetas: string[]

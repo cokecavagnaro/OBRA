@@ -4,28 +4,28 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
-  getObras, createObra, updateObraPrompt, getEtapas, createEtapa, getPartidas, createPartida,
+  getProyectos, createProyecto, updateProyectoPrompt, getEtapas, createEtapa, getPartidas, createPartida,
   getUsuarioActual, getUsuariosDeCuenta, getCuenta, updateCuentaNombre,
   crearInvitacion, getInvitacionesPendientes, cancelarInvitacion,
   darDeBajaUsuario, reactivarUsuario, getPermisosOverrides,
 } from '@/lib/supabase/db'
 import { tienePermiso, PERMISOS, type PermisoKey } from '@/lib/permisos'
 import EditarUsuarioModal from '@/components/EditarUsuarioModal'
-import type { Obra, Etapa, Partida, Usuario, Cuenta, Invitacion, PermissionOverride } from '@/lib/types'
+import type { Proyecto, Etapa, Partida, Usuario, Cuenta, Invitacion, PermissionOverride } from '@/lib/types'
 
-type Tab = 'obras' | 'cuenta'
+type Tab = 'proyectos' | 'cuenta'
 
 function ConfigContenido() {
   const searchParams = useSearchParams()
-  const tabParam = searchParams.get('tab') === 'cuenta' ? 'cuenta' : 'obras'
+  const tabParam = searchParams.get('tab') === 'cuenta' ? 'cuenta' : 'proyectos'
   const [tab, setTab] = useState<Tab>(tabParam)
 
-  const [obras, setObras] = useState<Obra[]>([])
+  const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [etapas, setEtapas] = useState<Etapa[]>([])
   const [partidas, setPartidas] = useState<Partida[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [obraSeleccionada, setObraSeleccionada] = useState<Obra | null>(null)
+  const [proyectoSeleccionado, setProyectoSeleccionado] = useState<Proyecto | null>(null)
   const [editandoPrompt, setEditandoPrompt] = useState(false)
   const [promptDraft, setPromptDraft] = useState('')
 
@@ -33,8 +33,8 @@ function ConfigContenido() {
   const [nuevaPartida, setNuevaPartida] = useState('')
   const [etapaParaPartida, setEtapaParaPartida] = useState<string>('')
 
-  const [nuevaObra, setNuevaObra] = useState('')
-  const [creandoObra, setCreandoObra] = useState(false)
+  const [nuevoProyecto, setNuevoProyecto] = useState('')
+  const [creandoProyecto, setCreandoProyecto] = useState(false)
   const [guardando, setGuardando] = useState(false)
 
   // Usuario actual + permisos
@@ -61,13 +61,13 @@ function ConfigContenido() {
   const [passwordMensaje, setPasswordMensaje] = useState('')
   const [overridesUsuarioEditando, setOverridesUsuarioEditando] = useState<PermissionOverride[]>([])
 
-  const puedeCrearObras = usuarioActual ? tienePermiso(usuarioActual, misOverrides, 'create_obras') : false
+  const puedeCrearProyectos = usuarioActual ? tienePermiso(usuarioActual, misOverrides, 'create_proyectos') : false
   const puedeGestionarUsuarios = usuarioActual ? tienePermiso(usuarioActual, misOverrides, 'invite_users') : false
   const puedeVerCuenta = !!usuarioActual
 
   useEffect(() => {
-    getObras().then((data) => {
-      setObras(data)
+    getProyectos().then((data) => {
+      setProyectos(data)
       setLoading(false)
     })
     getUsuarioActual().then(async (u) => {
@@ -162,51 +162,51 @@ function ConfigContenido() {
     setUsuarioEditando(u)
   }
 
-  async function seleccionar(obra: Obra) {
-    setObraSeleccionada(obra)
+  async function seleccionar(proyecto: Proyecto) {
+    setProyectoSeleccionado(proyecto)
     setEditandoPrompt(false)
     setNuevaEtapa('')
     setNuevaPartida('')
     setEtapaParaPartida('')
-    const [e, p] = await Promise.all([getEtapas(obra.id), getPartidas(obra.id)])
+    const [e, p] = await Promise.all([getEtapas(proyecto.id), getPartidas(proyecto.id)])
     setEtapas(e)
     setPartidas(p)
   }
 
   async function guardarPrompt() {
-    if (!obraSeleccionada) return
-    await updateObraPrompt(obraSeleccionada.id, promptDraft)
-    setObras((prev) => prev.map((o) => o.id === obraSeleccionada.id ? { ...o, system_prompt: promptDraft } : o))
-    setObraSeleccionada((prev) => prev ? { ...prev, system_prompt: promptDraft } : null)
+    if (!proyectoSeleccionado) return
+    await updateProyectoPrompt(proyectoSeleccionado.id, promptDraft)
+    setProyectos((prev) => prev.map((o) => o.id === proyectoSeleccionado.id ? { ...o, system_prompt: promptDraft } : o))
+    setProyectoSeleccionado((prev) => prev ? { ...prev, system_prompt: promptDraft } : null)
     setEditandoPrompt(false)
   }
 
   async function agregarEtapa() {
-    if (!obraSeleccionada || !nuevaEtapa.trim()) return
+    if (!proyectoSeleccionado || !nuevaEtapa.trim()) return
     setGuardando(true)
-    const nueva = await createEtapa(obraSeleccionada.id, nuevaEtapa.trim(), etapas.length + 1)
+    const nueva = await createEtapa(proyectoSeleccionado.id, nuevaEtapa.trim(), etapas.length + 1)
     if (nueva) setEtapas((prev) => [...prev, nueva])
     setNuevaEtapa('')
     setGuardando(false)
   }
 
   async function agregarPartida() {
-    if (!obraSeleccionada || !nuevaPartida.trim()) return
+    if (!proyectoSeleccionado || !nuevaPartida.trim()) return
     setGuardando(true)
-    const nueva = await createPartida(obraSeleccionada.id, nuevaPartida.trim(), etapaParaPartida || undefined)
+    const nueva = await createPartida(proyectoSeleccionado.id, nuevaPartida.trim(), etapaParaPartida || undefined)
     if (nueva) setPartidas((prev) => [...prev, nueva])
     setNuevaPartida('')
     setGuardando(false)
   }
 
-  async function crearObra() {
-    if (!nuevaObra.trim()) return
+  async function crearProyecto() {
+    if (!nuevoProyecto.trim()) return
     setGuardando(true)
-    const nueva = await createObra(nuevaObra.trim())
+    const nueva = await createProyecto(nuevoProyecto.trim())
     if (nueva) {
-      setObras((prev) => [...prev, nueva])
-      setNuevaObra('')
-      setCreandoObra(false)
+      setProyectos((prev) => [...prev, nueva])
+      setNuevoProyecto('')
+      setCreandoProyecto(false)
       seleccionar(nueva)
     }
     setGuardando(false)
@@ -218,7 +218,7 @@ function ConfigContenido() {
     window.location.href = '/login'
   }
 
-  const etapasFiltradas = etapas.filter((e) => e.obra_id === obraSeleccionada?.id)
+  const etapasFiltradas = etapas.filter((e) => e.proyecto_id === proyectoSeleccionado?.id)
 
   if (loading) {
     return (
@@ -234,7 +234,7 @@ function ConfigContenido() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Configuración</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Obras, etapas y partidas</p>
+            <p className="text-xs text-gray-400 mt-0.5">Proyectos, etapas y partidas</p>
           </div>
           <button onClick={handleCerrarSesion} className="text-xs text-gray-400 border border-gray-200 rounded-lg px-3 py-1.5">
             Cerrar sesión
@@ -244,10 +244,10 @@ function ConfigContenido() {
         {puedeVerCuenta && (
           <div className="flex gap-2 mt-4 bg-gray-100 rounded-xl p-1">
             <button
-              onClick={() => setTab('obras')}
-              className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${tab === 'obras' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
+              onClick={() => setTab('proyectos')}
+              className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${tab === 'proyectos' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
             >
-              Obras
+              Proyectos
             </button>
             <button
               onClick={() => setTab('cuenta')}
@@ -259,50 +259,50 @@ function ConfigContenido() {
         )}
       </div>
 
-      {tab === 'obras' && (
+      {tab === 'proyectos' && (
       <div className="px-4 py-4 space-y-4">
-        {/* Lista de obras */}
+        {/* Lista de proyectos */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Obras</p>
-            {puedeCrearObras && (
-              <button onClick={() => setCreandoObra(true)} className="text-xs font-medium text-blue-600">
-                + Nueva obra
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Proyectos</p>
+            {puedeCrearProyectos && (
+              <button onClick={() => setCreandoProyecto(true)} className="text-xs font-medium text-blue-600">
+                + Nuevo proyecto
               </button>
             )}
           </div>
 
-          {creandoObra && (
+          {creandoProyecto && (
             <div className="flex gap-2 mb-2">
               <input
                 autoFocus
                 type="text"
-                value={nuevaObra}
-                onChange={(e) => setNuevaObra(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && crearObra()}
-                placeholder="Nombre de la obra"
+                value={nuevoProyecto}
+                onChange={(e) => setNuevoProyecto(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && crearProyecto()}
+                placeholder="Nombre del proyecto"
                 className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
               />
-              <button onClick={crearObra} disabled={guardando} className="bg-blue-600 text-white px-3 rounded-lg text-sm font-medium disabled:opacity-40">Crear</button>
-              <button onClick={() => setCreandoObra(false)} className="text-gray-400 px-2 text-sm">✕</button>
+              <button onClick={crearProyecto} disabled={guardando} className="bg-blue-600 text-white px-3 rounded-lg text-sm font-medium disabled:opacity-40">Crear</button>
+              <button onClick={() => setCreandoProyecto(false)} className="text-gray-400 px-2 text-sm">✕</button>
             </div>
           )}
 
           <div className="space-y-1.5">
-            {obras.length === 0 && !creandoObra && (
-              <p className="text-xs text-gray-300 italic py-2">Sin obras — crea la primera</p>
+            {proyectos.length === 0 && !creandoProyecto && (
+              <p className="text-xs text-gray-300 italic py-2">Sin proyectos — crea el primero</p>
             )}
-            {obras.map((obra) => (
+            {proyectos.map((proyecto) => (
               <button
-                key={obra.id}
-                onClick={() => seleccionar(obra)}
+                key={proyecto.id}
+                onClick={() => seleccionar(proyecto)}
                 className={`w-full text-left rounded-xl border px-4 py-3 transition-colors ${
-                  obraSeleccionada?.id === obra.id ? 'border-blue-300 bg-blue-50' : 'border-gray-100 hover:border-gray-200'
+                  proyectoSeleccionado?.id === proyecto.id ? 'border-blue-300 bg-blue-50' : 'border-gray-100 hover:border-gray-200'
                 }`}
               >
-                <p className="text-sm font-medium text-gray-900">{obra.nombre}</p>
-                {obra.system_prompt ? (
-                  <p className="text-xs text-gray-400 mt-0.5 truncate">{obra.system_prompt}</p>
+                <p className="text-sm font-medium text-gray-900">{proyecto.nombre}</p>
+                {proyecto.system_prompt ? (
+                  <p className="text-xs text-gray-400 mt-0.5 truncate">{proyecto.system_prompt}</p>
                 ) : (
                   <p className="text-xs text-gray-300 mt-0.5 italic">Sin instrucciones</p>
                 )}
@@ -311,8 +311,8 @@ function ConfigContenido() {
           </div>
         </div>
 
-        {/* Detalle de obra seleccionada */}
-        {obraSeleccionada && (
+        {/* Detalle de proyecto seleccionado */}
+        {proyectoSeleccionado && (
           <>
             {/* System prompt */}
             <div className="rounded-xl border border-gray-100 p-4">
@@ -320,7 +320,7 @@ function ConfigContenido() {
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Instrucciones de IA</p>
                 {!editandoPrompt && (
                   <button
-                    onClick={() => { setEditandoPrompt(true); setPromptDraft(obraSeleccionada.system_prompt) }}
+                    onClick={() => { setEditandoPrompt(true); setPromptDraft(proyectoSeleccionado.system_prompt) }}
                     className="text-xs text-blue-600 font-medium"
                   >
                     ✏ Editar
@@ -342,8 +342,8 @@ function ConfigContenido() {
                   </div>
                 </>
               ) : (
-                <p className={`text-sm leading-relaxed ${obraSeleccionada.system_prompt ? 'text-gray-700' : 'text-gray-300 italic'}`}>
-                  {obraSeleccionada.system_prompt || 'Sin instrucciones definidas'}
+                <p className={`text-sm leading-relaxed ${proyectoSeleccionado.system_prompt ? 'text-gray-700' : 'text-gray-300 italic'}`}>
+                  {proyectoSeleccionado.system_prompt || 'Sin instrucciones definidas'}
                 </p>
               )}
             </div>
@@ -375,10 +375,10 @@ function ConfigContenido() {
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Partidas</p>
 
               <div className="space-y-1.5 mb-3">
-                {partidas.filter((p) => p.obra_id === obraSeleccionada.id).length === 0 && (
+                {partidas.filter((p) => p.proyecto_id === proyectoSeleccionado.id).length === 0 && (
                   <p className="text-xs text-gray-300 italic">Sin partidas</p>
                 )}
-                {partidas.filter((p) => p.obra_id === obraSeleccionada.id).map((p) => {
+                {partidas.filter((p) => p.proyecto_id === proyectoSeleccionado.id).map((p) => {
                   const etapa = etapas.find((e) => e.id === p.etapa_id)
                   return (
                     <div key={p.id} className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">

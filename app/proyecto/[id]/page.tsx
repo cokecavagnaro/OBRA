@@ -3,17 +3,17 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getObras, getEtapas, getPartidas, getGastos, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
+import { getProyectos, getEtapas, getPartidas, getGastos, getUsuarioActual, getPermisosOverrides, deleteGasto, deleteItemGasto } from '@/lib/supabase/db'
 import { tienePermiso } from '@/lib/permisos'
 import * as XLSX from 'xlsx'
 import ClasificacionModal from '@/components/ClasificacionModal'
-import type { Obra, Etapa, Partida, Gasto, ItemGasto, Usuario, PermissionOverride } from '@/lib/types'
+import type { Proyecto, Etapa, Partida, Gasto, ItemGasto, Usuario, PermissionOverride } from '@/lib/types'
 
-export default function ObraDetalle() {
+export default function ProyectoDetalle() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
 
-  const [obra, setObra] = useState<Obra | null>(null)
+  const [proyecto, setProyecto] = useState<Proyecto | null>(null)
   const [etapas, setEtapas] = useState<Etapa[]>([])
   const [partidas, setPartidas] = useState<Partida[]>([])
   const [gastos, setGastos] = useState<Gasto[]>([])
@@ -25,16 +25,19 @@ export default function ObraDetalle() {
   const [filtroFechaDesde, setFiltroFechaDesde] = useState('')
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
   const [itemEditando, setItemEditando] = useState<ItemGasto | null>(null)
+  const [confirmandoEliminar, setConfirmandoEliminar] = useState<string | null>(null)
+  const [confirmandoEliminarItem, setConfirmandoEliminarItem] = useState<string | null>(null)
 
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
   const [overrides, setOverrides] = useState<PermissionOverride[]>([])
   const puedeExportar = usuarioActual ? tienePermiso(usuarioActual, overrides, 'export_excel') : false
   const puedeEditarItems = usuarioActual ? tienePermiso(usuarioActual, overrides, 'edit_scanned_items') : false
+  const puedeEliminarGasto = usuarioActual ? tienePermiso(usuarioActual, overrides, 'delete_scanned_items') : false
 
   useEffect(() => {
-    Promise.all([getObras(), getEtapas(id), getPartidas(id), getGastos(id)]).then(
-      ([obras, e, p, g]) => {
-        setObra(obras.find((o) => o.id === id) ?? null)
+    Promise.all([getProyectos(), getEtapas(id), getPartidas(id), getGastos(id)]).then(
+      ([proyectos, e, p, g]) => {
+        setProyecto(proyectos.find((o) => o.id === id) ?? null)
         setEtapas(e)
         setPartidas(p)
         setGastos(g)
@@ -55,13 +58,13 @@ export default function ObraDetalle() {
     )
   }
 
-  if (!obra) return (
+  if (!proyecto) return (
     <div className="flex items-center justify-center min-h-screen">
-      <p className="text-gray-400">Obra no encontrada</p>
+      <p className="text-gray-400">Proyecto no encontrado</p>
     </div>
   )
 
-  const totalObra = gastos.reduce((s, g) => s + g.total, 0)
+  const totalProyecto = gastos.reduce((s, g) => s + g.total, 0)
   const pendientesCount = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
 
   const partidasDisponibles = filtroEtapa
@@ -112,6 +115,26 @@ export default function ObraDetalle() {
     setItemEditando(null)
   }
 
+  async function handleEliminarGasto(gastoId: string) {
+    const ok = await deleteGasto(gastoId)
+    if (ok) setGastos((prev) => prev.filter((g) => g.id !== gastoId))
+    setConfirmandoEliminar(null)
+  }
+
+  async function handleEliminarItem(item: ItemGasto, gastoId: string) {
+    const gasto = gastos.find((g) => g.id === gastoId)
+    if (!gasto) return
+    const nuevoTotal = gasto.total - item.subtotal
+    const ok = await deleteItemGasto(item.id, gastoId, nuevoTotal)
+    if (ok) {
+      setGastos((prev) => prev.map((g) => g.id === gastoId
+        ? { ...g, total: nuevoTotal, items: (g.items ?? []).filter((i) => i.id !== item.id) }
+        : g
+      ))
+    }
+    setConfirmandoEliminarItem(null)
+  }
+
   function itemARow(i: ItemGasto, gasto: Gasto) {
     return {
       Proveedor: gasto.proveedor || '',
@@ -136,8 +159,8 @@ export default function ObraDetalle() {
       : gastos.flatMap((g) => (g.items ?? []).map((i) => itemARow(i, g)))
     const ws = XLSX.utils.json_to_sheet(filas)
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, (obra?.nombre ?? 'Obra').slice(0, 31))
-    XLSX.writeFile(wb, `${obra?.nombre ?? 'Obra'}${hayFiltros ? ' (filtrado)' : ''}.xlsx`)
+    XLSX.utils.book_append_sheet(wb, ws, (proyecto?.nombre ?? 'Proyecto').slice(0, 31))
+    XLSX.writeFile(wb, `${proyecto?.nombre ?? 'Proyecto'}${hayFiltros ? ' (filtrado)' : ''}.xlsx`)
   }
 
   return (
@@ -151,7 +174,7 @@ export default function ObraDetalle() {
             </svg>
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-gray-900 truncate">{obra.nombre}</h1>
+            <h1 className="text-lg font-bold text-gray-900 truncate">{proyecto.nombre}</h1>
             <p className="text-xs text-gray-400">{gastos.length} boleta{gastos.length !== 1 ? 's' : ''}</p>
           </div>
           {pendientesCount > 0 && (
@@ -162,7 +185,7 @@ export default function ObraDetalle() {
         </div>
         <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
           <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Total gastado</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{formatCLP(totalObra)}</p>
+          <p className="text-3xl font-bold text-gray-900 mt-1">{formatCLP(totalProyecto)}</p>
         </div>
       </div>
 
@@ -275,6 +298,15 @@ export default function ObraDetalle() {
             </div>
             {itemsFiltrados.length === 0 ? <Vacio /> : itemsFiltrados.map((item) => (
               <div key={item.id} className="rounded-xl border border-gray-100 p-4">
+                {confirmandoEliminarItem === item.id && (
+                  <div className="flex items-center justify-between gap-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-2">
+                    <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button onClick={() => handleEliminarItem(item, item.gasto.id)} className="text-xs font-semibold text-red-600">Sí</button>
+                      <button onClick={() => setConfirmandoEliminarItem(null)} className="text-xs font-medium text-gray-400">No</button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-semibold text-gray-900 flex-1">{item.descripcion}</p>
                   <div className="flex items-center gap-2 shrink-0">
@@ -286,6 +318,16 @@ export default function ObraDetalle() {
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    )}
+                    {puedeEliminarGasto && (
+                      <button
+                        onClick={() => setConfirmandoEliminarItem(item.id)}
+                        className="text-gray-300 hover:text-red-500 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
                     )}
@@ -304,32 +346,73 @@ export default function ObraDetalle() {
         ) : (
           gastos.length === 0 ? <Vacio /> : gastos.map((gasto) => (
             <div key={gasto.id} className="rounded-xl border border-gray-100 p-4">
+              {confirmandoEliminar === gasto.id ? (
+                <div className="flex items-center justify-between gap-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-2">
+                  <span className="text-xs text-red-600 font-medium">¿Eliminar boleta?</span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button onClick={() => handleEliminarGasto(gasto.id)} className="text-xs font-semibold text-red-600">Sí</button>
+                    <button onClick={() => setConfirmandoEliminar(null)} className="text-xs font-medium text-gray-400">No</button>
+                  </div>
+                </div>
+              ) : null}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{gasto.proveedor}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{formatFecha(gasto.fecha_boleta)}</p>
                 </div>
-                <p className="text-sm font-bold text-gray-900 shrink-0">{formatCLP(gasto.total)}</p>
+                <div className="flex items-center gap-2 shrink-0">
+                  <p className="text-sm font-bold text-gray-900">{formatCLP(gasto.total)}</p>
+                  {puedeEliminarGasto && confirmandoEliminar !== gasto.id && (
+                    <button
+                      onClick={() => setConfirmandoEliminar(gasto.id)}
+                      className="text-gray-300 hover:text-red-500 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
               {(gasto.items ?? []).length > 0 && (
                 <div className="mt-2 space-y-1">
                   {(gasto.items ?? []).map((item) => (
-                    <div key={item.id} className="flex items-center justify-between text-xs text-gray-500">
-                      <span className="truncate flex-1">{item.descripcion}</span>
-                      <div className="flex items-center gap-2 shrink-0 ml-2">
-                        <span>{formatCLP(item.subtotal)}</span>
-                        {puedeEditarItems && (
-                          <button
-                            onClick={() => setItemEditando(item)}
-                            className="text-gray-300 hover:text-blue-500 transition-colors"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                        )}
+                    confirmandoEliminarItem === item.id ? (
+                      <div key={item.id} className="flex items-center justify-between bg-red-50 border border-red-100 rounded-lg px-2 py-1">
+                        <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button onClick={() => handleEliminarItem(item, gasto.id)} className="text-xs font-semibold text-red-600">Sí</button>
+                          <button onClick={() => setConfirmandoEliminarItem(null)} className="text-xs font-medium text-gray-400">No</button>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div key={item.id} className="flex items-center justify-between text-xs text-gray-500">
+                        <span className="truncate flex-1">{item.descripcion}</span>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <span>{formatCLP(item.subtotal)}</span>
+                          {puedeEditarItems && (
+                            <button
+                              onClick={() => setItemEditando(item)}
+                              className="text-gray-300 hover:text-blue-500 transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                          )}
+                          {puedeEliminarGasto && (
+                            <button
+                              onClick={() => setConfirmandoEliminarItem(item.id)}
+                              className="text-gray-300 hover:text-red-500 transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
                   ))}
                 </div>
               )}
@@ -353,7 +436,7 @@ export default function ObraDetalle() {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            Exportar Excel — {obra.nombre}
+            Exportar Excel — {proyecto.nombre}
           </button>
         </div>
       )}
@@ -362,7 +445,7 @@ export default function ObraDetalle() {
       {itemEditando && (
         <ClasificacionModal
           item={itemEditando}
-          obraId={id}
+          proyectoId={id}
           etapas={etapas}
           partidas={partidas}
           etiquetasSugeridas={etiquetasUnicas}

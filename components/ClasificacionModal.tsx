@@ -7,7 +7,7 @@ import type { ItemGasto, Etapa, Partida } from '@/lib/types'
 
 interface Props {
   item: ItemGasto
-  obraId: string
+  proyectoId: string
   etapas: Etapa[]
   partidas: Partida[]
   etiquetasSugeridas: string[]
@@ -18,7 +18,7 @@ interface Props {
 
 export default function ClasificacionModal({
   item,
-  obraId,
+  proyectoId,
   etapas: etapasIniciales,
   partidas: partidasIniciales,
   etiquetasSugeridas,
@@ -67,7 +67,7 @@ export default function ClasificacionModal({
 
   async function handleCrearEtapa() {
     if (!nuevaEtapaNombre.trim()) return
-    const nueva = await createEtapa(obraId, nuevaEtapaNombre.trim(), etapas.length + 1)
+    const nueva = await createEtapa(proyectoId, nuevaEtapaNombre.trim(), etapas.length + 1)
     if (nueva) {
       setEtapas((prev) => [...prev, nueva])
       setEtapaId(nueva.id)
@@ -78,7 +78,7 @@ export default function ClasificacionModal({
 
   async function handleCrearPartida() {
     if (!nuevaPartidaNombre.trim()) return
-    const nueva = await createPartida(obraId, nuevaPartidaNombre.trim(), etapaId || undefined)
+    const nueva = await createPartida(proyectoId, nuevaPartidaNombre.trim(), etapaId || undefined)
     if (nueva) {
       setPartidas((prev) => [...prev, nueva])
       setPartidaId(nueva.id)
@@ -100,7 +100,7 @@ export default function ClasificacionModal({
     if (ok) {
       if (etiquetas.length > 0) {
         await upsertClasificacionAprendida({
-          obra_id: obraId,
+          proyecto_id: proyectoId,
           descripcion: item.descripcion,
           categoria: item.categoria,
           etiquetas,
