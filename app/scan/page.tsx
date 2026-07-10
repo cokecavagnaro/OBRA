@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getObras, getEtapas, getPartidas, saveGasto, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
+import { getObras, getEtapas, getPartidas, saveGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { normalizarImagenParaSubida } from '@/lib/imagen'
 import { tienePermiso } from '@/lib/permisos'
 import type { Obra, Etapa, Partida, ItemAnalizado, Usuario, PermissionOverride } from '@/lib/types'
@@ -280,6 +280,11 @@ export default function Scan() {
 
   async function handleGuardar() {
     if (obra) {
+      let imagenUrl = imagenDataUrl
+      if (fileSeleccionadoRef.current && usuarioActual) {
+        const url = await subirImagenBoleta(usuarioActual.cuenta_id, obra.id, fileSeleccionadoRef.current)
+        if (url) imagenUrl = url
+      }
       await saveGasto({
         obra_id: obra.id,
         proveedor,
@@ -287,7 +292,7 @@ export default function Scan() {
         fecha_boleta: fecha,
         total: totalBoleta || items.reduce((s, i) => s + i.subtotal, 0),
         contexto_boleta: contexto,
-        imagen_url: imagenDataUrl,
+        imagen_url: imagenUrl,
         items: items.map((i) => ({
           descripcion: i.descripcion,
           cantidad: i.cantidad,

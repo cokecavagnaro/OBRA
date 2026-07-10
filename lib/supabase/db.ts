@@ -241,6 +241,18 @@ export async function updateItemGasto(id: string, params: {
   return !error
 }
 
+export async function subirImagenBoleta(cuentaId: string, obraId: string, blob: Blob): Promise<string | null> {
+  const supabase = createClient()
+  const path = `${cuentaId}/${obraId}/${crypto.randomUUID()}.jpg`
+  const { error } = await supabase.storage.from('boletas').upload(path, blob, { contentType: 'image/jpeg' })
+  if (error) {
+    console.error('subirImagenBoleta:', error)
+    return null
+  }
+  const { data } = supabase.storage.from('boletas').getPublicUrl(path)
+  return data.publicUrl
+}
+
 export async function saveGasto(params: {
   obra_id: string
   proveedor: string

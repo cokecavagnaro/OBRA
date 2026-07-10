@@ -192,7 +192,7 @@ export default function ObraDetalle() {
               {etapas.map((e) => (
                 <button
                   key={e.id}
-                  onClick={() => { setFiltroEtapa(e.id === filtroEtapa ? null : e.id); setFiltroPartida(null) }}
+                  onClick={() => { setFiltroEtapa((prev) => e.id === prev ? null : e.id); setFiltroPartida(null) }}
                   className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${filtroEtapa === e.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
                 >{e.nombre}</button>
               ))}
@@ -212,7 +212,7 @@ export default function ObraDetalle() {
               {partidasDisponibles.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => setFiltroPartida(p.id === filtroPartida ? null : p.id)}
+                  onClick={() => setFiltroPartida((prev) => p.id === prev ? null : p.id)}
                   className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${filtroPartida === p.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
                 >{p.nombre}</button>
               ))}
