@@ -3,33 +3,41 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { formatCLP } from '@/lib/mock'
-import { getObras, getAllGastos } from '@/lib/supabase/db'
-import type { Obra, Gasto } from '@/lib/types'
+import { getProyectos, getAllGastos, getUsuarioActual, getCuenta } from '@/lib/supabase/db'
+import type { Proyecto, Gasto, Usuario, Cuenta } from '@/lib/types'
 import AntLogo from '@/components/AntLogo'
 
 export default function Inicio() {
-  const [obras, setObras] = useState<Obra[]>([])
+  const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [gastos, setGastos] = useState<Gasto[]>([])
+  const [usuario, setUsuario] = useState<Usuario | null>(null)
+  const [cuenta, setCuenta] = useState<Cuenta | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([getObras(), getAllGastos()]).then(([o, g]) => {
-      setObras(o)
+    Promise.all([getProyectos(), getAllGastos()]).then(([o, g]) => {
+      setProyectos(o)
       setGastos(g)
       setLoading(false)
     })
+    getUsuarioActual().then((u) => {
+      setUsuario(u)
+      if (u) getCuenta(u.cuenta_id).then(setCuenta)
+    })
   }, [])
+
+  const nombreUsuario = usuario?.nombre?.trim() || usuario?.email?.split('@')[0] || ''
 
   const pendientesCount = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
   const totalGlobal = gastos.reduce((s, g) => s + g.total, 0)
   const totalBoletas = gastos.length
 
-  const obrasConTotales = obras.map((obra) => {
-    const gastosObra = gastos.filter((g) => g.obra_id === obra.id)
-    const total = gastosObra.reduce((s, g) => s + g.total, 0)
-    const boletas = gastosObra.length
-    const pendientes = gastosObra.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
-    return { ...obra, total, boletas, pendientes }
+  const proyectosConTotales = proyectos.map((proyecto) => {
+    const gastosProyecto = gastos.filter((g) => g.proyecto_id === proyecto.id)
+    const total = gastosProyecto.reduce((s, g) => s + g.total, 0)
+    const boletas = gastosProyecto.length
+    const pendientes = gastosProyecto.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
+    return { ...proyecto, total, boletas, pendientes }
   })
 
   if (loading) {
@@ -44,12 +52,15 @@ export default function Inicio() {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="px-4 pt-12 pb-4 border-b border-gray-100">
+        {cuenta?.nombre && (
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{cuenta.nombre}</p>
+        )}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AntLogo size={28} className="text-gray-900" />
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Hormigasto</h1>
-              <p className="text-xs text-gray-400 mt-0.5">Tus obras</p>
+              <h1 className="text-xl font-bold text-gray-900">{nombreUsuario ? `Hola, ${nombreUsuario}` : 'Hormigasto'}</h1>
+              <p className="text-xs text-gray-400 mt-0.5">Tus proyectos</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -81,23 +92,23 @@ export default function Inicio() {
         </div>
       </div>
 
-      {/* Lista de obras */}
+      {/* Lista de proyectos */}
       <div className="px-4 py-4 space-y-3">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Obras</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Proyectos</p>
 
-        {obrasConTotales.map((obra) => (
-          <Link key={obra.id} href={`/obra/${obra.id}`}>
+        {proyectosConTotales.map((proyecto) => (
+          <Link key={proyecto.id} href={`/proyecto/${proyecto.id}`}>
             <div className="rounded-xl border border-gray-100 p-4 hover:border-gray-200 transition-colors active:bg-gray-50">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm">{obra.nombre}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{obra.boletas} boleta{obra.boletas !== 1 ? 's' : ''}</p>
+                  <p className="font-semibold text-gray-900 text-sm">{proyecto.nombre}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{proyecto.boletas} boleta{proyecto.boletas !== 1 ? 's' : ''}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-bold text-gray-900">{formatCLP(obra.total)}</p>
-                  {obra.pendientes > 0 && (
+                  <p className="font-bold text-gray-900">{formatCLP(proyecto.total)}</p>
+                  {proyecto.pendientes > 0 && (
                     <span className="inline-flex items-center gap-1 mt-1 bg-amber-100 text-amber-700 text-[10px] font-medium px-2 py-0.5 rounded-full">
-                      ⚠ {obra.pendientes} pendiente{obra.pendientes > 1 ? 's' : ''}
+                      ⚠ {proyecto.pendientes} pendiente{proyecto.pendientes > 1 ? 's' : ''}
                     </span>
                   )}
                 </div>
@@ -107,12 +118,12 @@ export default function Inicio() {
                   {totalGlobal > 0 && (
                     <div
                       className="bg-blue-500 h-1.5 rounded-full"
-                      style={{ width: `${Math.min((obra.total / totalGlobal) * 100, 100)}%` }}
+                      style={{ width: `${Math.min((proyecto.total / totalGlobal) * 100, 100)}%` }}
                     />
                   )}
                 </div>
                 <div className="flex items-center gap-1 text-gray-400 shrink-0">
-                  <span className="text-xs">{totalGlobal > 0 ? Math.round((obra.total / totalGlobal) * 100) : 0}%</span>
+                  <span className="text-xs">{totalGlobal > 0 ? Math.round((proyecto.total / totalGlobal) * 100) : 0}%</span>
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
@@ -122,11 +133,11 @@ export default function Inicio() {
           </Link>
         ))}
 
-        {obrasConTotales.length === 0 && (
+        {proyectosConTotales.length === 0 && (
           <div className="text-center py-16">
-            <p className="text-gray-400 text-sm">No hay obras registradas</p>
+            <p className="text-gray-400 text-sm">No hay proyectos registrados</p>
             <Link href="/config" className="text-blue-600 text-sm font-medium mt-2 inline-block">
-              Crear primera obra →
+              Crear primer proyecto →
             </Link>
           </div>
         )}

@@ -17,7 +17,7 @@ export function buildContextoAprendizaje(aprendidas: ClasificacionAprendida[]): 
     (c) => `- "${c.descripcion_normalizada}" → categoría: ${c.categoria}, etiquetas: [${c.etiquetas.join(', ')}]`
   )
 
-  return `Clasificaciones previas aprobadas en esta obra:\n${lineas.join('\n')}`
+  return `Clasificaciones previas aprobadas en este proyecto:\n${lineas.join('\n')}`
 }
 
 export function aplicarAprendizajeDeterministico(

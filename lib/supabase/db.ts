@@ -1,6 +1,6 @@
 import { createClient } from './client'
 import { normalizarDescripcion } from '../aprendizaje'
-import type { Obra, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta } from '../types'
+import type { Proyecto, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta, EstadoItem } from '../types'
 import type { PermisoKey } from '../permisos'
 
 // ---- Usuarios / cuenta ----
@@ -101,60 +101,60 @@ export async function setPermisoOverride(usuarioId: string, permiso: PermisoKey,
     .upsert({ user_id: usuarioId, permission_key: permiso, granted }, { onConflict: 'user_id,permission_key' })
 }
 
-// ---- Obras ----
+// ---- Proyectos ----
 
-export async function getObras(): Promise<Obra[]> {
+export async function getProyectos(): Promise<Proyecto[]> {
   const supabase = createClient()
-  const { data } = await supabase.from('obras').select('*').order('created_at')
-  return (data ?? []) as Obra[]
+  const { data } = await supabase.from('proyectos').select('*').order('created_at')
+  return (data ?? []) as Proyecto[]
 }
 
-export async function createObra(nombre: string, system_prompt = ''): Promise<Obra | null> {
+export async function createProyecto(nombre: string, system_prompt = ''): Promise<Proyecto | null> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
   const usuarioActual = await getUsuarioActual()
   const { data, error } = await supabase
-    .from('obras')
+    .from('proyectos')
     .insert({ nombre, system_prompt, user_id: user.id, cuenta_id: usuarioActual?.cuenta_id })
     .select()
     .single()
-  if (error) console.error('createObra:', error)
-  return data as Obra | null
+  if (error) console.error('createProyecto:', error)
+  return data as Proyecto | null
 }
 
-export async function updateObraPrompt(id: string, system_prompt: string) {
+export async function updateProyectoPrompt(id: string, system_prompt: string) {
   const supabase = createClient()
-  await supabase.from('obras').update({ system_prompt }).eq('id', id)
+  await supabase.from('proyectos').update({ system_prompt }).eq('id', id)
 }
 
 // ---- Etapas ----
 
-export async function getEtapas(obra_id: string): Promise<Etapa[]> {
+export async function getEtapas(proyecto_id: string): Promise<Etapa[]> {
   const supabase = createClient()
-  const { data } = await supabase.from('etapas').select('*').eq('obra_id', obra_id).order('orden')
+  const { data } = await supabase.from('etapas').select('*').eq('proyecto_id', proyecto_id).order('orden')
   return (data ?? []) as Etapa[]
 }
 
-export async function createEtapa(obra_id: string, nombre: string, orden: number): Promise<Etapa | null> {
+export async function createEtapa(proyecto_id: string, nombre: string, orden: number): Promise<Etapa | null> {
   const supabase = createClient()
-  const { data } = await supabase.from('etapas').insert({ obra_id, nombre, orden }).select().single()
+  const { data } = await supabase.from('etapas').insert({ proyecto_id, nombre, orden }).select().single()
   return data as Etapa | null
 }
 
 // ---- Partidas ----
 
-export async function getPartidas(obra_id: string): Promise<Partida[]> {
+export async function getPartidas(proyecto_id: string): Promise<Partida[]> {
   const supabase = createClient()
-  const { data } = await supabase.from('partidas').select('*').eq('obra_id', obra_id).order('created_at')
+  const { data } = await supabase.from('partidas').select('*').eq('proyecto_id', proyecto_id).order('created_at')
   return (data ?? []) as Partida[]
 }
 
-export async function createPartida(obra_id: string, nombre: string, etapa_id?: string): Promise<Partida | null> {
+export async function createPartida(proyecto_id: string, nombre: string, etapa_id?: string): Promise<Partida | null> {
   const supabase = createClient()
   const { data } = await supabase
     .from('partidas')
-    .insert({ obra_id, nombre, etapa_id: etapa_id || null })
+    .insert({ proyecto_id, nombre, etapa_id: etapa_id || null })
     .select()
     .single()
   return data as Partida | null
@@ -162,12 +162,12 @@ export async function createPartida(obra_id: string, nombre: string, etapa_id?: 
 
 // ---- Gastos ----
 
-export async function getGastos(obra_id: string): Promise<Gasto[]> {
+export async function getGastos(proyecto_id: string): Promise<Gasto[]> {
   const supabase = createClient()
   const { data } = await supabase
     .from('gastos')
     .select('*, items_gasto(*)')
-    .eq('obra_id', obra_id)
+    .eq('proyecto_id', proyecto_id)
     .order('created_at', { ascending: false })
 
   if (!data) return []
@@ -220,6 +220,7 @@ export async function updateItemGasto(id: string, params: {
   cantidad?: number
   precio_unitario?: number
   subtotal?: number
+  estado?: EstadoItem
 }): Promise<boolean> {
   const supabase = createClient()
   const update: Record<string, unknown> = {
@@ -230,6 +231,7 @@ export async function updateItemGasto(id: string, params: {
   if (params.cantidad !== undefined) update.cantidad = params.cantidad
   if (params.precio_unitario !== undefined) update.precio_unitario = params.precio_unitario
   if (params.subtotal !== undefined) update.subtotal = params.subtotal
+  if (params.estado !== undefined) update.estado = params.estado
 
   const { error } = await supabase
     .from('items_gasto')
@@ -239,8 +241,20 @@ export async function updateItemGasto(id: string, params: {
   return !error
 }
 
+export async function subirImagenBoleta(cuentaId: string, proyectoId: string, blob: Blob): Promise<string | null> {
+  const supabase = createClient()
+  const path = `${cuentaId}/${proyectoId}/${crypto.randomUUID()}.jpg`
+  const { error } = await supabase.storage.from('boletas').upload(path, blob, { contentType: 'image/jpeg' })
+  if (error) {
+    console.error('subirImagenBoleta:', error)
+    return null
+  }
+  const { data } = supabase.storage.from('boletas').getPublicUrl(path)
+  return data.publicUrl
+}
+
 export async function saveGasto(params: {
-  obra_id: string
+  proyecto_id: string
   proveedor: string
   rut_proveedor: string
   fecha_boleta: string
@@ -273,7 +287,7 @@ export async function saveGasto(params: {
   const { data: gasto, error } = await supabase
     .from('gastos')
     .insert({
-      obra_id: params.obra_id,
+      proyecto_id: params.proyecto_id,
       proveedor: params.proveedor || 'Sin proveedor',
       rut_proveedor: params.rut_proveedor || '',
       fecha_boleta: fechaValida,
@@ -312,19 +326,46 @@ export async function saveGasto(params: {
   return gasto.id
 }
 
+export async function deleteGasto(id: string): Promise<boolean> {
+  const supabase = createClient()
+  const { error: errorItems } = await supabase.from('items_gasto').delete().eq('gasto_id', id)
+  if (errorItems) {
+    console.error('deleteGasto (items):', errorItems)
+    return false
+  }
+  const { error } = await supabase.from('gastos').delete().eq('id', id)
+  if (error) {
+    console.error('deleteGasto:', error)
+    return false
+  }
+  return true
+}
+
+export async function deleteItemGasto(id: string, gastoId: string, nuevoTotal: number): Promise<boolean> {
+  const supabase = createClient()
+  const { error: errorItem } = await supabase.from('items_gasto').delete().eq('id', id)
+  if (errorItem) {
+    console.error('deleteItemGasto:', errorItem)
+    return false
+  }
+  const { error: errorGasto } = await supabase.from('gastos').update({ total: nuevoTotal }).eq('id', gastoId)
+  if (errorGasto) console.error('deleteItemGasto (total):', errorGasto)
+  return true
+}
+
 // ---- Aprendizaje de clasificación ----
 
-export async function getClasificacionesAprendidas(obra_id: string): Promise<ClasificacionAprendida[]> {
+export async function getClasificacionesAprendidas(proyecto_id: string): Promise<ClasificacionAprendida[]> {
   const supabase = createClient()
   const { data } = await supabase
     .from('clasificaciones_aprendidas')
     .select('*')
-    .eq('obra_id', obra_id)
+    .eq('proyecto_id', proyecto_id)
   return (data ?? []) as ClasificacionAprendida[]
 }
 
 export async function upsertClasificacionAprendida(params: {
-  obra_id: string
+  proyecto_id: string
   descripcion: string
   categoria: string
   etiquetas: string[]
@@ -335,19 +376,19 @@ export async function upsertClasificacionAprendida(params: {
   const { data: existente } = await supabase
     .from('clasificaciones_aprendidas')
     .select('id, veces_confirmado')
-    .eq('obra_id', params.obra_id)
+    .eq('proyecto_id', params.proyecto_id)
     .eq('descripcion_normalizada', descripcion_normalizada)
     .maybeSingle()
 
   await supabase.from('clasificaciones_aprendidas').upsert(
     {
-      obra_id: params.obra_id,
+      proyecto_id: params.proyecto_id,
       descripcion_normalizada,
       categoria: params.categoria,
       etiquetas: params.etiquetas,
       veces_confirmado: (existente?.veces_confirmado ?? 0) + 1,
       updated_at: new Date().toISOString(),
     },
-    { onConflict: 'obra_id,descripcion_normalizada' }
+    { onConflict: 'proyecto_id,descripcion_normalizada' }
   )
 }

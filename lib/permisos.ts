@@ -4,7 +4,7 @@ export const PERMISOS = [
   { key: 'scan_receipts', label: 'Escanear boletas' },
   { key: 'tag_items', label: 'Etiquetar ítems' },
   { key: 'export_excel', label: 'Descargar Excel' },
-  { key: 'create_obras', label: 'Crear obras' },
+  { key: 'create_proyectos', label: 'Crear proyectos' },
   { key: 'edit_scanned_items', label: 'Editar ítems escaneados' },
   { key: 'delete_scanned_items', label: 'Eliminar ítems/boletas' },
   { key: 'invite_users', label: 'Gestionar usuarios' },

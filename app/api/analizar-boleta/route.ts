@@ -8,9 +8,9 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(req: NextRequest) {
   try {
-    const { imagen_base64, media_type, obra_id, contexto_boleta } = await req.json()
+    const { imagen_base64, media_type, proyecto_id, contexto_boleta } = await req.json()
 
-    if (!imagen_base64 || !obra_id) {
+    if (!imagen_base64 || !proyecto_id) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
     }
 
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     const { data } = await supabase
       .from('clasificaciones_aprendidas')
       .select('*')
-      .eq('obra_id', obra_id)
+      .eq('proyecto_id', proyecto_id)
     const aprendidas = (data ?? []) as ClasificacionAprendida[]
 
     const contextoAprendizaje = buildContextoAprendizaje(aprendidas)

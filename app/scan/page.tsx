@@ -3,10 +3,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getObras, getEtapas, getPartidas, saveGasto, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
+import { getProyectos, getEtapas, getPartidas, saveGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { normalizarImagenParaSubida } from '@/lib/imagen'
 import { tienePermiso } from '@/lib/permisos'
-import type { Obra, Etapa, Partida, ItemAnalizado, Usuario, PermissionOverride } from '@/lib/types'
+import type { Proyecto, Etapa, Partida, ItemAnalizado, Usuario, PermissionOverride } from '@/lib/types'
 import SystemPromptBox from '@/components/SystemPromptBox'
 
 type Paso = 1 | 2 | 3
@@ -22,7 +22,7 @@ export default function Scan() {
   const [paso, setPaso] = useState<Paso>(1)
 
   // Paso 1
-  const [obra, setObra] = useState<Obra | null>(null)
+  const [proyecto, setProyecto] = useState<Proyecto | null>(null)
   const [etapa, setEtapa] = useState<Etapa | null>(null)
   const [partida, setPartida] = useState<Partida | null>(null)
   const [contexto, setContexto] = useState('')
@@ -34,6 +34,7 @@ export default function Scan() {
   const [procesandoImagen, setProcesandoImagen] = useState(false)
   const [errorImagen, setErrorImagen] = useState<string | null>(null)
   const [errorAnalisis, setErrorAnalisis] = useState<string | null>(null)
+  const [modoManual, setModoManual] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const fileGaleriaRef = useRef<HTMLInputElement>(null)
 
@@ -47,7 +48,7 @@ export default function Scan() {
   const [fecha, setFecha] = useState('2024-06-10')
   const [totalBoleta, setTotalBoleta] = useState(0)
 
-  const [obras, setObras] = useState<Obra[]>([])
+  const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [etapasFiltradas, setEtapasFiltradas] = useState<Etapa[]>([])
   const [partidasFiltradas, setPartidasFiltradas] = useState<Partida[]>([])
 
@@ -63,7 +64,7 @@ export default function Scan() {
   const puedeEscanear = usuarioActual ? tienePermiso(usuarioActual, overrides, 'scan_receipts') : false
 
   useEffect(() => {
-    getObras().then(setObras)
+    getProyectos().then(setProyectos)
     getUsuarioActual().then(async (u) => {
       setUsuarioActual(u)
       if (u) setOverrides(await getPermisosOverrides(u.id))
@@ -71,17 +72,17 @@ export default function Scan() {
     })
   }, [])
 
-  const paso1Completo = !!obra
-  const tagsObra: string[] = []
+  const paso1Completo = !!proyecto
+  const tagsProyecto: string[] = []
 
   const item = items[itemActual]
   const esUltimo = itemActual === items.length - 1
   const confirmados = items.filter((i) => i.etiquetas.length > 0).length
   const pendientes = items.filter((i) => i.etiquetas.length === 0).length
 
-  async function handleObraChange(id: string) {
-    const o = obras.find((x) => x.id === id) ?? null
-    setObra(o)
+  async function handleProyectoChange(id: string) {
+    const o = proyectos.find((x) => x.id === id) ?? null
+    setProyecto(o)
     setEtapa(null)
     setPartida(null)
     if (o) {
@@ -124,6 +125,14 @@ export default function Scan() {
     ))
   }
 
+  function setItemDescripcion(descripcion: string) {
+    setItems((prev) => prev.map((x, idx) => idx === itemActual ? { ...x, descripcion } : x))
+  }
+
+  function setItemCategoria(categoria: string) {
+    setItems((prev) => prev.map((x, idx) => idx === itemActual ? { ...x, categoria } : x))
+  }
+
   const fileSeleccionadoRef = useRef<File | null>(null)
   const capturaTokenRef = useRef(0)
 
@@ -145,8 +154,8 @@ export default function Scan() {
       const esHeic = /^image\/hei[cf]$/.test(file.type) || /\.hei[cf]$/i.test(file.name)
       setErrorImagen(
         esHeic
-          ? 'Esta foto es formato HEIC y no se pudo leer acá. Probá sacarla con la cámara en vez de elegirla de Fotos.'
-          : 'No pudimos procesar esta imagen. Probá con otra foto.'
+          ? 'Esta foto es formato HEIC y no se pudo leer aquí. Prueba sacarla con la cámara en vez de elegirla de Fotos.'
+          : 'No pudimos procesar esta imagen. Prueba con otra foto.'
       )
     } finally {
       if (capturaTokenRef.current === token) setProcesandoImagen(false)
@@ -156,7 +165,7 @@ export default function Scan() {
 
   async function handleAnalizar() {
     const file = fileSeleccionadoRef.current
-    if (!file || !obra) return
+    if (!file || !proyecto) return
 
     setErrorAnalisis(null)
     setAnalizando(true)
@@ -178,21 +187,21 @@ export default function Scan() {
         body: JSON.stringify({
           imagen_base64: base64,
           media_type: file.type || 'image/jpeg',
-          obra_id: obra.id,
+          proyecto_id: proyecto.id,
           contexto_boleta: contexto,
         }),
       })
 
       if (!res.ok) {
         const data = await res.json().catch(() => null)
-        throw new Error(data?.error || 'No pudimos analizar la boleta. Intentá de nuevo.')
+        throw new Error(data?.error || 'No pudimos analizar la boleta. Intenta de nuevo.')
       }
 
       const data = await res.json()
       const itemsResultado = data.items ?? []
 
       if (itemsResultado.length === 0) {
-        setErrorAnalisis('No pudimos identificar ítems en esta boleta. Probá con otra foto o volvé a intentar.')
+        setErrorAnalisis('No pudimos identificar ítems en esta boleta. Prueba con otra foto o vuelve a intentar.')
         return
       }
 
@@ -202,6 +211,7 @@ export default function Scan() {
       if (data.fecha) setFecha(data.fecha)
       if (data.total) setTotalBoleta(data.total)
 
+      setModoManual(false)
       setItems(itemsResultado.map((i: ItemAnalizado) => ({
         ...i,
         etapa_id: i.etapa_id ?? etapa?.id ?? '',
@@ -212,10 +222,33 @@ export default function Scan() {
       setPaso(3)
     } catch (err) {
       console.error(err)
-      setErrorAnalisis(err instanceof Error ? err.message : 'No pudimos analizar la boleta. Intentá de nuevo.')
+      setErrorAnalisis(err instanceof Error ? err.message : 'No pudimos analizar la boleta. Intenta de nuevo.')
     } finally {
       setAnalizando(false)
     }
+  }
+
+  function handleIngresoManual() {
+    setModoManual(true)
+    setProveedor('')
+    setRut('')
+    setFecha(new Date().toISOString().split('T')[0])
+    setTotalBoleta(0)
+    setItems([{
+      descripcion: '',
+      cantidad: 1,
+      unidad: 'un',
+      precio_unitario: 0,
+      subtotal: 0,
+      categoria: '',
+      etiquetas: [],
+      confianza: 1,
+      etapa_id: etapa?.id ?? '',
+      partida_id: partida?.id ?? '',
+    }])
+    setItemActual(0)
+    setTagInput('')
+    setPaso(3)
   }
 
   function addTag(tag: string) {
@@ -241,8 +274,8 @@ export default function Scan() {
   }
 
   async function handleCrearEtapaInline() {
-    if (!obra || !nuevaEtapaNombre.trim()) return
-    const nueva = await createEtapa(obra.id, nuevaEtapaNombre.trim(), etapasFiltradas.length + 1)
+    if (!proyecto || !nuevaEtapaNombre.trim()) return
+    const nueva = await createEtapa(proyecto.id, nuevaEtapaNombre.trim(), etapasFiltradas.length + 1)
     if (nueva) {
       setEtapasFiltradas((prev) => [...prev, nueva])
       setItemEtapa(nueva.id)
@@ -252,8 +285,8 @@ export default function Scan() {
   }
 
   async function handleCrearPartidaInline() {
-    if (!obra || !nuevaPartidaNombre.trim()) return
-    const nueva = await createPartida(obra.id, nuevaPartidaNombre.trim(), items[itemActual]?.etapa_id || undefined)
+    if (!proyecto || !nuevaPartidaNombre.trim()) return
+    const nueva = await createPartida(proyecto.id, nuevaPartidaNombre.trim(), items[itemActual]?.etapa_id || undefined)
     if (nueva) {
       setPartidasFiltradas((prev) => [...prev, nueva])
       setItemPartida(nueva.id)
@@ -263,32 +296,50 @@ export default function Scan() {
   }
 
   function handleSiguiente() {
+    const tagPendiente = tagInput.trim()
     setTagInput('')
     setMostrarSugerencias(false)
     if (esUltimo) {
-      handleGuardar()
+      handleGuardar(tagPendiente)
     } else {
+      if (tagPendiente) addTag(tagPendiente)
       setItemActual((i) => i + 1)
     }
   }
 
   function handleAnterior() {
+    const tagPendiente = tagInput.trim()
     setTagInput('')
     setMostrarSugerencias(false)
+    if (tagPendiente) addTag(tagPendiente)
     setItemActual((i) => Math.max(0, i - 1))
   }
 
-  async function handleGuardar() {
-    if (obra) {
+  async function handleGuardar(tagPendiente?: string) {
+    if (proyecto) {
+      // Si quedó texto sin confirmar en el input de etiqueta (el usuario escribió
+      // pero nunca tocó Enter/"+ Crear etiqueta"), se incorpora acá antes de guardar
+      // — leer `items` del estado directamente se arriesga a perder ese tag porque
+      // el setItems de addTag no llega a re-renderizar antes de este guardado.
+      const t = tagPendiente?.toLowerCase().trim()
+      const itemsFinal = t
+        ? items.map((x, idx) => idx === itemActual && !x.etiquetas.includes(t) ? { ...x, etiquetas: [...x.etiquetas, t] } : x)
+        : items
+
+      let imagenUrl = imagenDataUrl
+      if (fileSeleccionadoRef.current && usuarioActual) {
+        const url = await subirImagenBoleta(usuarioActual.cuenta_id, proyecto.id, fileSeleccionadoRef.current)
+        if (url) imagenUrl = url
+      }
       await saveGasto({
-        obra_id: obra.id,
+        proyecto_id: proyecto.id,
         proveedor,
         rut_proveedor: rut,
         fecha_boleta: fecha,
-        total: totalBoleta || items.reduce((s, i) => s + i.subtotal, 0),
+        total: totalBoleta || itemsFinal.reduce((s, i) => s + i.subtotal, 0),
         contexto_boleta: contexto,
-        imagen_url: imagenDataUrl,
-        items: items.map((i) => ({
+        imagen_url: imagenUrl,
+        items: itemsFinal.map((i) => ({
           descripcion: i.descripcion,
           cantidad: i.cantidad,
           unidad: i.unidad,
@@ -303,10 +354,10 @@ export default function Scan() {
         })),
       })
 
-      for (const i of items) {
+      for (const i of itemsFinal) {
         if (i.etiquetas.length > 0) {
           await upsertClasificacionAprendida({
-            obra_id: obra.id,
+            proyecto_id: proyecto.id,
             descripcion: i.descripcion,
             categoria: i.categoria,
             etiquetas: i.etiquetas,
@@ -317,7 +368,7 @@ export default function Scan() {
     router.push('/')
   }
 
-  const sugerenciasFiltradas = tagsObra.filter(
+  const sugerenciasFiltradas = tagsProyecto.filter(
     (t) => t.includes(tagInput.toLowerCase()) && !item?.etiquetas.includes(t)
   )
 
@@ -359,18 +410,18 @@ export default function Scan() {
       {paso === 1 && (
         <div className="px-4 py-5 space-y-4">
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Obra</label>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Proyecto</label>
             <select
-              value={obra?.id ?? ''}
-              onChange={(e) => handleObraChange(e.target.value)}
+              value={proyecto?.id ?? ''}
+              onChange={(e) => handleProyectoChange(e.target.value)}
               className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-white"
             >
-              <option value="">Seleccionar obra...</option>
-              {obras.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+              <option value="">Seleccionar proyecto...</option>
+              {proyectos.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
             </select>
           </div>
 
-          {obra && <SystemPromptBox obra={obra} />}
+          {proyecto && <SystemPromptBox proyecto={proyecto} />}
 
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
@@ -379,7 +430,7 @@ export default function Scan() {
             <select
               value={etapa?.id ?? ''}
               onChange={(e) => handleEtapaChange(e.target.value)}
-              disabled={!obra}
+              disabled={!proyecto}
               className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-white disabled:opacity-40"
             >
               <option value="">Sin etapa</option>
@@ -416,7 +467,7 @@ export default function Scan() {
           </div>
 
           <button
-            onClick={() => setPaso(2)}
+            onClick={() => { setModoManual(false); setPaso(2) }}
             disabled={!paso1Completo}
             className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -498,6 +549,13 @@ export default function Scan() {
               </>
             ) : 'Analizar con IA'}
           </button>
+
+          <button
+            onClick={handleIngresoManual}
+            className="w-full text-sm text-gray-500 font-medium py-1"
+          >
+            + Ingresar ítem manualmente
+          </button>
         </div>
       )}
 
@@ -532,31 +590,89 @@ export default function Scan() {
           {/* Datos del proveedor */}
           <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Proveedor</p>
-            <p className="text-sm font-semibold text-gray-900 mt-0.5">{proveedor}</p>
-            <p className="text-xs text-gray-400">RUT {rut} · {fecha}</p>
+            {modoManual ? (
+              <div className="space-y-1.5 mt-1">
+                <input
+                  type="text"
+                  value={proveedor}
+                  onChange={(e) => setProveedor(e.target.value)}
+                  placeholder="Nombre del proveedor"
+                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-800 bg-white placeholder-gray-300"
+                />
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={rut}
+                    onChange={(e) => setRut(e.target.value)}
+                    placeholder="RUT (opcional)"
+                    className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white placeholder-gray-300"
+                  />
+                  <input
+                    type="date"
+                    value={fecha}
+                    onChange={(e) => setFecha(e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white"
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-gray-900 mt-0.5">{proveedor}</p>
+                <p className="text-xs text-gray-400">RUT {rut} · {fecha}</p>
+              </>
+            )}
           </div>
 
           {/* Tarjeta del ítem */}
           <div className="rounded-2xl border-2 border-blue-100 bg-blue-50/30 p-4">
-            {/* Badge IA */}
+            {/* Badge IA / manual */}
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-                🤖 Propuesta IA
-              </span>
-              {item.confianza < 0.7 ? (
-                <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
-                  ⚠ Confianza {Math.round(item.confianza * 100)}%
+              {modoManual ? (
+                <span className="text-[10px] font-bold text-gray-600 bg-gray-200 px-2 py-0.5 rounded-full">
+                  ✏️ Ingreso manual
                 </span>
               ) : (
-                <span className="text-[10px] text-gray-400">
-                  {Math.round(item.confianza * 100)}% confianza
-                </span>
+                <>
+                  <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                    🤖 Propuesta IA
+                  </span>
+                  {item.confianza < 0.7 ? (
+                    <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+                      ⚠ Confianza {Math.round(item.confianza * 100)}%
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-gray-400">
+                      {Math.round(item.confianza * 100)}% confianza
+                    </span>
+                  )}
+                </>
               )}
             </div>
 
             {/* Descripción */}
-            <p className="text-base font-bold text-gray-900 mb-1">{item.descripcion}</p>
-            <p className="text-xs text-gray-400 mb-3">{item.categoria}</p>
+            {modoManual ? (
+              <div className="space-y-1.5 mb-3">
+                <input
+                  type="text"
+                  value={item.descripcion}
+                  onChange={(e) => setItemDescripcion(e.target.value)}
+                  placeholder="Descripción del ítem"
+                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-base font-bold text-gray-900 bg-white placeholder-gray-300"
+                />
+                <input
+                  type="text"
+                  value={item.categoria}
+                  onChange={(e) => setItemCategoria(e.target.value)}
+                  placeholder="Categoría (ej: Materiales, Herramientas)"
+                  className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-600 bg-white placeholder-gray-300"
+                />
+              </div>
+            ) : (
+              <>
+                <p className="text-base font-bold text-gray-900 mb-1">{item.descripcion}</p>
+                <p className="text-xs text-gray-400 mb-3">{item.categoria}</p>
+              </>
+            )}
 
             {/* Etapa y Partida por ítem */}
             <div className="grid grid-cols-2 gap-2 mb-4">

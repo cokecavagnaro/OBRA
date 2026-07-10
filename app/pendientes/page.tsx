@@ -3,24 +3,24 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getObras, getAllGastos, updateItemGasto, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
+import { getProyectos, getAllGastos, updateItemGasto, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { tienePermiso } from '@/lib/permisos'
-import type { Obra, ItemGasto, Usuario, PermissionOverride } from '@/lib/types'
+import type { Proyecto, ItemGasto, Usuario, PermissionOverride } from '@/lib/types'
 
 interface ItemConGasto extends ItemGasto {
-  obra_id: string
+  proyecto_id: string
   proveedor: string
   fecha: string
-  obra_nombre: string
+  proyecto_nombre: string
 }
 
 function PendientesContenido() {
   const searchParams = useSearchParams()
-  const obraParam = searchParams.get('obra') ?? 'todas'
+  const proyectoParam = searchParams.get('proyecto') ?? 'todas'
 
-  const [obras, setObras] = useState<Obra[]>([])
+  const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [items, setItems] = useState<ItemConGasto[]>([])
-  const [obraFiltro, setObraFiltro] = useState(obraParam)
+  const [proyectoFiltro, setProyectoFiltro] = useState(proyectoParam)
   const [tagsEdit, setTagsEdit] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
@@ -31,17 +31,17 @@ function PendientesContenido() {
   const puedeEliminar = usuarioActual ? tienePermiso(usuarioActual, overrides, 'delete_scanned_items') : false
 
   useEffect(() => {
-    Promise.all([getObras(), getAllGastos()]).then(([obras, gastos]) => {
-      setObras(obras)
+    Promise.all([getProyectos(), getAllGastos()]).then(([proyectos, gastos]) => {
+      setProyectos(proyectos)
       const pendientes = gastos.flatMap((g) =>
         (g.items ?? [])
           .filter((i) => i.estado === 'pendiente')
           .map((i) => ({
             ...i,
-            obra_id: g.obra_id,
+            proyecto_id: g.proyecto_id,
             proveedor: g.proveedor,
             fecha: g.fecha_boleta,
-            obra_nombre: obras.find((o) => o.id === g.obra_id)?.nombre ?? '',
+            proyecto_nombre: proyectos.find((o) => o.id === g.proyecto_id)?.nombre ?? '',
           }))
       )
       setItems(pendientes)
@@ -54,27 +54,55 @@ function PendientesContenido() {
   }, [])
 
   const activos = items.filter(
-    (i) => i.estado === 'pendiente' && (obraFiltro === 'todas' || i.obra_id === obraFiltro)
+    (i) => i.estado === 'pendiente' && (proyectoFiltro === 'todas' || i.proyecto_id === proyectoFiltro)
   )
 
+  function guardar(item: ItemConGasto, estado?: 'confirmado' | 'rechazado') {
+    updateItemGasto(item.id, {
+      etapa_id: item.etapa_id || null,
+      partida_id: item.partida_id || null,
+      etiquetas: item.etiquetas,
+      cantidad: item.cantidad,
+      precio_unitario: item.precio_unitario,
+      subtotal: item.subtotal,
+      ...(estado ? { estado } : {}),
+    })
+  }
+
   function confirmar(id: string) {
+    const item = items.find((i) => i.id === id)
+    if (!item) return
+    guardar(item, 'confirmado')
     setItems((prev) => prev.map((i) => i.id === id ? { ...i, estado: 'confirmado' as const } : i))
   }
 
   function rechazar(id: string) {
+    const item = items.find((i) => i.id === id)
+    if (!item) return
+    guardar(item, 'rechazado')
     setItems((prev) => prev.filter((i) => i.id !== id))
   }
 
   function addTag(id: string, tag: string) {
-    setItems((prev) => prev.map((i) =>
-      i.id === id ? { ...i, etiquetas: [...i.etiquetas, tag.toLowerCase().trim()] } : i
-    ))
+    setItems((prev) => {
+      const actualizado = prev.map((i) =>
+        i.id === id ? { ...i, etiquetas: [...i.etiquetas, tag.toLowerCase().trim()] } : i
+      )
+      const item = actualizado.find((i) => i.id === id)
+      if (item) guardar(item)
+      return actualizado
+    })
   }
 
   function removeTag(id: string, tag: string) {
-    setItems((prev) => prev.map((i) =>
-      i.id === id ? { ...i, etiquetas: i.etiquetas.filter((t) => t !== tag) } : i
-    ))
+    setItems((prev) => {
+      const actualizado = prev.map((i) =>
+        i.id === id ? { ...i, etiquetas: i.etiquetas.filter((t) => t !== tag) } : i
+      )
+      const item = actualizado.find((i) => i.id === id)
+      if (item) guardar(item)
+      return actualizado
+    })
   }
 
   function actualizarMonto(id: string, campo: 'cantidad' | 'precio_unitario', valor: number) {
@@ -87,14 +115,7 @@ function PendientesContenido() {
   }
 
   function guardarMonto(item: ItemConGasto) {
-    updateItemGasto(item.id, {
-      etapa_id: item.etapa_id || null,
-      partida_id: item.partida_id || null,
-      etiquetas: item.etiquetas,
-      cantidad: item.cantidad,
-      precio_unitario: item.precio_unitario,
-      subtotal: item.subtotal,
-    })
+    guardar(item)
   }
 
   function handleTagKey(e: React.KeyboardEvent<HTMLInputElement>, id: string) {
@@ -121,12 +142,12 @@ function PendientesContenido() {
         </p>
 
         <select
-          value={obraFiltro}
-          onChange={(e) => setObraFiltro(e.target.value)}
+          value={proyectoFiltro}
+          onChange={(e) => setProyectoFiltro(e.target.value)}
           className="mt-3 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 bg-white"
         >
-          <option value="todas">Todas las obras</option>
-          {obras.map((o) => (
+          <option value="todas">Todos los proyectos</option>
+          {proyectos.map((o) => (
             <option key={o.id} value={o.id}>{o.nombre}</option>
           ))}
         </select>
@@ -141,7 +162,7 @@ function PendientesContenido() {
               </svg>
             </div>
             <p className="text-sm font-medium text-gray-600">Todo al día</p>
-            <p className="text-xs text-gray-400 mt-1">No hay ítems pendientes{obraFiltro !== 'todas' ? ' en esta obra' : ''}</p>
+            <p className="text-xs text-gray-400 mt-1">No hay ítems pendientes{proyectoFiltro !== 'todas' ? ' en este proyecto' : ''}</p>
           </div>
         )}
 
@@ -183,7 +204,7 @@ function PendientesContenido() {
               <span className="font-semibold text-gray-700">{formatCLP(item.subtotal)}</span>
             </div>
 
-            <p className="text-xs text-gray-400 mb-3 truncate">{item.obra_nombre}</p>
+            <p className="text-xs text-gray-400 mb-3 truncate">{item.proyecto_nombre}</p>
 
             <div className="mb-3">
               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Etiquetas</p>
