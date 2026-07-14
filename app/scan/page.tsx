@@ -58,6 +58,9 @@ export default function Scan() {
   const [creandoPartidaInline, setCreandoPartidaInline] = useState(false)
   const [nuevaPartidaNombre, setNuevaPartidaNombre] = useState('')
 
+  const [guardando, setGuardando] = useState(false)
+  const guardandoRef = useRef(false)
+
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
   const [overrides, setOverrides] = useState<PermissionOverride[]>([])
   const [permisosCargados, setPermisosCargados] = useState(false)
@@ -316,56 +319,64 @@ export default function Scan() {
   }
 
   async function handleGuardar(tagPendiente?: string) {
-    if (proyecto) {
-      // Si quedó texto sin confirmar en el input de etiqueta (el usuario escribió
-      // pero nunca tocó Enter/"+ Crear etiqueta"), se incorpora acá antes de guardar
-      // — leer `items` del estado directamente se arriesga a perder ese tag porque
-      // el setItems de addTag no llega a re-renderizar antes de este guardado.
-      const t = tagPendiente?.toLowerCase().trim()
-      const itemsFinal = t
-        ? items.map((x, idx) => idx === itemActual && !x.etiquetas.includes(t) ? { ...x, etiquetas: [...x.etiquetas, t] } : x)
-        : items
+    if (guardandoRef.current) return
+    guardandoRef.current = true
+    setGuardando(true)
+    try {
+      if (proyecto) {
+        // Si quedó texto sin confirmar en el input de etiqueta (el usuario escribió
+        // pero nunca tocó Enter/"+ Crear etiqueta"), se incorpora acá antes de guardar
+        // — leer `items` del estado directamente se arriesga a perder ese tag porque
+        // el setItems de addTag no llega a re-renderizar antes de este guardado.
+        const t = tagPendiente?.toLowerCase().trim()
+        const itemsFinal = t
+          ? items.map((x, idx) => idx === itemActual && !x.etiquetas.includes(t) ? { ...x, etiquetas: [...x.etiquetas, t] } : x)
+          : items
 
-      let imagenUrl = imagenDataUrl
-      if (fileSeleccionadoRef.current && usuarioActual) {
-        const url = await subirImagenBoleta(usuarioActual.cuenta_id, proyecto.id, fileSeleccionadoRef.current)
-        if (url) imagenUrl = url
-      }
-      await saveGasto({
-        proyecto_id: proyecto.id,
-        proveedor,
-        rut_proveedor: rut,
-        fecha_boleta: fecha,
-        total: totalBoleta || itemsFinal.reduce((s, i) => s + i.subtotal, 0),
-        contexto_boleta: contexto,
-        imagen_url: imagenUrl,
-        items: itemsFinal.map((i) => ({
-          descripcion: i.descripcion,
-          cantidad: i.cantidad,
-          unidad: i.unidad,
-          precio_unitario: i.precio_unitario,
-          subtotal: i.subtotal,
-          categoria: i.categoria,
-          etiquetas: i.etiquetas,
-          confianza_ia: i.confianza,
-          etapa_id: i.etapa_id,
-          partida_id: i.partida_id,
-          estado: i.etiquetas.length > 0 ? 'confirmado' : 'pendiente',
-        })),
-      })
-
-      for (const i of itemsFinal) {
-        if (i.etiquetas.length > 0) {
-          await upsertClasificacionAprendida({
-            proyecto_id: proyecto.id,
+        let imagenUrl = imagenDataUrl
+        if (fileSeleccionadoRef.current && usuarioActual) {
+          const url = await subirImagenBoleta(usuarioActual.cuenta_id, proyecto.id, fileSeleccionadoRef.current)
+          if (url) imagenUrl = url
+        }
+        await saveGasto({
+          proyecto_id: proyecto.id,
+          proveedor,
+          rut_proveedor: rut,
+          fecha_boleta: fecha,
+          total: totalBoleta || itemsFinal.reduce((s, i) => s + i.subtotal, 0),
+          contexto_boleta: contexto,
+          imagen_url: imagenUrl,
+          items: itemsFinal.map((i) => ({
             descripcion: i.descripcion,
+            cantidad: i.cantidad,
+            unidad: i.unidad,
+            precio_unitario: i.precio_unitario,
+            subtotal: i.subtotal,
             categoria: i.categoria,
             etiquetas: i.etiquetas,
-          })
+            confianza_ia: i.confianza,
+            etapa_id: i.etapa_id,
+            partida_id: i.partida_id,
+            estado: i.etiquetas.length > 0 ? 'confirmado' : 'pendiente',
+          })),
+        })
+
+        for (const i of itemsFinal) {
+          if (i.etiquetas.length > 0) {
+            await upsertClasificacionAprendida({
+              proyecto_id: proyecto.id,
+              descripcion: i.descripcion,
+              categoria: i.categoria,
+              etiquetas: i.etiquetas,
+            })
+          }
         }
       }
+      router.push('/')
+    } finally {
+      guardandoRef.current = false
+      setGuardando(false)
     }
-    router.push('/')
   }
 
   const sugerenciasFiltradas = tagsProyecto.filter(
@@ -837,11 +848,20 @@ export default function Scan() {
             </button>
             <button
               onClick={handleSiguiente}
-              className={`flex-1 rounded-xl py-3 text-sm font-semibold text-white ${
+              disabled={guardando}
+              className={`flex-1 rounded-xl py-3 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60 ${
                 esUltimo ? 'bg-green-600' : 'bg-blue-600'
               }`}
             >
-              {esUltimo ? 'Guardar boleta' : 'Siguiente'}
+              {guardando ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Guardando...
+                </>
+              ) : esUltimo ? 'Guardar boleta' : 'Siguiente'}
             </button>
           </div>
 
