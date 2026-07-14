@@ -177,7 +177,6 @@ export async function getGastos(proyecto_id: string): Promise<Gasto[]> {
     etapa_id: '',
     partida_id: '',
     moneda: (g.moneda as string) ?? 'CLP',
-    created_by: 'usuario',
     items: ((g.items_gasto as Record<string, unknown>[]) ?? []).map((i) => ({
       ...i,
       etapa_id: (i.etapa_id as string) ?? '',
@@ -202,7 +201,6 @@ export async function getAllGastos(): Promise<Gasto[]> {
     etapa_id: '',
     partida_id: '',
     moneda: (g.moneda as string) ?? 'CLP',
-    created_by: 'usuario',
     items: ((g.items_gasto as Record<string, unknown>[]) ?? []).map((i) => ({
       ...i,
       etapa_id: (i.etapa_id as string) ?? '',
@@ -261,6 +259,8 @@ export async function saveGasto(params: {
   total: number
   imagen_url: string
   contexto_boleta: string
+  creado_por_email: string | null
+  comentario: string | null
   items: Array<{
     descripcion: string
     cantidad: number
@@ -294,6 +294,8 @@ export async function saveGasto(params: {
       total: totalValido,
       imagen_url: params.imagen_url,
       contexto_boleta: params.contexto_boleta,
+      creado_por_email: params.creado_por_email,
+      comentario: params.comentario,
       estado,
     })
     .select()

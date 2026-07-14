@@ -74,7 +74,8 @@ export interface Gasto {
   total: number
   imagen_url: string
   contexto_boleta: string
-  created_by: string
+  creado_por_email: string | null
+  comentario: string | null
   estado: EstadoGasto
   created_at: string
   // relaciones expandidas

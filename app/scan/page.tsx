@@ -47,6 +47,7 @@ export default function Scan() {
   const [rut, setRut] = useState('96.928.180-5')
   const [fecha, setFecha] = useState('2024-06-10')
   const [totalBoleta, setTotalBoleta] = useState(0)
+  const [comentario, setComentario] = useState('')
 
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [etapasFiltradas, setEtapasFiltradas] = useState<Etapa[]>([])
@@ -345,6 +346,8 @@ export default function Scan() {
           fecha_boleta: fecha,
           total: totalBoleta || itemsFinal.reduce((s, i) => s + i.subtotal, 0),
           contexto_boleta: contexto,
+          creado_por_email: usuarioActual?.email ?? null,
+          comentario: comentario.trim() || null,
           imagen_url: imagenUrl,
           items: itemsFinal.map((i) => ({
             descripcion: i.descripcion,
@@ -632,6 +635,18 @@ export default function Scan() {
                 <p className="text-xs text-gray-400">RUT {rut} · {fecha}</p>
               </>
             )}
+            <div className="mt-2 pt-2 border-t border-gray-200">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                Comentario <span className="text-gray-300 font-normal">(opcional)</span>
+              </p>
+              <textarea
+                value={comentario}
+                onChange={(e) => setComentario(e.target.value)}
+                placeholder="Ej: Faltó el material de la partida X, se pidió reposición"
+                rows={2}
+                className="mt-1 w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-800 bg-white resize-none placeholder-gray-300"
+              />
+            </div>
           </div>
 
           {/* Tarjeta del ítem */}

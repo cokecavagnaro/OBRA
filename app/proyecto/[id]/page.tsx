@@ -340,6 +340,12 @@ export default function ProyectoDetalle() {
                   ))}
                 </div>
                 <p className="text-[10px] text-gray-300 mt-2">{item.gasto.proveedor} · {formatFecha(item.gasto.fecha_boleta)}</p>
+                {item.gasto.creado_por_email && (
+                  <p className="text-[10px] text-gray-300 mt-0.5">Registrado por {item.gasto.creado_por_email}</p>
+                )}
+                {item.gasto.comentario && (
+                  <p className="text-[10px] text-gray-400 italic mt-0.5">💬 {item.gasto.comentario}</p>
+                )}
               </div>
             ))}
           </>
@@ -374,6 +380,16 @@ export default function ProyectoDetalle() {
                   )}
                 </div>
               </div>
+              {(gasto.creado_por_email || gasto.comentario) && (
+                <div className="mt-1.5">
+                  {gasto.creado_por_email && (
+                    <p className="text-[10px] text-gray-300">Registrado por {gasto.creado_por_email}</p>
+                  )}
+                  {gasto.comentario && (
+                    <p className="text-[10px] text-gray-400 italic mt-0.5">💬 {gasto.comentario}</p>
+                  )}
+                </div>
+              )}
               {(gasto.items ?? []).length > 0 && (
                 <div className="mt-2 space-y-1">
                   {(gasto.items ?? []).map((item) => (
@@ -481,6 +497,12 @@ function GaleriaThumbnail({ gasto }: { gasto: Gasto }) {
                 <p className="text-sm font-semibold text-gray-900">{gasto.proveedor}</p>
                 <p className="text-xs text-gray-400 mt-0.5">RUT {gasto.rut_proveedor} · {gasto.fecha_boleta}</p>
                 <p className="text-base font-bold text-gray-900 mt-1">{formatCLP(gasto.total)}</p>
+                {gasto.creado_por_email && (
+                  <p className="text-[10px] text-gray-400 mt-1">Registrado por {gasto.creado_por_email}</p>
+                )}
+                {gasto.comentario && (
+                  <p className="text-xs text-gray-500 italic mt-1">💬 {gasto.comentario}</p>
+                )}
               </div>
               <div className="flex flex-col gap-2 items-end shrink-0 ml-3">
                 {gasto.imagen_url && (
