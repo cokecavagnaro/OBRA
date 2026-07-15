@@ -6,6 +6,7 @@ import { formatCLP } from '@/lib/mock'
 import { getProyectos, getEtapas, getPartidas, saveGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { normalizarImagenParaSubida } from '@/lib/imagen'
 import { tienePermiso } from '@/lib/permisos'
+import { determinarInterpretacion, calcularNetoBruto } from '@/lib/confianzaDocumento'
 import type { Proyecto, Etapa, Partida, ItemAnalizado, Usuario, PermissionOverride } from '@/lib/types'
 import SystemPromptBox from '@/components/SystemPromptBox'
 
@@ -34,6 +35,7 @@ export default function Scan() {
   const [procesandoImagen, setProcesandoImagen] = useState(false)
   const [errorImagen, setErrorImagen] = useState<string | null>(null)
   const [errorAnalisis, setErrorAnalisis] = useState<string | null>(null)
+  const [requiereAtencion, setRequiereAtencion] = useState(false)
   const [modoManual, setModoManual] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const fileGaleriaRef = useRef<HTMLInputElement>(null)
@@ -172,6 +174,7 @@ export default function Scan() {
     if (!file || !proyecto) return
 
     setErrorAnalisis(null)
+    setRequiereAtencion(false)
     setAnalizando(true)
     try {
       // Leer imagen como base64
@@ -214,6 +217,7 @@ export default function Scan() {
       if (data.rut) setRut(data.rut)
       if (data.fecha) setFecha(data.fecha)
       if (data.total) setTotalBoleta(data.total)
+      setRequiereAtencion(Boolean(data.requiere_atencion))
 
       setModoManual(false)
       setItems(itemsResultado.map((i: ItemAnalizado) => ({
@@ -238,6 +242,7 @@ export default function Scan() {
     setRut('')
     setFecha(new Date().toISOString().split('T')[0])
     setTotalBoleta(0)
+    setRequiereAtencion(false)
     setItems([{
       descripcion: '',
       cantidad: 1,
@@ -601,6 +606,14 @@ export default function Scan() {
             ))}
           </div>
 
+          {!modoManual && requiereAtencion && (
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+              <p className="text-sm text-amber-700">
+                ⚠ La IA tuvo baja confianza al leer esta boleta. Revisa con cuidado los datos y montos antes de guardar.
+              </p>
+            </div>
+          )}
+
           {/* Datos del proveedor */}
           <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Proveedor</p>
@@ -794,6 +807,17 @@ export default function Scan() {
                 <p className="text-sm font-bold text-blue-700">{formatCLP(item.subtotal)}</p>
               </div>
             </div>
+
+            {(() => {
+              const sumaExtraidaBoleta = items.reduce((s, i) => s + i.subtotal, 0)
+              const interpretacionBoleta = determinarInterpretacion(sumaExtraidaBoleta, totalBoleta)
+              const { neto, bruto, iva } = calcularNetoBruto(item.subtotal, interpretacionBoleta)
+              return (
+                <p className="text-[10px] text-gray-400 text-center mb-3">
+                  Neto {formatCLP(neto)} + IVA (19%) {formatCLP(iva)} = Bruto {formatCLP(bruto)}
+                </p>
+              )
+            })()}
 
             {/* Etiquetas */}
             <div>

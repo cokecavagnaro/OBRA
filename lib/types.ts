@@ -102,6 +102,11 @@ export interface ItemGasto {
   created_at: string
 }
 
+export interface DocumentoConfianza {
+  confianza_documento: number
+  calidad_imagen_percibida: number
+}
+
 // Respuesta de la API de análisis
 export interface RespuestaAnalisis {
   proveedor: string
@@ -110,6 +115,10 @@ export interface RespuestaAnalisis {
   moneda: Moneda
   items: ItemAnalizado[]
   total: number
+  documento?: DocumentoConfianza
+  confianza_documento?: number
+  verificado_por_reescritura?: boolean
+  requiere_atencion?: boolean
 }
 
 export interface ItemAnalizado {

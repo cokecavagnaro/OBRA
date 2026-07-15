@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
 import { getProyectos, getEtapas, getPartidas, getGastos, getUsuarioActual, getPermisosOverrides, deleteGasto, deleteItemGasto } from '@/lib/supabase/db'
 import { tienePermiso } from '@/lib/permisos'
+import { determinarInterpretacion, calcularNetoBruto } from '@/lib/confianzaDocumento'
 import * as XLSX from 'xlsx'
 import ClasificacionModal from '@/components/ClasificacionModal'
 import type { Proyecto, Etapa, Partida, Gasto, ItemGasto, Usuario, PermissionOverride } from '@/lib/types'
@@ -65,6 +66,7 @@ export default function ProyectoDetalle() {
   )
 
   const totalProyecto = gastos.reduce((s, g) => s + g.total, 0)
+  const ivaProyecto = gastos.reduce((s, g) => s + (g.items ?? []).reduce((si, i) => si + netoBrutoDeItem(i, g).iva, 0), 0)
   const pendientesCount = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
 
   const partidasDisponibles = filtroEtapa
@@ -136,6 +138,7 @@ export default function ProyectoDetalle() {
   }
 
   function itemARow(i: ItemGasto, gasto: Gasto) {
+    const { neto, bruto, iva } = netoBrutoDeItem(i, gasto)
     return {
       Proveedor: gasto.proveedor || '',
       RUT: gasto.rut_proveedor || '',
@@ -145,7 +148,9 @@ export default function ProyectoDetalle() {
       Cantidad: i.cantidad,
       Unidad: i.unidad || '',
       'Precio unitario': i.precio_unitario,
-      Subtotal: i.subtotal,
+      Neto: Math.round(neto),
+      IVA: Math.round(iva),
+      Bruto: Math.round(bruto),
       Etapa: etapas.find((e) => e.id === i.etapa_id)?.nombre ?? '',
       Partida: partidas.find((p) => p.id === i.partida_id)?.nombre ?? '',
       Etiquetas: i.etiquetas.join(', '),
@@ -183,9 +188,15 @@ export default function ProyectoDetalle() {
             </span>
           )}
         </div>
-        <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-          <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Total gastado</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{formatCLP(totalProyecto)}</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Total gastado</p>
+            <p className="text-3xl font-bold text-gray-900 mt-1">{formatCLP(totalProyecto)}</p>
+          </div>
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">IVA pagado</p>
+            <p className="text-3xl font-bold text-gray-900 mt-1">{formatCLP(ivaProyecto)}</p>
+          </div>
         </div>
       </div>
 
@@ -334,6 +345,10 @@ export default function ProyectoDetalle() {
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mt-0.5">{item.cantidad} {item.unidad}</p>
+                {(() => {
+                  const { neto, bruto, iva } = netoBrutoDeItem(item, item.gasto)
+                  return <p className="text-[10px] text-gray-400 mt-0.5">Neto {formatCLP(neto)} · IVA {formatCLP(iva)} · Bruto {formatCLP(bruto)}</p>
+                })()}
                 <div className="flex flex-wrap gap-1 mt-2">
                   {item.etiquetas.map((tag) => (
                     <span key={tag} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${filtrosEtiqueta.includes(tag) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>{tag}</span>
@@ -405,7 +420,15 @@ export default function ProyectoDetalle() {
                       <div key={item.id} className="flex items-center justify-between text-xs text-gray-500">
                         <span className="truncate flex-1">{item.descripcion}</span>
                         <div className="flex items-center gap-2 shrink-0 ml-2">
-                          <span>{formatCLP(item.subtotal)}</span>
+                          <span>
+                            {formatCLP(item.subtotal)}
+                            {(() => {
+                              const r = netoBrutoDeItem(item, gasto)
+                              const otro = r.neto === item.subtotal ? r.bruto : r.neto
+                              const etiqueta = r.neto === item.subtotal ? 'bruto' : 'neto'
+                              return <span className="text-gray-300"> ({etiqueta} {formatCLP(otro)})</span>
+                            })()}
+                          </span>
                           {puedeEditarItems && (
                             <button
                               onClick={() => setItemEditando(item)}
@@ -540,4 +563,11 @@ function Vacio() {
 
 function formatFecha(fecha: string): string {
   return new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function netoBrutoDeItem(item: ItemGasto, gasto: Gasto) {
+  const items = gasto.items ?? []
+  const sumaExtraida = items.reduce((s, i) => s + i.subtotal, 0)
+  const interpretacion = determinarInterpretacion(sumaExtraida, gasto.total)
+  return calcularNetoBruto(item.subtotal, interpretacion)
 }
