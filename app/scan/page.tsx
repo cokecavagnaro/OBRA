@@ -36,6 +36,8 @@ export default function Scan() {
   const [errorImagen, setErrorImagen] = useState<string | null>(null)
   const [errorAnalisis, setErrorAnalisis] = useState<string | null>(null)
   const [requiereAtencion, setRequiereAtencion] = useState(false)
+  const [verificandoCalidad, setVerificandoCalidad] = useState(false)
+  const [calidadImagen, setCalidadImagen] = useState<{ ok: boolean; motivo: string | null } | null>(null)
   const [modoManual, setModoManual] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const fileGaleriaRef = useRef<HTMLInputElement>(null)
@@ -148,12 +150,14 @@ export default function Scan() {
     if (!file) return
     setErrorImagen(null)
     setProcesandoImagen(true)
+    setCalidadImagen(null)
     const token = ++capturaTokenRef.current
     try {
       const { blob, dataUrl } = await normalizarImagenParaSubida(file)
       if (capturaTokenRef.current !== token) return
       fileSeleccionadoRef.current = new File([blob], 'boleta.jpg', { type: 'image/jpeg' })
       setImagenPreview(dataUrl)
+      verificarCalidadImagen(fileSeleccionadoRef.current, token)
     } catch (err) {
       console.error('Error al procesar imagen:', err)
       if (capturaTokenRef.current !== token) return
@@ -166,6 +170,30 @@ export default function Scan() {
     } finally {
       if (capturaTokenRef.current === token) setProcesandoImagen(false)
       input.value = ''
+    }
+  }
+
+  async function verificarCalidadImagen(file: File, token: number) {
+    setVerificandoCalidad(true)
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve((reader.result as string).split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch('/api/verificar-calidad-imagen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imagen_base64: base64, media_type: file.type || 'image/jpeg' }),
+      })
+      if (capturaTokenRef.current !== token || !res.ok) return
+      const data = await res.json()
+      setCalidadImagen({ ok: Boolean(data.calidad_suficiente), motivo: data.motivo ?? null })
+    } catch (err) {
+      console.error('Error al verificar calidad de imagen:', err)
+    } finally {
+      if (capturaTokenRef.current === token) setVerificandoCalidad(false)
     }
   }
 
@@ -536,6 +564,7 @@ export default function Scan() {
                   setImagenPreview(null)
                   setErrorImagen(null)
                   setErrorAnalisis(null)
+                  setCalidadImagen(null)
                   if (fileRef.current) fileRef.current.value = ''
                   if (fileGaleriaRef.current) fileGaleriaRef.current.value = ''
                 }}
@@ -544,6 +573,28 @@ export default function Scan() {
                 ✕
               </button>
             </div>
+          )}
+
+          {verificandoCalidad && (
+            <p className="text-xs text-gray-400 flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Revisando calidad de la imagen...
+            </p>
+          )}
+          {!verificandoCalidad && calidadImagen && (
+            calidadImagen.ok ? (
+              <p className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-xl p-3">
+                ✅ Buena calidad, se ve legible.
+              </p>
+            ) : (
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                <p className="text-sm text-amber-700">⚠️ {calidadImagen.motivo || 'La imagen podría no verse lo suficientemente clara.'}</p>
+                <p className="text-xs text-amber-600 mt-1">Puedes intentar analizarla igual o tomar otra foto.</p>
+              </div>
+            )
           )}
 
           <button
