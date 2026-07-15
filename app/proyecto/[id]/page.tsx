@@ -69,6 +69,10 @@ export default function ProyectoDetalle() {
   const ivaProyecto = gastos.reduce((s, g) => s + (g.items ?? []).reduce((si, i) => si + netoBrutoDeItem(i, g).iva, 0), 0)
   const pendientesCount = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
 
+  function gastoDeItems(filtro: (i: ItemGasto) => boolean): number {
+    return gastos.reduce((s, g) => s + (g.items ?? []).filter(filtro).reduce((si, i) => si + netoBrutoDeItem(i, g).bruto, 0), 0)
+  }
+
   const partidasDisponibles = filtroEtapa
     ? partidas.filter((p) => p.etapa_id === filtroEtapa)
     : partidas
@@ -199,6 +203,21 @@ export default function ProyectoDetalle() {
           </div>
         </div>
       </div>
+
+      {(proyecto.presupuesto || etapas.some((e) => e.presupuesto) || partidas.some((p) => p.presupuesto)) && (
+        <div className="mx-4 mt-3 rounded-xl border border-gray-100 p-4 space-y-3">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Presupuesto</p>
+          {proyecto.presupuesto && (
+            <BarraPresupuesto label="Proyecto completo" gastado={totalProyecto} presupuesto={proyecto.presupuesto} />
+          )}
+          {etapas.filter((e) => e.presupuesto).map((e) => (
+            <BarraPresupuesto key={e.id} label={e.nombre} gastado={gastoDeItems((i) => i.etapa_id === e.id)} presupuesto={e.presupuesto!} />
+          ))}
+          {partidas.filter((p) => p.presupuesto).map((p) => (
+            <BarraPresupuesto key={p.id} label={p.nombre} gastado={gastoDeItems((i) => i.partida_id === p.id)} presupuesto={p.presupuesto!} />
+          ))}
+        </div>
+      )}
 
       {/* Galería de boletas */}
       {gastos.length > 0 && (
@@ -570,4 +589,23 @@ function netoBrutoDeItem(item: ItemGasto, gasto: Gasto) {
   const sumaExtraida = items.reduce((s, i) => s + i.subtotal, 0)
   const interpretacion = determinarInterpretacion(sumaExtraida, gasto.total)
   return calcularNetoBruto(item.subtotal, interpretacion)
+}
+
+function BarraPresupuesto({ label, gastado, presupuesto }: { label: string; gastado: number; presupuesto: number }) {
+  const pct = presupuesto > 0 ? (gastado / presupuesto) * 100 : 0
+  const color = pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-blue-500'
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs font-medium text-gray-700 truncate">{label}</p>
+        <p className="text-xs text-gray-400 shrink-0 ml-2">{formatCLP(gastado)} / {formatCLP(presupuesto)}</p>
+      </div>
+      <div className="bg-gray-100 rounded-full h-1.5">
+        <div className={`${color} h-1.5 rounded-full transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} />
+      </div>
+      {pct >= 100 && (
+        <p className="text-[10px] text-red-600 mt-1">⚠ Superó el presupuesto por {formatCLP(gastado - presupuesto)}</p>
+      )}
+    </div>
+  )
 }

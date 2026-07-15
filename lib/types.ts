@@ -14,6 +14,7 @@ export interface Proyecto {
   nombre: string
   system_prompt: string
   cuenta_id?: string
+  presupuesto?: number | null
   created_at: string
 }
 
@@ -22,6 +23,7 @@ export interface Etapa {
   proyecto_id: string
   nombre: string
   orden: number
+  presupuesto?: number | null
 }
 
 export interface Partida {
@@ -29,6 +31,7 @@ export interface Partida {
   proyecto_id: string
   etapa_id?: string
   nombre: string
+  presupuesto?: number | null
 }
 
 export interface Usuario {

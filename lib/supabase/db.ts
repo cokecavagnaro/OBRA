@@ -109,14 +109,14 @@ export async function getProyectos(): Promise<Proyecto[]> {
   return (data ?? []) as Proyecto[]
 }
 
-export async function createProyecto(nombre: string, system_prompt = ''): Promise<Proyecto | null> {
+export async function createProyecto(nombre: string, system_prompt = '', presupuesto?: number | null): Promise<Proyecto | null> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
   const usuarioActual = await getUsuarioActual()
   const { data, error } = await supabase
     .from('proyectos')
-    .insert({ nombre, system_prompt, user_id: user.id, cuenta_id: usuarioActual?.cuenta_id })
+    .insert({ nombre, system_prompt, user_id: user.id, cuenta_id: usuarioActual?.cuenta_id, presupuesto: presupuesto ?? null })
     .select()
     .single()
   if (error) console.error('createProyecto:', error)
@@ -136,10 +136,15 @@ export async function getEtapas(proyecto_id: string): Promise<Etapa[]> {
   return (data ?? []) as Etapa[]
 }
 
-export async function createEtapa(proyecto_id: string, nombre: string, orden: number): Promise<Etapa | null> {
+export async function createEtapa(proyecto_id: string, nombre: string, orden: number, presupuesto?: number | null): Promise<Etapa | null> {
   const supabase = createClient()
-  const { data } = await supabase.from('etapas').insert({ proyecto_id, nombre, orden }).select().single()
+  const { data } = await supabase.from('etapas').insert({ proyecto_id, nombre, orden, presupuesto: presupuesto ?? null }).select().single()
   return data as Etapa | null
+}
+
+export async function updateEtapaPresupuesto(id: string, presupuesto: number | null): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('etapas').update({ presupuesto }).eq('id', id)
 }
 
 // ---- Partidas ----
@@ -150,14 +155,19 @@ export async function getPartidas(proyecto_id: string): Promise<Partida[]> {
   return (data ?? []) as Partida[]
 }
 
-export async function createPartida(proyecto_id: string, nombre: string, etapa_id?: string): Promise<Partida | null> {
+export async function createPartida(proyecto_id: string, nombre: string, etapa_id?: string, presupuesto?: number | null): Promise<Partida | null> {
   const supabase = createClient()
   const { data } = await supabase
     .from('partidas')
-    .insert({ proyecto_id, nombre, etapa_id: etapa_id || null })
+    .insert({ proyecto_id, nombre, etapa_id: etapa_id || null, presupuesto: presupuesto ?? null })
     .select()
     .single()
   return data as Partida | null
+}
+
+export async function updatePartidaPresupuesto(id: string, presupuesto: number | null): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('partidas').update({ presupuesto }).eq('id', id)
 }
 
 // ---- Gastos ----

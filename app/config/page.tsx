@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   getProyectos, createProyecto, updateProyectoPrompt, getEtapas, createEtapa, getPartidas, createPartida,
+  updateEtapaPresupuesto, updatePartidaPresupuesto,
   getUsuarioActual, getUsuariosDeCuenta, getCuenta, updateCuentaNombre,
   crearInvitacion, getInvitacionesPendientes, cancelarInvitacion,
   darDeBajaUsuario, reactivarUsuario, getPermisosOverrides,
@@ -30,10 +31,13 @@ function ConfigContenido() {
   const [promptDraft, setPromptDraft] = useState('')
 
   const [nuevaEtapa, setNuevaEtapa] = useState('')
+  const [nuevaEtapaPresupuesto, setNuevaEtapaPresupuesto] = useState('')
   const [nuevaPartida, setNuevaPartida] = useState('')
+  const [nuevaPartidaPresupuesto, setNuevaPartidaPresupuesto] = useState('')
   const [etapaParaPartida, setEtapaParaPartida] = useState<string>('')
 
   const [nuevoProyecto, setNuevoProyecto] = useState('')
+  const [nuevoProyectoPresupuesto, setNuevoProyectoPresupuesto] = useState('')
   const [creandoProyecto, setCreandoProyecto] = useState(false)
   const [guardando, setGuardando] = useState(false)
 
@@ -184,28 +188,46 @@ function ConfigContenido() {
   async function agregarEtapa() {
     if (!proyectoSeleccionado || !nuevaEtapa.trim()) return
     setGuardando(true)
-    const nueva = await createEtapa(proyectoSeleccionado.id, nuevaEtapa.trim(), etapas.length + 1)
+    const presupuesto = nuevaEtapaPresupuesto.trim() ? Number(nuevaEtapaPresupuesto) : null
+    const nueva = await createEtapa(proyectoSeleccionado.id, nuevaEtapa.trim(), etapas.length + 1, presupuesto)
     if (nueva) setEtapas((prev) => [...prev, nueva])
     setNuevaEtapa('')
+    setNuevaEtapaPresupuesto('')
     setGuardando(false)
   }
 
   async function agregarPartida() {
     if (!proyectoSeleccionado || !nuevaPartida.trim()) return
     setGuardando(true)
-    const nueva = await createPartida(proyectoSeleccionado.id, nuevaPartida.trim(), etapaParaPartida || undefined)
+    const presupuesto = nuevaPartidaPresupuesto.trim() ? Number(nuevaPartidaPresupuesto) : null
+    const nueva = await createPartida(proyectoSeleccionado.id, nuevaPartida.trim(), etapaParaPartida || undefined, presupuesto)
     if (nueva) setPartidas((prev) => [...prev, nueva])
     setNuevaPartida('')
+    setNuevaPartidaPresupuesto('')
     setGuardando(false)
+  }
+
+  async function actualizarPresupuestoEtapa(id: string, valor: string) {
+    const presupuesto = valor.trim() ? Number(valor) : null
+    setEtapas((prev) => prev.map((e) => e.id === id ? { ...e, presupuesto } : e))
+    await updateEtapaPresupuesto(id, presupuesto)
+  }
+
+  async function actualizarPresupuestoPartida(id: string, valor: string) {
+    const presupuesto = valor.trim() ? Number(valor) : null
+    setPartidas((prev) => prev.map((p) => p.id === id ? { ...p, presupuesto } : p))
+    await updatePartidaPresupuesto(id, presupuesto)
   }
 
   async function crearProyecto() {
     if (!nuevoProyecto.trim()) return
     setGuardando(true)
-    const nueva = await createProyecto(nuevoProyecto.trim())
+    const presupuesto = nuevoProyectoPresupuesto.trim() ? Number(nuevoProyectoPresupuesto) : null
+    const nueva = await createProyecto(nuevoProyecto.trim(), '', presupuesto)
     if (nueva) {
       setProyectos((prev) => [...prev, nueva])
       setNuevoProyecto('')
+      setNuevoProyectoPresupuesto('')
       setCreandoProyecto(false)
       seleccionar(nueva)
     }
@@ -283,6 +305,15 @@ function ConfigContenido() {
                 placeholder="Nombre del proyecto"
                 className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
               />
+              <input
+                type="number"
+                inputMode="decimal"
+                value={nuevoProyectoPresupuesto}
+                onChange={(e) => setNuevoProyectoPresupuesto(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && crearProyecto()}
+                placeholder="Presupuesto (opcional)"
+                className="w-36 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+              />
               <button onClick={crearProyecto} disabled={guardando} className="bg-blue-600 text-white px-3 rounded-lg text-sm font-medium disabled:opacity-40">Crear</button>
               <button onClick={() => setCreandoProyecto(false)} className="text-gray-400 px-2 text-sm">✕</button>
             </div>
@@ -354,7 +385,18 @@ function ConfigContenido() {
               <div className="space-y-1.5 mb-3">
                 {etapasFiltradas.length === 0 && <p className="text-xs text-gray-300 italic">Sin etapas</p>}
                 {etapasFiltradas.map((etapa) => (
-                  <p key={etapa.id} className="text-sm text-gray-700 py-1 border-b border-gray-50 last:border-0">{etapa.nombre}</p>
+                  <div key={etapa.id} className="flex items-center justify-between gap-2 py-1 border-b border-gray-50 last:border-0">
+                    <p className="text-sm text-gray-700">{etapa.nombre}</p>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      defaultValue={etapa.presupuesto ?? ''}
+                      onBlur={(e) => actualizarPresupuestoEtapa(etapa.id, e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                      placeholder="Presupuesto"
+                      className="w-28 border border-gray-200 rounded-lg px-2 py-1 text-xs text-right"
+                    />
+                  </div>
                 ))}
               </div>
               <div className="flex gap-2">
@@ -365,6 +407,15 @@ function ConfigContenido() {
                   onKeyDown={(e) => e.key === 'Enter' && agregarEtapa()}
                   placeholder="Nueva etapa..."
                   className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                />
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={nuevaEtapaPresupuesto}
+                  onChange={(e) => setNuevaEtapaPresupuesto(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && agregarEtapa()}
+                  placeholder="Presupuesto"
+                  className="w-28 border border-gray-200 rounded-lg px-2 py-2 text-sm"
                 />
                 <button onClick={agregarEtapa} disabled={guardando} className="bg-gray-900 text-white px-3 rounded-lg text-sm font-medium disabled:opacity-40">+</button>
               </div>
@@ -381,9 +432,20 @@ function ConfigContenido() {
                 {partidas.filter((p) => p.proyecto_id === proyectoSeleccionado.id).map((p) => {
                   const etapa = etapas.find((e) => e.id === p.etapa_id)
                   return (
-                    <div key={p.id} className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">
-                      <p className="text-sm text-gray-700">{p.nombre}</p>
-                      <span className="text-xs text-gray-400">{etapa?.nombre ?? '—'}</span>
+                    <div key={p.id} className="flex items-center justify-between gap-2 py-1 border-b border-gray-50 last:border-0">
+                      <div className="min-w-0">
+                        <p className="text-sm text-gray-700 truncate">{p.nombre}</p>
+                        <span className="text-xs text-gray-400">{etapa?.nombre ?? '—'}</span>
+                      </div>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        defaultValue={p.presupuesto ?? ''}
+                        onBlur={(e) => actualizarPresupuestoPartida(p.id, e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                        placeholder="Presupuesto"
+                        className="w-28 shrink-0 border border-gray-200 rounded-lg px-2 py-1 text-xs text-right"
+                      />
                     </div>
                   )
                 })}
@@ -407,6 +469,15 @@ function ConfigContenido() {
                     onKeyDown={(e) => e.key === 'Enter' && agregarPartida()}
                     placeholder="Nueva partida..."
                     className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  />
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={nuevaPartidaPresupuesto}
+                    onChange={(e) => setNuevaPartidaPresupuesto(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && agregarPartida()}
+                    placeholder="Presupuesto"
+                    className="w-28 border border-gray-200 rounded-lg px-2 py-2 text-sm"
                   />
                   <button onClick={agregarPartida} disabled={guardando} className="bg-gray-900 text-white px-3 rounded-lg text-sm font-medium disabled:opacity-40">+</button>
                 </div>
