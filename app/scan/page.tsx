@@ -6,6 +6,7 @@ import { formatCLP } from '@/lib/mock'
 import { getProyectos, getEtapas, getPartidas, saveGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { normalizarImagenParaSubida } from '@/lib/imagen'
 import { tienePermiso } from '@/lib/permisos'
+import { determinarInterpretacion, calcularNetoBruto, type InterpretacionPrecio } from '@/lib/confianzaDocumento'
 import type { Proyecto, Etapa, Partida, ItemAnalizado, Usuario, PermissionOverride } from '@/lib/types'
 import SystemPromptBox from '@/components/SystemPromptBox'
 
@@ -34,6 +35,9 @@ export default function Scan() {
   const [procesandoImagen, setProcesandoImagen] = useState(false)
   const [errorImagen, setErrorImagen] = useState<string | null>(null)
   const [errorAnalisis, setErrorAnalisis] = useState<string | null>(null)
+  const [requiereAtencion, setRequiereAtencion] = useState(false)
+  const [verificandoCalidad, setVerificandoCalidad] = useState(false)
+  const [calidadImagen, setCalidadImagen] = useState<{ ok: boolean; motivo: string | null } | null>(null)
   const [modoManual, setModoManual] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const fileGaleriaRef = useRef<HTMLInputElement>(null)
@@ -47,6 +51,8 @@ export default function Scan() {
   const [rut, setRut] = useState('96.928.180-5')
   const [fecha, setFecha] = useState('2024-06-10')
   const [totalBoleta, setTotalBoleta] = useState(0)
+  const [interpretacionPrecios, setInterpretacionPrecios] = useState<InterpretacionPrecio | undefined>(undefined)
+  const [comentario, setComentario] = useState('')
 
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [etapasFiltradas, setEtapasFiltradas] = useState<Etapa[]>([])
@@ -57,6 +63,9 @@ export default function Scan() {
   const [nuevaEtapaNombre, setNuevaEtapaNombre] = useState('')
   const [creandoPartidaInline, setCreandoPartidaInline] = useState(false)
   const [nuevaPartidaNombre, setNuevaPartidaNombre] = useState('')
+
+  const [guardando, setGuardando] = useState(false)
+  const guardandoRef = useRef(false)
 
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
   const [overrides, setOverrides] = useState<PermissionOverride[]>([])
@@ -142,12 +151,14 @@ export default function Scan() {
     if (!file) return
     setErrorImagen(null)
     setProcesandoImagen(true)
+    setCalidadImagen(null)
     const token = ++capturaTokenRef.current
     try {
       const { blob, dataUrl } = await normalizarImagenParaSubida(file)
       if (capturaTokenRef.current !== token) return
       fileSeleccionadoRef.current = new File([blob], 'boleta.jpg', { type: 'image/jpeg' })
       setImagenPreview(dataUrl)
+      verificarCalidadImagen(fileSeleccionadoRef.current, token)
     } catch (err) {
       console.error('Error al procesar imagen:', err)
       if (capturaTokenRef.current !== token) return
@@ -163,11 +174,36 @@ export default function Scan() {
     }
   }
 
+  async function verificarCalidadImagen(file: File, token: number) {
+    setVerificandoCalidad(true)
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve((reader.result as string).split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch('/api/verificar-calidad-imagen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imagen_base64: base64, media_type: file.type || 'image/jpeg' }),
+      })
+      if (capturaTokenRef.current !== token || !res.ok) return
+      const data = await res.json()
+      setCalidadImagen({ ok: Boolean(data.calidad_suficiente), motivo: data.motivo ?? null })
+    } catch (err) {
+      console.error('Error al verificar calidad de imagen:', err)
+    } finally {
+      if (capturaTokenRef.current === token) setVerificandoCalidad(false)
+    }
+  }
+
   async function handleAnalizar() {
     const file = fileSeleccionadoRef.current
     if (!file || !proyecto) return
 
     setErrorAnalisis(null)
+    setRequiereAtencion(false)
     setAnalizando(true)
     try {
       // Leer imagen como base64
@@ -210,6 +246,8 @@ export default function Scan() {
       if (data.rut) setRut(data.rut)
       if (data.fecha) setFecha(data.fecha)
       if (data.total) setTotalBoleta(data.total)
+      setRequiereAtencion(Boolean(data.requiere_atencion))
+      setInterpretacionPrecios(data.interpretacion_precios)
 
       setModoManual(false)
       setItems(itemsResultado.map((i: ItemAnalizado) => ({
@@ -234,6 +272,8 @@ export default function Scan() {
     setRut('')
     setFecha(new Date().toISOString().split('T')[0])
     setTotalBoleta(0)
+    setRequiereAtencion(false)
+    setInterpretacionPrecios(undefined)
     setItems([{
       descripcion: '',
       cantidad: 1,
@@ -316,56 +356,67 @@ export default function Scan() {
   }
 
   async function handleGuardar(tagPendiente?: string) {
-    if (proyecto) {
-      // Si quedó texto sin confirmar en el input de etiqueta (el usuario escribió
-      // pero nunca tocó Enter/"+ Crear etiqueta"), se incorpora acá antes de guardar
-      // — leer `items` del estado directamente se arriesga a perder ese tag porque
-      // el setItems de addTag no llega a re-renderizar antes de este guardado.
-      const t = tagPendiente?.toLowerCase().trim()
-      const itemsFinal = t
-        ? items.map((x, idx) => idx === itemActual && !x.etiquetas.includes(t) ? { ...x, etiquetas: [...x.etiquetas, t] } : x)
-        : items
+    if (guardandoRef.current) return
+    guardandoRef.current = true
+    setGuardando(true)
+    try {
+      if (proyecto) {
+        // Si quedó texto sin confirmar en el input de etiqueta (el usuario escribió
+        // pero nunca tocó Enter/"+ Crear etiqueta"), se incorpora acá antes de guardar
+        // — leer `items` del estado directamente se arriesga a perder ese tag porque
+        // el setItems de addTag no llega a re-renderizar antes de este guardado.
+        const t = tagPendiente?.toLowerCase().trim()
+        const itemsFinal = t
+          ? items.map((x, idx) => idx === itemActual && !x.etiquetas.includes(t) ? { ...x, etiquetas: [...x.etiquetas, t] } : x)
+          : items
 
-      let imagenUrl = imagenDataUrl
-      if (fileSeleccionadoRef.current && usuarioActual) {
-        const url = await subirImagenBoleta(usuarioActual.cuenta_id, proyecto.id, fileSeleccionadoRef.current)
-        if (url) imagenUrl = url
-      }
-      await saveGasto({
-        proyecto_id: proyecto.id,
-        proveedor,
-        rut_proveedor: rut,
-        fecha_boleta: fecha,
-        total: totalBoleta || itemsFinal.reduce((s, i) => s + i.subtotal, 0),
-        contexto_boleta: contexto,
-        imagen_url: imagenUrl,
-        items: itemsFinal.map((i) => ({
-          descripcion: i.descripcion,
-          cantidad: i.cantidad,
-          unidad: i.unidad,
-          precio_unitario: i.precio_unitario,
-          subtotal: i.subtotal,
-          categoria: i.categoria,
-          etiquetas: i.etiquetas,
-          confianza_ia: i.confianza,
-          etapa_id: i.etapa_id,
-          partida_id: i.partida_id,
-          estado: i.etiquetas.length > 0 ? 'confirmado' : 'pendiente',
-        })),
-      })
-
-      for (const i of itemsFinal) {
-        if (i.etiquetas.length > 0) {
-          await upsertClasificacionAprendida({
-            proyecto_id: proyecto.id,
+        let imagenUrl = imagenDataUrl
+        if (fileSeleccionadoRef.current && usuarioActual) {
+          const url = await subirImagenBoleta(usuarioActual.cuenta_id, proyecto.id, fileSeleccionadoRef.current)
+          if (url) imagenUrl = url
+        }
+        await saveGasto({
+          proyecto_id: proyecto.id,
+          proveedor,
+          rut_proveedor: rut,
+          fecha_boleta: fecha,
+          total: totalBoleta || itemsFinal.reduce((s, i) => s + i.subtotal, 0),
+          contexto_boleta: contexto,
+          creado_por_email: usuarioActual?.email ?? null,
+          comentario: comentario.trim() || null,
+          interpretacion_precios: modoManual ? 'bruto' : interpretacionPrecios,
+          imagen_url: imagenUrl,
+          items: itemsFinal.map((i) => ({
             descripcion: i.descripcion,
+            cantidad: i.cantidad,
+            unidad: i.unidad,
+            precio_unitario: i.precio_unitario,
+            subtotal: i.subtotal,
             categoria: i.categoria,
             etiquetas: i.etiquetas,
-          })
+            confianza_ia: i.confianza,
+            etapa_id: i.etapa_id,
+            partida_id: i.partida_id,
+            estado: i.etiquetas.length > 0 ? 'confirmado' : 'pendiente',
+          })),
+        })
+
+        for (const i of itemsFinal) {
+          if (i.etiquetas.length > 0) {
+            await upsertClasificacionAprendida({
+              proyecto_id: proyecto.id,
+              descripcion: i.descripcion,
+              categoria: i.categoria,
+              etiquetas: i.etiquetas,
+            })
+          }
         }
       }
+      router.push('/')
+    } finally {
+      guardandoRef.current = false
+      setGuardando(false)
     }
-    router.push('/')
   }
 
   const sugerenciasFiltradas = tagsProyecto.filter(
@@ -517,6 +568,7 @@ export default function Scan() {
                   setImagenPreview(null)
                   setErrorImagen(null)
                   setErrorAnalisis(null)
+                  setCalidadImagen(null)
                   if (fileRef.current) fileRef.current.value = ''
                   if (fileGaleriaRef.current) fileGaleriaRef.current.value = ''
                 }}
@@ -525,6 +577,28 @@ export default function Scan() {
                 ✕
               </button>
             </div>
+          )}
+
+          {verificandoCalidad && (
+            <p className="text-xs text-gray-400 flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Revisando calidad de la imagen...
+            </p>
+          )}
+          {!verificandoCalidad && calidadImagen && (
+            calidadImagen.ok ? (
+              <p className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-xl p-3">
+                ✅ Buena calidad, se ve legible.
+              </p>
+            ) : (
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                <p className="text-sm text-amber-700">⚠️ {calidadImagen.motivo || 'La imagen podría no verse lo suficientemente clara.'}</p>
+                <p className="text-xs text-amber-600 mt-1">Puedes intentar analizarla igual o tomar otra foto.</p>
+              </div>
+            )
           )}
 
           <button
@@ -587,6 +661,14 @@ export default function Scan() {
             ))}
           </div>
 
+          {!modoManual && requiereAtencion && (
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+              <p className="text-sm text-amber-700">
+                ⚠ La IA tuvo baja confianza al leer esta boleta. Revisa con cuidado los datos y montos antes de guardar.
+              </p>
+            </div>
+          )}
+
           {/* Datos del proveedor */}
           <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Proveedor</p>
@@ -621,6 +703,18 @@ export default function Scan() {
                 <p className="text-xs text-gray-400">RUT {rut} · {fecha}</p>
               </>
             )}
+            <div className="mt-2 pt-2 border-t border-gray-200">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                Comentario <span className="text-gray-300 font-normal">(opcional)</span>
+              </p>
+              <textarea
+                value={comentario}
+                onChange={(e) => setComentario(e.target.value)}
+                placeholder="Ej: Faltó el material de la partida X, se pidió reposición"
+                rows={2}
+                className="mt-1 w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-800 bg-white resize-none placeholder-gray-300"
+              />
+            </div>
           </div>
 
           {/* Tarjeta del ítem */}
@@ -763,11 +857,29 @@ export default function Scan() {
                   className="w-full text-sm font-bold text-gray-900 text-center outline-none border border-gray-200 rounded-lg px-1 bg-white focus:border-blue-400"
                 />
               </div>
-              <div className="bg-white rounded-xl p-2 text-center border border-blue-100 bg-blue-50">
-                <p className="text-[10px] text-blue-400">Subtotal</p>
-                <p className="text-sm font-bold text-blue-700">{formatCLP(item.subtotal)}</p>
-              </div>
+              {(() => {
+                const sumaExtraidaBoleta = items.reduce((s, i) => s + i.subtotal, 0)
+                const interpretacionBoleta = determinarInterpretacion(sumaExtraidaBoleta, totalBoleta)
+                const { bruto } = calcularNetoBruto(item.subtotal, interpretacionBoleta)
+                return (
+                  <div className="bg-white rounded-xl p-2 text-center border border-blue-100 bg-blue-50">
+                    <p className="text-[10px] text-blue-400">Subtotal</p>
+                    <p className="text-sm font-bold text-blue-700">{formatCLP(bruto)}</p>
+                  </div>
+                )
+              })()}
             </div>
+
+            {(() => {
+              const sumaExtraidaBoleta = items.reduce((s, i) => s + i.subtotal, 0)
+              const interpretacionBoleta = determinarInterpretacion(sumaExtraidaBoleta, totalBoleta)
+              const { neto, bruto, iva } = calcularNetoBruto(item.subtotal, interpretacionBoleta)
+              return (
+                <p className="text-[10px] text-gray-400 text-center mb-3">
+                  Bruto {formatCLP(bruto)} (Neto {formatCLP(neto)} + IVA {formatCLP(iva)})
+                </p>
+              )
+            })()}
 
             {/* Etiquetas */}
             <div>
@@ -837,11 +949,20 @@ export default function Scan() {
             </button>
             <button
               onClick={handleSiguiente}
-              className={`flex-1 rounded-xl py-3 text-sm font-semibold text-white ${
+              disabled={guardando}
+              className={`flex-1 rounded-xl py-3 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60 ${
                 esUltimo ? 'bg-green-600' : 'bg-blue-600'
               }`}
             >
-              {esUltimo ? 'Guardar boleta' : 'Siguiente'}
+              {guardando ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Guardando...
+                </>
+              ) : esUltimo ? 'Guardar boleta' : 'Siguiente'}
             </button>
           </div>
 

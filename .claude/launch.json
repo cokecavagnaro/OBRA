@@ -3,10 +3,11 @@
   "configurations": [
     {
       "name": "hormigasto",
+      "cwd": "/Users/jcavagnaro/Documents/Carpeta de Coke/CODE/Hormigasto",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000,
-      "autoPort": false
+      "runtimeArgs": ["run", "dev", "--", "-p", "3001"],
+      "port": 3001,
+      "autoPort": true
     }
   ]
 }

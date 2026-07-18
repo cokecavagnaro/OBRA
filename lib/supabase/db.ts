@@ -1,5 +1,6 @@
 import { createClient } from './client'
 import { normalizarDescripcion } from '../aprendizaje'
+import { determinarInterpretacion, calcularNetoBruto, type InterpretacionPrecio } from '../confianzaDocumento'
 import type { Proyecto, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta, EstadoItem } from '../types'
 import type { PermisoKey } from '../permisos'
 
@@ -109,14 +110,14 @@ export async function getProyectos(): Promise<Proyecto[]> {
   return (data ?? []) as Proyecto[]
 }
 
-export async function createProyecto(nombre: string, system_prompt = ''): Promise<Proyecto | null> {
+export async function createProyecto(nombre: string, system_prompt = '', presupuesto?: number | null): Promise<Proyecto | null> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
   const usuarioActual = await getUsuarioActual()
   const { data, error } = await supabase
     .from('proyectos')
-    .insert({ nombre, system_prompt, user_id: user.id, cuenta_id: usuarioActual?.cuenta_id })
+    .insert({ nombre, system_prompt, user_id: user.id, cuenta_id: usuarioActual?.cuenta_id, presupuesto: presupuesto ?? null })
     .select()
     .single()
   if (error) console.error('createProyecto:', error)
@@ -128,6 +129,46 @@ export async function updateProyectoPrompt(id: string, system_prompt: string) {
   await supabase.from('proyectos').update({ system_prompt }).eq('id', id)
 }
 
+export async function updateProyectoPresupuesto(id: string, presupuesto: number | null): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('proyectos').update({ presupuesto }).eq('id', id)
+}
+
+// Borra un proyecto completo y todo lo que depende de él. Se hace el cascade
+// a mano desde la app (mismo criterio que ya usa deleteGasto con items_gasto)
+// porque las tablas base (gastos/etapas/partidas) se crearon fuera de las
+// migraciones versionadas y no se puede confirmar desde el repo si tienen
+// ON DELETE CASCADE.
+export async function deleteProyecto(proyecto: Proyecto): Promise<boolean> {
+  const supabase = createClient()
+
+  if (proyecto.cuenta_id) {
+    const prefix = `${proyecto.cuenta_id}/${proyecto.id}`
+    const { data: archivos } = await supabase.storage.from('boletas').list(prefix)
+    if (archivos && archivos.length > 0) {
+      await supabase.storage.from('boletas').remove(archivos.map((a) => `${prefix}/${a.name}`))
+    }
+  }
+
+  const { data: gastos } = await supabase.from('gastos').select('id').eq('proyecto_id', proyecto.id)
+  const gastoIds = (gastos ?? []).map((g) => g.id as string)
+  if (gastoIds.length > 0) {
+    await supabase.from('item_gasto_eventos').delete().in('gasto_id', gastoIds)
+    await supabase.from('items_gasto').delete().in('gasto_id', gastoIds)
+    await supabase.from('gastos').delete().in('id', gastoIds)
+  }
+
+  await supabase.from('partidas').delete().eq('proyecto_id', proyecto.id)
+  await supabase.from('etapas').delete().eq('proyecto_id', proyecto.id)
+
+  const { error } = await supabase.from('proyectos').delete().eq('id', proyecto.id)
+  if (error) {
+    console.error('deleteProyecto:', error)
+    return false
+  }
+  return true
+}
+
 // ---- Etapas ----
 
 export async function getEtapas(proyecto_id: string): Promise<Etapa[]> {
@@ -136,10 +177,15 @@ export async function getEtapas(proyecto_id: string): Promise<Etapa[]> {
   return (data ?? []) as Etapa[]
 }
 
-export async function createEtapa(proyecto_id: string, nombre: string, orden: number): Promise<Etapa | null> {
+export async function createEtapa(proyecto_id: string, nombre: string, orden: number, presupuesto?: number | null): Promise<Etapa | null> {
   const supabase = createClient()
-  const { data } = await supabase.from('etapas').insert({ proyecto_id, nombre, orden }).select().single()
+  const { data } = await supabase.from('etapas').insert({ proyecto_id, nombre, orden, presupuesto: presupuesto ?? null }).select().single()
   return data as Etapa | null
+}
+
+export async function updateEtapaPresupuesto(id: string, presupuesto: number | null): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('etapas').update({ presupuesto }).eq('id', id)
 }
 
 // ---- Partidas ----
@@ -150,34 +196,29 @@ export async function getPartidas(proyecto_id: string): Promise<Partida[]> {
   return (data ?? []) as Partida[]
 }
 
-export async function createPartida(proyecto_id: string, nombre: string, etapa_id?: string): Promise<Partida | null> {
+export async function createPartida(proyecto_id: string, nombre: string, etapa_id?: string, presupuesto?: number | null): Promise<Partida | null> {
   const supabase = createClient()
   const { data } = await supabase
     .from('partidas')
-    .insert({ proyecto_id, nombre, etapa_id: etapa_id || null })
+    .insert({ proyecto_id, nombre, etapa_id: etapa_id || null, presupuesto: presupuesto ?? null })
     .select()
     .single()
   return data as Partida | null
 }
 
+export async function updatePartidaPresupuesto(id: string, presupuesto: number | null): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('partidas').update({ presupuesto }).eq('id', id)
+}
+
 // ---- Gastos ----
 
-export async function getGastos(proyecto_id: string): Promise<Gasto[]> {
-  const supabase = createClient()
-  const { data } = await supabase
-    .from('gastos')
-    .select('*, items_gasto(*)')
-    .eq('proyecto_id', proyecto_id)
-    .order('created_at', { ascending: false })
-
-  if (!data) return []
-
-  return data.map((g: Record<string, unknown>) => ({
+function mapGastoRow(g: Record<string, unknown>): Gasto {
+  return {
     ...g,
     etapa_id: '',
     partida_id: '',
     moneda: (g.moneda as string) ?? 'CLP',
-    created_by: 'usuario',
     items: ((g.items_gasto as Record<string, unknown>[]) ?? []).map((i) => ({
       ...i,
       etapa_id: (i.etapa_id as string) ?? '',
@@ -185,32 +226,80 @@ export async function getGastos(proyecto_id: string): Promise<Gasto[]> {
       confianza_ia: (i.confianza_ia as number) ?? 0,
       etiquetas: (i.etiquetas as string[]) ?? [],
     })),
-  })) as Gasto[]
+    eventos: (g.item_gasto_eventos as Record<string, unknown>[]) ?? [],
+  } as unknown as Gasto
+}
+
+export async function getGastos(proyecto_id: string): Promise<Gasto[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('gastos')
+    .select('*, items_gasto(*), item_gasto_eventos(*)')
+    .eq('proyecto_id', proyecto_id)
+    .order('created_at', { ascending: false })
+
+  if (!data) return []
+  return data.map(mapGastoRow)
 }
 
 export async function getAllGastos(): Promise<Gasto[]> {
   const supabase = createClient()
   const { data } = await supabase
     .from('gastos')
-    .select('*, items_gasto(*)')
+    .select('*, items_gasto(*), item_gasto_eventos(*)')
     .order('created_at', { ascending: false })
 
   if (!data) return []
+  return data.map(mapGastoRow)
+}
 
-  return data.map((g: Record<string, unknown>) => ({
-    ...g,
-    etapa_id: '',
-    partida_id: '',
-    moneda: (g.moneda as string) ?? 'CLP',
-    created_by: 'usuario',
-    items: ((g.items_gasto as Record<string, unknown>[]) ?? []).map((i) => ({
-      ...i,
-      etapa_id: (i.etapa_id as string) ?? '',
-      partida_id: (i.partida_id as string) ?? '',
-      confianza_ia: (i.confianza_ia as number) ?? 0,
-      etiquetas: (i.etiquetas as string[]) ?? [],
-    })),
-  })) as Gasto[]
+// Recalcula gastos.total sumando el bruto real de los ítems que quedan en la
+// base, usando la interpretación (neto/bruto) ya fija de esa boleta — así
+// editar o borrar un ítem nunca deja el total desactualizado ni depende de
+// que el cliente lo calcule con datos que pueden estar obsoletos.
+async function recalcularTotalGasto(gastoId: string): Promise<number> {
+  const supabase = createClient()
+  const { data: gasto } = await supabase.from('gastos').select('interpretacion_precios, total').eq('id', gastoId).single()
+  const { data: items } = await supabase.from('items_gasto').select('subtotal').eq('gasto_id', gastoId)
+  const itemsList = (items ?? []) as { subtotal: number }[]
+
+  let interpretacion = gasto?.interpretacion_precios as InterpretacionPrecio | null | undefined
+  if (!interpretacion) {
+    // Boleta creada antes de que existiera esta columna: se calcula una vez
+    // con el método dinámico anterior y queda guardada para la próxima.
+    const sumaExtraida = itemsList.reduce((s, i) => s + i.subtotal, 0)
+    interpretacion = determinarInterpretacion(sumaExtraida, gasto?.total ?? 0)
+  }
+
+  const nuevoTotal = Math.round(
+    itemsList.reduce((s, i) => s + calcularNetoBruto(i.subtotal, interpretacion as InterpretacionPrecio).bruto, 0)
+  )
+
+  await supabase.from('gastos').update({ total: nuevoTotal, interpretacion_precios: interpretacion }).eq('id', gastoId)
+  return nuevoTotal
+}
+
+export async function logItemEvento(params: {
+  gasto_id: string
+  item_id: string | null
+  descripcion_item: string
+  accion: 'editado' | 'eliminado'
+  subtotal_anterior: number
+  subtotal_nuevo: number | null
+  comentario?: string
+}): Promise<void> {
+  const supabase = createClient()
+  const usuarioActual = await getUsuarioActual()
+  await supabase.from('item_gasto_eventos').insert({
+    gasto_id: params.gasto_id,
+    item_id: params.item_id,
+    descripcion_item: params.descripcion_item,
+    accion: params.accion,
+    subtotal_anterior: params.subtotal_anterior,
+    subtotal_nuevo: params.subtotal_nuevo,
+    comentario: params.comentario || null,
+    usuario_email: usuarioActual?.email ?? '',
+  })
 }
 
 export async function updateItemGasto(id: string, params: {
@@ -221,8 +310,14 @@ export async function updateItemGasto(id: string, params: {
   precio_unitario?: number
   subtotal?: number
   estado?: EstadoItem
-}): Promise<boolean> {
+}, comentario?: string): Promise<{ ok: boolean; nuevoTotal?: number }> {
   const supabase = createClient()
+  const { data: itemActual } = await supabase
+    .from('items_gasto')
+    .select('gasto_id, subtotal, descripcion')
+    .eq('id', id)
+    .single()
+
   const update: Record<string, unknown> = {
     etapa_id: params.etapa_id ?? null,
     partida_id: params.partida_id ?? null,
@@ -237,8 +332,26 @@ export async function updateItemGasto(id: string, params: {
     .from('items_gasto')
     .update(update)
     .eq('id', id)
-  if (error) console.error('updateItemGasto:', error)
-  return !error
+  if (error) {
+    console.error('updateItemGasto:', error)
+    return { ok: false }
+  }
+
+  let nuevoTotal: number | undefined
+  if (itemActual && params.subtotal !== undefined && params.subtotal !== itemActual.subtotal) {
+    await logItemEvento({
+      gasto_id: itemActual.gasto_id,
+      item_id: id,
+      descripcion_item: itemActual.descripcion,
+      accion: 'editado',
+      subtotal_anterior: itemActual.subtotal,
+      subtotal_nuevo: params.subtotal,
+      comentario,
+    })
+    nuevoTotal = await recalcularTotalGasto(itemActual.gasto_id)
+  }
+
+  return { ok: true, nuevoTotal }
 }
 
 export async function subirImagenBoleta(cuentaId: string, proyectoId: string, blob: Blob): Promise<string | null> {
@@ -261,6 +374,9 @@ export async function saveGasto(params: {
   total: number
   imagen_url: string
   contexto_boleta: string
+  creado_por_email: string | null
+  comentario: string | null
+  interpretacion_precios?: InterpretacionPrecio
   items: Array<{
     descripcion: string
     cantidad: number
@@ -284,6 +400,9 @@ export async function saveGasto(params: {
     ? params.total
     : params.items.reduce((s, i) => s + (i.subtotal || 0), 0)
 
+  const sumaItems = params.items.reduce((s, i) => s + (i.subtotal || 0), 0)
+  const interpretacion = params.interpretacion_precios ?? determinarInterpretacion(sumaItems, totalValido)
+
   const { data: gasto, error } = await supabase
     .from('gastos')
     .insert({
@@ -294,6 +413,9 @@ export async function saveGasto(params: {
       total: totalValido,
       imagen_url: params.imagen_url,
       contexto_boleta: params.contexto_boleta,
+      creado_por_email: params.creado_por_email,
+      comentario: params.comentario,
+      interpretacion_precios: interpretacion,
       estado,
     })
     .select()
@@ -341,16 +463,32 @@ export async function deleteGasto(id: string): Promise<boolean> {
   return true
 }
 
-export async function deleteItemGasto(id: string, gastoId: string, nuevoTotal: number): Promise<boolean> {
+export async function deleteItemGasto(id: string, comentario?: string): Promise<{ ok: boolean; nuevoTotal: number } | null> {
   const supabase = createClient()
-  const { error: errorItem } = await supabase.from('items_gasto').delete().eq('id', id)
-  if (errorItem) {
-    console.error('deleteItemGasto:', errorItem)
-    return false
+  const { data: itemActual } = await supabase
+    .from('items_gasto')
+    .select('gasto_id, subtotal, descripcion')
+    .eq('id', id)
+    .single()
+  if (!itemActual) return null
+
+  const { error } = await supabase.from('items_gasto').delete().eq('id', id)
+  if (error) {
+    console.error('deleteItemGasto:', error)
+    return null
   }
-  const { error: errorGasto } = await supabase.from('gastos').update({ total: nuevoTotal }).eq('id', gastoId)
-  if (errorGasto) console.error('deleteItemGasto (total):', errorGasto)
-  return true
+
+  await logItemEvento({
+    gasto_id: itemActual.gasto_id,
+    item_id: null,
+    descripcion_item: itemActual.descripcion,
+    accion: 'eliminado',
+    subtotal_anterior: itemActual.subtotal,
+    subtotal_nuevo: null,
+    comentario,
+  })
+  const nuevoTotal = await recalcularTotalGasto(itemActual.gasto_id)
+  return { ok: true, nuevoTotal }
 }
 
 // ---- Aprendizaje de clasificación ----

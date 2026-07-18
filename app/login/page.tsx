@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AntLogo from '@/components/AntLogo'
@@ -23,9 +23,11 @@ export default function Login() {
   const [cuentaCreada, setCuentaCreada] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const passwordRef = useRef<HTMLInputElement>(null)
 
   async function handleMagicLink(e: React.FormEvent) {
     e.preventDefault()
+    if (loading || !email.trim()) return
     setLoading(true)
     setError('')
 
@@ -42,6 +44,7 @@ export default function Login() {
 
   async function handleLoginPassword(e: React.FormEvent) {
     e.preventDefault()
+    if (loading || !email.trim() || !password) return
     setLoading(true)
     setError('')
 
@@ -55,6 +58,7 @@ export default function Login() {
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
+    if (loading || !email.trim() || !password || !confirmarPassword || !nombre.trim() || !nombreEmpresa.trim()) return
     setError('')
 
     if (password !== confirmarPassword) {
@@ -169,6 +173,12 @@ export default function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      passwordRef.current?.focus()
+                    }
+                  }}
                   placeholder="tu@correo.com"
                   required
                   className="mt-1.5 w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-gray-400"
@@ -179,6 +189,7 @@ export default function Login() {
                   Contraseña
                 </label>
                 <input
+                  ref={passwordRef}
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

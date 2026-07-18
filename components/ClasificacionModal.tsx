@@ -12,7 +12,7 @@ interface Props {
   partidas: Partida[]
   etiquetasSugeridas: string[]
   puedeEtiquetar?: boolean
-  onGuardado: (item: ItemGasto, nuevasEtapas: Etapa[], nuevasPartidas: Partida[]) => void
+  onGuardado: (item: ItemGasto, nuevasEtapas: Etapa[], nuevasPartidas: Partida[], nuevoTotalGasto?: number) => void
   onCerrar: () => void
 }
 
@@ -35,6 +35,8 @@ export default function ClasificacionModal({
   const [cantidad, setCantidad] = useState<number>(item.cantidad)
   const [precioUnitario, setPrecioUnitario] = useState<number>(item.precio_unitario)
   const subtotal = cantidad * precioUnitario
+
+  const [comentarioCambio, setComentarioCambio] = useState('')
 
   const [tagInput, setTagInput] = useState('')
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
@@ -89,14 +91,14 @@ export default function ClasificacionModal({
 
   async function handleGuardar() {
     setGuardando(true)
-    const ok = await updateItemGasto(item.id, {
+    const { ok, nuevoTotal } = await updateItemGasto(item.id, {
       etapa_id: etapaId || null,
       partida_id: partidaId || null,
       etiquetas,
       cantidad,
       precio_unitario: precioUnitario,
       subtotal,
-    })
+    }, comentarioCambio.trim() || undefined)
     if (ok) {
       if (etiquetas.length > 0) {
         await upsertClasificacionAprendida({
@@ -106,7 +108,7 @@ export default function ClasificacionModal({
           etiquetas,
         })
       }
-      onGuardado({ ...item, etapa_id: etapaId, partida_id: partidaId, etiquetas, cantidad, precio_unitario: precioUnitario, subtotal }, etapas, partidas)
+      onGuardado({ ...item, etapa_id: etapaId, partida_id: partidaId, etiquetas, cantidad, precio_unitario: precioUnitario, subtotal }, etapas, partidas, nuevoTotal)
     }
     setGuardando(false)
   }
@@ -279,6 +281,18 @@ export default function ClasificacionModal({
                 + Crear etiqueta &quot;{tagInput.trim()}&quot;
               </button>
             )}
+          </div>
+
+          {/* Comentario del cambio */}
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Comentario del cambio (opcional)</p>
+            <textarea
+              value={comentarioCambio}
+              onChange={(e) => setComentarioCambio(e.target.value)}
+              placeholder="Ej: se corrigió el precio, la IA leyó mal la boleta"
+              rows={2}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 resize-none placeholder-gray-300"
+            />
           </div>
         </div>
 

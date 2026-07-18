@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
 import { getProyectos, getEtapas, getPartidas, getGastos, getUsuarioActual, getPermisosOverrides, deleteGasto, deleteItemGasto } from '@/lib/supabase/db'
 import { tienePermiso } from '@/lib/permisos'
+import { determinarInterpretacion, calcularNetoBruto } from '@/lib/confianzaDocumento'
 import * as XLSX from 'xlsx'
 import ClasificacionModal from '@/components/ClasificacionModal'
 import type { Proyecto, Etapa, Partida, Gasto, ItemGasto, Usuario, PermissionOverride } from '@/lib/types'
@@ -27,6 +28,8 @@ export default function ProyectoDetalle() {
   const [itemEditando, setItemEditando] = useState<ItemGasto | null>(null)
   const [confirmandoEliminar, setConfirmandoEliminar] = useState<string | null>(null)
   const [confirmandoEliminarItem, setConfirmandoEliminarItem] = useState<string | null>(null)
+  const [comentarioEliminacionItem, setComentarioEliminacionItem] = useState('')
+  const [historialAbierto, setHistorialAbierto] = useState<Set<string>>(new Set())
 
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
   const [overrides, setOverrides] = useState<PermissionOverride[]>([])
@@ -65,7 +68,12 @@ export default function ProyectoDetalle() {
   )
 
   const totalProyecto = gastos.reduce((s, g) => s + g.total, 0)
+  const ivaProyecto = gastos.reduce((s, g) => s + (g.items ?? []).reduce((si, i) => si + netoBrutoDeItem(i, g).iva, 0), 0)
   const pendientesCount = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
+
+  function gastoDeItems(filtro: (i: ItemGasto) => boolean): number {
+    return gastos.reduce((s, g) => s + (g.items ?? []).filter(filtro).reduce((si, i) => si + netoBrutoDeItem(i, g).bruto, 0), 0)
+  }
 
   const partidasDisponibles = filtroEtapa
     ? partidas.filter((p) => p.etapa_id === filtroEtapa)
@@ -89,7 +97,7 @@ export default function ProyectoDetalle() {
           return true
         })
     : []
-  const subtotalFiltrado = itemsFiltrados.reduce((s, i) => s + i.subtotal, 0)
+  const subtotalFiltrado = itemsFiltrados.reduce((s, i) => s + netoBrutoDeItem(i, i.gasto).bruto, 0)
 
   function toggleEtiqueta(tag: string) {
     setFiltrosEtiqueta((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])
@@ -103,14 +111,18 @@ export default function ProyectoDetalle() {
     setFiltroFechaHasta('')
   }
 
-  function handleItemGuardado(itemActualizado: ItemGasto, nuevasEtapas: Etapa[], nuevasPartidas: Partida[]) {
+  function handleItemGuardado(itemActualizado: ItemGasto, nuevasEtapas: Etapa[], nuevasPartidas: Partida[], nuevoTotalGasto?: number) {
     setEtapas(nuevasEtapas)
     setPartidas(nuevasPartidas)
     setGastos((prev) =>
-      prev.map((g) => ({
-        ...g,
-        items: (g.items ?? []).map((i) => i.id === itemActualizado.id ? itemActualizado : i),
-      }))
+      prev.map((g) => {
+        if (!(g.items ?? []).some((i) => i.id === itemActualizado.id)) return g
+        return {
+          ...g,
+          total: nuevoTotalGasto ?? g.total,
+          items: (g.items ?? []).map((i) => i.id === itemActualizado.id ? itemActualizado : i),
+        }
+      })
     )
     setItemEditando(null)
   }
@@ -122,20 +134,19 @@ export default function ProyectoDetalle() {
   }
 
   async function handleEliminarItem(item: ItemGasto, gastoId: string) {
-    const gasto = gastos.find((g) => g.id === gastoId)
-    if (!gasto) return
-    const nuevoTotal = gasto.total - item.subtotal
-    const ok = await deleteItemGasto(item.id, gastoId, nuevoTotal)
-    if (ok) {
+    const resultado = await deleteItemGasto(item.id, comentarioEliminacionItem.trim() || undefined)
+    if (resultado) {
       setGastos((prev) => prev.map((g) => g.id === gastoId
-        ? { ...g, total: nuevoTotal, items: (g.items ?? []).filter((i) => i.id !== item.id) }
+        ? { ...g, total: resultado.nuevoTotal, items: (g.items ?? []).filter((i) => i.id !== item.id) }
         : g
       ))
     }
     setConfirmandoEliminarItem(null)
+    setComentarioEliminacionItem('')
   }
 
   function itemARow(i: ItemGasto, gasto: Gasto) {
+    const { neto, bruto, iva } = netoBrutoDeItem(i, gasto)
     return {
       Proveedor: gasto.proveedor || '',
       RUT: gasto.rut_proveedor || '',
@@ -145,7 +156,9 @@ export default function ProyectoDetalle() {
       Cantidad: i.cantidad,
       Unidad: i.unidad || '',
       'Precio unitario': i.precio_unitario,
-      Subtotal: i.subtotal,
+      Bruto: Math.round(bruto),
+      IVA: Math.round(iva),
+      Neto: Math.round(neto),
       Etapa: etapas.find((e) => e.id === i.etapa_id)?.nombre ?? '',
       Partida: partidas.find((p) => p.id === i.partida_id)?.nombre ?? '',
       Etiquetas: i.etiquetas.join(', '),
@@ -183,11 +196,32 @@ export default function ProyectoDetalle() {
             </span>
           )}
         </div>
-        <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-          <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Total gastado</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{formatCLP(totalProyecto)}</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Total gastado</p>
+            <p className="text-3xl font-bold text-gray-900 mt-1">{formatCLP(totalProyecto)}</p>
+          </div>
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">IVA pagado</p>
+            <p className="text-3xl font-bold text-gray-900 mt-1">{formatCLP(ivaProyecto)}</p>
+          </div>
         </div>
       </div>
+
+      {(proyecto.presupuesto || etapas.some((e) => e.presupuesto) || partidas.some((p) => p.presupuesto)) && (
+        <div className="mx-4 mt-3 rounded-xl border border-gray-100 p-4 space-y-3">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Presupuesto</p>
+          {proyecto.presupuesto && (
+            <BarraPresupuesto label="Proyecto completo" gastado={totalProyecto} presupuesto={proyecto.presupuesto} />
+          )}
+          {etapas.filter((e) => e.presupuesto).map((e) => (
+            <BarraPresupuesto key={e.id} label={e.nombre} gastado={gastoDeItems((i) => i.etapa_id === e.id)} presupuesto={e.presupuesto!} />
+          ))}
+          {partidas.filter((p) => p.presupuesto).map((p) => (
+            <BarraPresupuesto key={p.id} label={p.nombre} gastado={gastoDeItems((i) => i.partida_id === p.id)} presupuesto={p.presupuesto!} />
+          ))}
+        </div>
+      )}
 
       {/* Galería de boletas */}
       {gastos.length > 0 && (
@@ -299,18 +333,27 @@ export default function ProyectoDetalle() {
             {itemsFiltrados.length === 0 ? <Vacio /> : itemsFiltrados.map((item) => (
               <div key={item.id} className="rounded-xl border border-gray-100 p-4">
                 {confirmandoEliminarItem === item.id && (
-                  <div className="flex items-center justify-between gap-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-2">
-                    <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <button onClick={() => handleEliminarItem(item, item.gasto.id)} className="text-xs font-semibold text-red-600">Sí</button>
-                      <button onClick={() => setConfirmandoEliminarItem(null)} className="text-xs font-medium text-gray-400">No</button>
+                  <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-2 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <button onClick={() => handleEliminarItem(item, item.gasto.id)} className="text-xs font-semibold text-red-600">Sí</button>
+                        <button onClick={() => { setConfirmandoEliminarItem(null); setComentarioEliminacionItem('') }} className="text-xs font-medium text-gray-400">No</button>
+                      </div>
                     </div>
+                    <input
+                      type="text"
+                      value={comentarioEliminacionItem}
+                      onChange={(e) => setComentarioEliminacionItem(e.target.value)}
+                      placeholder="Comentario (opcional)"
+                      className="w-full border border-red-200 rounded-md px-2 py-1 text-xs bg-white"
+                    />
                   </div>
                 )}
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-semibold text-gray-900 flex-1">{item.descripcion}</p>
                   <div className="flex items-center gap-2 shrink-0">
-                    <p className="text-sm font-bold text-gray-900">{formatCLP(item.subtotal)}</p>
+                    <p className="text-sm font-bold text-gray-900">{formatCLP(netoBrutoDeItem(item, item.gasto).bruto)}</p>
                     {puedeEditarItems && (
                       <button
                         onClick={() => setItemEditando(item)}
@@ -334,12 +377,22 @@ export default function ProyectoDetalle() {
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mt-0.5">{item.cantidad} {item.unidad}</p>
+                {(() => {
+                  const { neto, iva } = netoBrutoDeItem(item, item.gasto)
+                  return <p className="text-[10px] text-gray-400 mt-0.5">IVA {formatCLP(iva)} · Neto {formatCLP(neto)}</p>
+                })()}
                 <div className="flex flex-wrap gap-1 mt-2">
                   {item.etiquetas.map((tag) => (
                     <span key={tag} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${filtrosEtiqueta.includes(tag) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>{tag}</span>
                   ))}
                 </div>
                 <p className="text-[10px] text-gray-300 mt-2">{item.gasto.proveedor} · {formatFecha(item.gasto.fecha_boleta)}</p>
+                {item.gasto.creado_por_email && (
+                  <p className="text-[10px] text-gray-300 mt-0.5">Registrado por {item.gasto.creado_por_email}</p>
+                )}
+                {item.gasto.comentario && (
+                  <p className="text-[10px] text-gray-400 italic mt-0.5">💬 {item.gasto.comentario}</p>
+                )}
               </div>
             ))}
           </>
@@ -374,22 +427,46 @@ export default function ProyectoDetalle() {
                   )}
                 </div>
               </div>
+              {(gasto.creado_por_email || gasto.comentario) && (
+                <div className="mt-1.5">
+                  {gasto.creado_por_email && (
+                    <p className="text-[10px] text-gray-300">Registrado por {gasto.creado_por_email}</p>
+                  )}
+                  {gasto.comentario && (
+                    <p className="text-[10px] text-gray-400 italic mt-0.5">💬 {gasto.comentario}</p>
+                  )}
+                </div>
+              )}
               {(gasto.items ?? []).length > 0 && (
                 <div className="mt-2 space-y-1">
                   {(gasto.items ?? []).map((item) => (
                     confirmandoEliminarItem === item.id ? (
-                      <div key={item.id} className="flex items-center justify-between bg-red-50 border border-red-100 rounded-lg px-2 py-1">
-                        <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button onClick={() => handleEliminarItem(item, gasto.id)} className="text-xs font-semibold text-red-600">Sí</button>
-                          <button onClick={() => setConfirmandoEliminarItem(null)} className="text-xs font-medium text-gray-400">No</button>
+                      <div key={item.id} className="bg-red-50 border border-red-100 rounded-lg px-2 py-1 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button onClick={() => handleEliminarItem(item, gasto.id)} className="text-xs font-semibold text-red-600">Sí</button>
+                            <button onClick={() => { setConfirmandoEliminarItem(null); setComentarioEliminacionItem('') }} className="text-xs font-medium text-gray-400">No</button>
+                          </div>
                         </div>
+                        <input
+                          type="text"
+                          value={comentarioEliminacionItem}
+                          onChange={(e) => setComentarioEliminacionItem(e.target.value)}
+                          placeholder="Comentario (opcional)"
+                          className="w-full border border-red-200 rounded-md px-2 py-1 text-xs bg-white"
+                        />
                       </div>
                     ) : (
                       <div key={item.id} className="flex items-center justify-between text-xs text-gray-500">
                         <span className="truncate flex-1">{item.descripcion}</span>
                         <div className="flex items-center gap-2 shrink-0 ml-2">
-                          <span>{formatCLP(item.subtotal)}</span>
+                          <span>
+                            {(() => {
+                              const { neto, bruto } = netoBrutoDeItem(item, gasto)
+                              return <>{formatCLP(bruto)}<span className="text-gray-300"> (neto {formatCLP(neto)})</span></>
+                            })()}
+                          </span>
                           {puedeEditarItems && (
                             <button
                               onClick={() => setItemEditando(item)}
@@ -421,6 +498,40 @@ export default function ProyectoDetalle() {
                   <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">{tag}</span>
                 ))}
               </div>
+              {(gasto.eventos ?? []).length > 0 && (
+                <div className="mt-2">
+                  <button
+                    onClick={() => setHistorialAbierto((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(gasto.id)) next.delete(gasto.id)
+                      else next.add(gasto.id)
+                      return next
+                    })}
+                    className="text-[10px] text-blue-600 font-medium"
+                  >
+                    {historialAbierto.has(gasto.id) ? 'Ocultar historial' : `Ver historial (${(gasto.eventos ?? []).length})`}
+                  </button>
+                  {historialAbierto.has(gasto.id) && (
+                    <div className="mt-1.5 space-y-2 bg-gray-50 rounded-lg p-2">
+                      {[...(gasto.eventos ?? [])]
+                        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                        .map((ev) => (
+                          <div key={ev.id} className="text-[10px] text-gray-500">
+                            <p>
+                              {ev.accion === 'editado' ? '✏️' : '🗑️'}{' '}
+                              <span className="font-medium text-gray-700">{ev.descripcion_item}</span>
+                              {ev.accion === 'editado'
+                                ? <> — {formatCLP(ev.subtotal_anterior)} → {formatCLP(ev.subtotal_nuevo ?? 0)}</>
+                                : <> — eliminado (era {formatCLP(ev.subtotal_anterior)})</>}
+                            </p>
+                            {ev.comentario && <p className="italic text-gray-400 mt-0.5">💬 {ev.comentario}</p>}
+                            <p className="text-gray-300 mt-0.5">{ev.usuario_email} · {formatFecha(ev.created_at.slice(0, 10))}</p>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))
         )}
@@ -481,6 +592,12 @@ function GaleriaThumbnail({ gasto }: { gasto: Gasto }) {
                 <p className="text-sm font-semibold text-gray-900">{gasto.proveedor}</p>
                 <p className="text-xs text-gray-400 mt-0.5">RUT {gasto.rut_proveedor} · {gasto.fecha_boleta}</p>
                 <p className="text-base font-bold text-gray-900 mt-1">{formatCLP(gasto.total)}</p>
+                {gasto.creado_por_email && (
+                  <p className="text-[10px] text-gray-400 mt-1">Registrado por {gasto.creado_por_email}</p>
+                )}
+                {gasto.comentario && (
+                  <p className="text-xs text-gray-500 italic mt-1">💬 {gasto.comentario}</p>
+                )}
               </div>
               <div className="flex flex-col gap-2 items-end shrink-0 ml-3">
                 {gasto.imagen_url && (
@@ -518,4 +635,33 @@ function Vacio() {
 
 function formatFecha(fecha: string): string {
   return new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function netoBrutoDeItem(item: ItemGasto, gasto: Gasto) {
+  let interpretacion = gasto.interpretacion_precios
+  if (!interpretacion) {
+    const items = gasto.items ?? []
+    const sumaExtraida = items.reduce((s, i) => s + i.subtotal, 0)
+    interpretacion = determinarInterpretacion(sumaExtraida, gasto.total)
+  }
+  return calcularNetoBruto(item.subtotal, interpretacion)
+}
+
+function BarraPresupuesto({ label, gastado, presupuesto }: { label: string; gastado: number; presupuesto: number }) {
+  const pct = presupuesto > 0 ? (gastado / presupuesto) * 100 : 0
+  const color = pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-blue-500'
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs font-medium text-gray-700 truncate">{label}</p>
+        <p className="text-xs text-gray-400 shrink-0 ml-2">{formatCLP(gastado)} / {formatCLP(presupuesto)}</p>
+      </div>
+      <div className="bg-gray-100 rounded-full h-1.5">
+        <div className={`${color} h-1.5 rounded-full transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} />
+      </div>
+      {pct >= 100 && (
+        <p className="text-[10px] text-red-600 mt-1">⚠ Superó el presupuesto por {formatCLP(gastado - presupuesto)}</p>
+      )}
+    </div>
+  )
 }
