@@ -9,6 +9,7 @@ export const PERMISOS = [
   { key: 'delete_scanned_items', label: 'Eliminar ítems/boletas' },
   { key: 'invite_users', label: 'Gestionar usuarios' },
   { key: 'view_reports', label: 'Ver reportes y presupuesto' },
+  { key: 'delete_proyectos', label: 'Eliminar proyectos' },
 ] as const
 
 export type PermisoKey = (typeof PERMISOS)[number]['key']

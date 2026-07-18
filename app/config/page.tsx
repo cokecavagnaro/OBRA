@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
-  getProyectos, createProyecto, updateProyectoPrompt, getEtapas, createEtapa, getPartidas, createPartida,
+  getProyectos, createProyecto, updateProyectoPrompt, updateProyectoPresupuesto, deleteProyecto, getEtapas, createEtapa, getPartidas, createPartida,
   updateEtapaPresupuesto, updatePartidaPresupuesto,
   getUsuarioActual, getUsuariosDeCuenta, getCuenta, updateCuentaNombre,
   crearInvitacion, getInvitacionesPendientes, cancelarInvitacion,
@@ -41,6 +41,10 @@ function ConfigContenido() {
   const [creandoProyecto, setCreandoProyecto] = useState(false)
   const [guardando, setGuardando] = useState(false)
 
+  const [eliminandoProyecto, setEliminandoProyecto] = useState(false)
+  const [confirmacionNombreProyecto, setConfirmacionNombreProyecto] = useState('')
+  const [borrandoProyecto, setBorrandoProyecto] = useState(false)
+
   // Usuario actual + permisos
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
   const [misOverrides, setMisOverrides] = useState<PermissionOverride[]>([])
@@ -66,6 +70,7 @@ function ConfigContenido() {
   const [overridesUsuarioEditando, setOverridesUsuarioEditando] = useState<PermissionOverride[]>([])
 
   const puedeCrearProyectos = usuarioActual ? tienePermiso(usuarioActual, misOverrides, 'create_proyectos') : false
+  const puedeEliminarProyecto = usuarioActual ? tienePermiso(usuarioActual, misOverrides, 'delete_proyectos') : false
   const puedeGestionarUsuarios = usuarioActual ? tienePermiso(usuarioActual, misOverrides, 'invite_users') : false
   const puedeVerCuenta = !!usuarioActual
 
@@ -172,6 +177,8 @@ function ConfigContenido() {
     setNuevaEtapa('')
     setNuevaPartida('')
     setEtapaParaPartida('')
+    setEliminandoProyecto(false)
+    setConfirmacionNombreProyecto('')
     const [e, p] = await Promise.all([getEtapas(proyecto.id), getPartidas(proyecto.id)])
     setEtapas(e)
     setPartidas(p)
@@ -183,6 +190,29 @@ function ConfigContenido() {
     setProyectos((prev) => prev.map((o) => o.id === proyectoSeleccionado.id ? { ...o, system_prompt: promptDraft } : o))
     setProyectoSeleccionado((prev) => prev ? { ...prev, system_prompt: promptDraft } : null)
     setEditandoPrompt(false)
+  }
+
+  async function actualizarPresupuestoProyecto(valor: string) {
+    if (!proyectoSeleccionado) return
+    const presupuesto = valor.trim() ? Number(valor) : null
+    setProyectos((prev) => prev.map((p) => p.id === proyectoSeleccionado.id ? { ...p, presupuesto } : p))
+    setProyectoSeleccionado((prev) => prev ? { ...prev, presupuesto } : prev)
+    await updateProyectoPresupuesto(proyectoSeleccionado.id, presupuesto)
+  }
+
+  async function handleEliminarProyecto() {
+    if (!proyectoSeleccionado || confirmacionNombreProyecto.trim() !== proyectoSeleccionado.nombre) return
+    setBorrandoProyecto(true)
+    const ok = await deleteProyecto(proyectoSeleccionado)
+    if (ok) {
+      setProyectos((prev) => prev.filter((p) => p.id !== proyectoSeleccionado.id))
+      setProyectoSeleccionado(null)
+      setEtapas([])
+      setPartidas([])
+    }
+    setEliminandoProyecto(false)
+    setConfirmacionNombreProyecto('')
+    setBorrandoProyecto(false)
   }
 
   async function agregarEtapa() {
@@ -379,6 +409,23 @@ function ConfigContenido() {
               )}
             </div>
 
+            {/* Presupuesto del proyecto */}
+            <div className="rounded-xl border border-gray-100 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Presupuesto total</p>
+                <input
+                  key={proyectoSeleccionado.id}
+                  type="number"
+                  inputMode="decimal"
+                  defaultValue={proyectoSeleccionado.presupuesto ?? ''}
+                  onBlur={(e) => actualizarPresupuestoProyecto(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                  placeholder="Presupuesto (opcional)"
+                  className="w-40 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right"
+                />
+              </div>
+            </div>
+
             {/* Etapas */}
             <div className="rounded-xl border border-gray-100 p-4">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Etapas</p>
@@ -483,6 +530,46 @@ function ConfigContenido() {
                 </div>
               </div>
             </div>
+
+            {/* Eliminar proyecto */}
+            {puedeEliminarProyecto && (
+              <div className="rounded-xl border border-red-100 p-4">
+                {!eliminandoProyecto ? (
+                  <button onClick={() => setEliminandoProyecto(true)} className="text-sm text-red-600 font-medium">
+                    Eliminar proyecto
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-red-600">
+                      Esto borra el proyecto completo: todas sus boletas, ítems, historial, etapas y partidas, sin poder deshacerlo.
+                      Escribe <span className="font-semibold">{proyectoSeleccionado.nombre}</span> para confirmar.
+                    </p>
+                    <input
+                      type="text"
+                      value={confirmacionNombreProyecto}
+                      onChange={(e) => setConfirmacionNombreProyecto(e.target.value)}
+                      placeholder="Nombre del proyecto"
+                      className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setEliminandoProyecto(false); setConfirmacionNombreProyecto('') }}
+                        className="flex-1 border border-gray-200 rounded-lg py-2 text-xs text-gray-500"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={handleEliminarProyecto}
+                        disabled={borrandoProyecto || confirmacionNombreProyecto.trim() !== proyectoSeleccionado.nombre}
+                        className="flex-1 bg-red-600 text-white rounded-lg py-2 text-xs font-semibold disabled:opacity-40"
+                      >
+                        {borrandoProyecto ? 'Eliminando...' : 'Eliminar definitivamente'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>

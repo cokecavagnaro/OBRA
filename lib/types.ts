@@ -1,3 +1,5 @@
+import type { InterpretacionPrecio } from './confianzaDocumento'
+
 export type Moneda = 'CLP' | 'UF'
 export type RolUsuario = 'super_admin' | 'admin' | 'usuario'
 export type EstadoGasto = 'confirmado' | 'pendiente'
@@ -79,6 +81,7 @@ export interface Gasto {
   contexto_boleta: string
   creado_por_email: string | null
   comentario: string | null
+  interpretacion_precios?: InterpretacionPrecio | null
   estado: EstadoGasto
   created_at: string
   // relaciones expandidas
@@ -86,6 +89,20 @@ export interface Gasto {
   etapa?: Etapa
   partida?: Partida
   items?: ItemGasto[]
+  eventos?: ItemGastoEvento[]
+}
+
+export interface ItemGastoEvento {
+  id: string
+  gasto_id: string
+  item_id: string | null
+  descripcion_item: string
+  accion: 'editado' | 'eliminado'
+  subtotal_anterior: number
+  subtotal_nuevo: number | null
+  comentario: string | null
+  usuario_email: string
+  created_at: string
 }
 
 export interface ItemGasto {
@@ -108,6 +125,7 @@ export interface ItemGasto {
 export interface DocumentoConfianza {
   confianza_documento: number
   calidad_imagen_percibida: number
+  interpretacion_precios?: InterpretacionPrecio
 }
 
 // Respuesta de la API de análisis
@@ -122,6 +140,7 @@ export interface RespuestaAnalisis {
   confianza_documento?: number
   verificado_por_reescritura?: boolean
   requiere_atencion?: boolean
+  interpretacion_precios?: InterpretacionPrecio
 }
 
 export interface ItemAnalizado {

@@ -6,7 +6,7 @@ import { formatCLP } from '@/lib/mock'
 import { getProyectos, getEtapas, getPartidas, saveGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { normalizarImagenParaSubida } from '@/lib/imagen'
 import { tienePermiso } from '@/lib/permisos'
-import { determinarInterpretacion, calcularNetoBruto } from '@/lib/confianzaDocumento'
+import { determinarInterpretacion, calcularNetoBruto, type InterpretacionPrecio } from '@/lib/confianzaDocumento'
 import type { Proyecto, Etapa, Partida, ItemAnalizado, Usuario, PermissionOverride } from '@/lib/types'
 import SystemPromptBox from '@/components/SystemPromptBox'
 
@@ -51,6 +51,7 @@ export default function Scan() {
   const [rut, setRut] = useState('96.928.180-5')
   const [fecha, setFecha] = useState('2024-06-10')
   const [totalBoleta, setTotalBoleta] = useState(0)
+  const [interpretacionPrecios, setInterpretacionPrecios] = useState<InterpretacionPrecio | undefined>(undefined)
   const [comentario, setComentario] = useState('')
 
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
@@ -246,6 +247,7 @@ export default function Scan() {
       if (data.fecha) setFecha(data.fecha)
       if (data.total) setTotalBoleta(data.total)
       setRequiereAtencion(Boolean(data.requiere_atencion))
+      setInterpretacionPrecios(data.interpretacion_precios)
 
       setModoManual(false)
       setItems(itemsResultado.map((i: ItemAnalizado) => ({
@@ -271,6 +273,7 @@ export default function Scan() {
     setFecha(new Date().toISOString().split('T')[0])
     setTotalBoleta(0)
     setRequiereAtencion(false)
+    setInterpretacionPrecios(undefined)
     setItems([{
       descripcion: '',
       cantidad: 1,
@@ -381,6 +384,7 @@ export default function Scan() {
           contexto_boleta: contexto,
           creado_por_email: usuarioActual?.email ?? null,
           comentario: comentario.trim() || null,
+          interpretacion_precios: modoManual ? 'bruto' : interpretacionPrecios,
           imagen_url: imagenUrl,
           items: itemsFinal.map((i) => ({
             descripcion: i.descripcion,
@@ -853,10 +857,17 @@ export default function Scan() {
                   className="w-full text-sm font-bold text-gray-900 text-center outline-none border border-gray-200 rounded-lg px-1 bg-white focus:border-blue-400"
                 />
               </div>
-              <div className="bg-white rounded-xl p-2 text-center border border-blue-100 bg-blue-50">
-                <p className="text-[10px] text-blue-400">Subtotal</p>
-                <p className="text-sm font-bold text-blue-700">{formatCLP(item.subtotal)}</p>
-              </div>
+              {(() => {
+                const sumaExtraidaBoleta = items.reduce((s, i) => s + i.subtotal, 0)
+                const interpretacionBoleta = determinarInterpretacion(sumaExtraidaBoleta, totalBoleta)
+                const { bruto } = calcularNetoBruto(item.subtotal, interpretacionBoleta)
+                return (
+                  <div className="bg-white rounded-xl p-2 text-center border border-blue-100 bg-blue-50">
+                    <p className="text-[10px] text-blue-400">Subtotal</p>
+                    <p className="text-sm font-bold text-blue-700">{formatCLP(bruto)}</p>
+                  </div>
+                )
+              })()}
             </div>
 
             {(() => {
@@ -865,7 +876,7 @@ export default function Scan() {
               const { neto, bruto, iva } = calcularNetoBruto(item.subtotal, interpretacionBoleta)
               return (
                 <p className="text-[10px] text-gray-400 text-center mb-3">
-                  Neto {formatCLP(neto)} + IVA (19%) {formatCLP(iva)} = Bruto {formatCLP(bruto)}
+                  Bruto {formatCLP(bruto)} (Neto {formatCLP(neto)} + IVA {formatCLP(iva)})
                 </p>
               )
             })()}

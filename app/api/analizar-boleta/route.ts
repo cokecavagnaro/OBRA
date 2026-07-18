@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildContextoAprendizaje, aplicarAprendizajeDeterministico } from '@/lib/aprendizaje'
-import { calcularCruce, debeActivarFallback, esRazonablementeSimilar } from '@/lib/confianzaDocumento'
+import { calcularCruce, debeActivarFallback, esRazonablementeSimilar, type InterpretacionPrecio } from '@/lib/confianzaDocumento'
 import { createClient as createServerSupabaseClient } from '@/lib/supabase/server'
 import type { ClasificacionAprendida, ItemAnalizado } from '@/lib/types'
 
@@ -59,7 +59,8 @@ Además, evalúa la calidad del documento completo y devuelve un objeto adiciona
 {
   "documento": {
     "confianza_documento": número entre 0 y 1 (confianza global en la extracción completa, no solo un ítem),
-    "calidad_imagen_percibida": número entre 0 y 1 (qué tan legible percibes la imagen)
+    "calidad_imagen_percibida": número entre 0 y 1 (qué tan legible percibes la imagen),
+    "interpretacion_precios": "neto" o "bruto" — lee la boleta buscando evidencia explícita (líneas como "Neto", "IVA 19%", "Subtotal", "Total" desglosados, o "IVA incluido"). Si los precios de los ítems NO incluyen IVA (hay que sumarles IVA para llegar al total) → "neto". Si los precios de los ítems YA incluyen IVA (son el monto final tal cual se paga) → "bruto". No lo calcules con aritmética — es una lectura de lo que la boleta dice o da a entender, no un cálculo.
   }
 }
 Este objeto "documento" es adicional a proveedor, rut, fecha, moneda y total — no los reemplaces ni los anides ahí.
@@ -100,15 +101,21 @@ Responde SOLO con JSON válido, sin texto adicional.`
     const resultadoOriginal = JSON.parse(raw)
 
     const confianzaOriginal: number = resultadoOriginal.documento?.confianza_documento ?? 0
-    const { cruce_valido: cruceOriginalValido } = calcularCruce(resultadoOriginal.items ?? [], resultadoOriginal.total ?? 0)
+    const interpretacionIA = resultadoOriginal.documento?.interpretacion_precios
+    const { cruce_valido: cruceOriginalValido, interpretacion: interpretacionCalculada } = calcularCruce(resultadoOriginal.items ?? [], resultadoOriginal.total ?? 0)
+    // Si la IA leyó la boleta y dice una interpretación distinta a la que da
+    // el cruce aritmético, es una señal fuerte de que algo no cuadra — se
+    // suma como motivo de fallback además de confianza baja/cruce inválido.
+    const discrepanciaInterpretacion = interpretacionIA !== undefined && interpretacionIA !== interpretacionCalculada
 
     let resultadoFinal = resultadoOriginal
-    if (debeActivarFallback(confianzaOriginal, cruceOriginalValido)) {
+    if (debeActivarFallback(confianzaOriginal, cruceOriginalValido) || discrepanciaInterpretacion) {
       resultadoFinal = await ejecutarFallback(resultadoOriginal, userContent, systemPrompt)
     } else {
       resultadoFinal.confianza_documento = confianzaOriginal
       resultadoFinal.verificado_por_reescritura = false
       resultadoFinal.requiere_atencion = false
+      resultadoFinal.interpretacion_precios = interpretacionCalculada
     }
 
     if (Array.isArray(resultadoFinal.items)) {
@@ -126,10 +133,11 @@ interface ResultadoExtraccion {
   proveedor?: string
   total?: number
   items?: ItemAnalizado[]
-  documento?: { confianza_documento?: number; calidad_imagen_percibida?: number }
+  documento?: { confianza_documento?: number; calidad_imagen_percibida?: number; interpretacion_precios?: InterpretacionPrecio }
   confianza_documento?: number
   verificado_por_reescritura?: boolean
   requiere_atencion?: boolean
+  interpretacion_precios?: InterpretacionPrecio
   [key: string]: unknown
 }
 
@@ -174,26 +182,29 @@ async function ejecutarFallback(
 
     const rawFallback = restructBlock.text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim()
     const resultadoFallback = JSON.parse(rawFallback)
-    const { cruce_valido: cruceFallbackValido } = calcularCruce(resultadoFallback.items ?? [], resultadoFallback.total ?? 0)
+    const { cruce_valido: cruceFallbackValido, interpretacion: interpretacionFallback } = calcularCruce(resultadoFallback.items ?? [], resultadoFallback.total ?? 0)
 
     if (cruceFallbackValido) {
       const similar = esRazonablementeSimilar(
         { proveedor: resultadoOriginal.proveedor ?? '', total: resultadoOriginal.total ?? 0 },
         { proveedor: resultadoFallback.proveedor ?? '', total: resultadoFallback.total ?? 0 }
       )
-      return similar
-        ? { ...resultadoOriginal, confianza_documento: 0.90, verificado_por_reescritura: true, requiere_atencion: false }
-        : { ...resultadoFallback, confianza_documento: 0.65, verificado_por_reescritura: true, requiere_atencion: false }
+      if (similar) {
+        const { interpretacion: interpretacionOriginal } = calcularCruce(resultadoOriginal.items ?? [], resultadoOriginal.total ?? 0)
+        return { ...resultadoOriginal, confianza_documento: 0.90, verificado_por_reescritura: true, requiere_atencion: false, interpretacion_precios: interpretacionOriginal }
+      }
+      return { ...resultadoFallback, confianza_documento: 0.65, verificado_por_reescritura: true, requiere_atencion: false, interpretacion_precios: interpretacionFallback }
     }
 
     // Cruce sigue sin cuadrar — no se reintenta más. Se usa el resultado del
     // fallback como definitivo: es el intento más limpio disponible, viene
     // de una transcripción de texto independiente de la lectura original.
-    return { ...resultadoFallback, confianza_documento: 0.25, verificado_por_reescritura: true, requiere_atencion: true }
+    return { ...resultadoFallback, confianza_documento: 0.25, verificado_por_reescritura: true, requiere_atencion: true, interpretacion_precios: interpretacionFallback }
   } catch (err) {
     console.error('[analizar-boleta] fallback falló', err)
     // El fallback mismo falló/no parseó — degradar sin romper la request.
     // Se mantiene la extracción ORIGINAL (no hay dato de fallback usable).
-    return { ...resultadoOriginal, confianza_documento: 0.25, verificado_por_reescritura: false, requiere_atencion: true }
+    const { interpretacion: interpretacionOriginal } = calcularCruce(resultadoOriginal.items ?? [], resultadoOriginal.total ?? 0)
+    return { ...resultadoOriginal, confianza_documento: 0.25, verificado_por_reescritura: false, requiere_atencion: true, interpretacion_precios: interpretacionOriginal }
   }
 }

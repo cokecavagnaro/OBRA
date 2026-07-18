@@ -28,6 +28,8 @@ export default function ProyectoDetalle() {
   const [itemEditando, setItemEditando] = useState<ItemGasto | null>(null)
   const [confirmandoEliminar, setConfirmandoEliminar] = useState<string | null>(null)
   const [confirmandoEliminarItem, setConfirmandoEliminarItem] = useState<string | null>(null)
+  const [comentarioEliminacionItem, setComentarioEliminacionItem] = useState('')
+  const [historialAbierto, setHistorialAbierto] = useState<Set<string>>(new Set())
 
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
   const [overrides, setOverrides] = useState<PermissionOverride[]>([])
@@ -95,7 +97,7 @@ export default function ProyectoDetalle() {
           return true
         })
     : []
-  const subtotalFiltrado = itemsFiltrados.reduce((s, i) => s + i.subtotal, 0)
+  const subtotalFiltrado = itemsFiltrados.reduce((s, i) => s + netoBrutoDeItem(i, i.gasto).bruto, 0)
 
   function toggleEtiqueta(tag: string) {
     setFiltrosEtiqueta((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])
@@ -109,14 +111,18 @@ export default function ProyectoDetalle() {
     setFiltroFechaHasta('')
   }
 
-  function handleItemGuardado(itemActualizado: ItemGasto, nuevasEtapas: Etapa[], nuevasPartidas: Partida[]) {
+  function handleItemGuardado(itemActualizado: ItemGasto, nuevasEtapas: Etapa[], nuevasPartidas: Partida[], nuevoTotalGasto?: number) {
     setEtapas(nuevasEtapas)
     setPartidas(nuevasPartidas)
     setGastos((prev) =>
-      prev.map((g) => ({
-        ...g,
-        items: (g.items ?? []).map((i) => i.id === itemActualizado.id ? itemActualizado : i),
-      }))
+      prev.map((g) => {
+        if (!(g.items ?? []).some((i) => i.id === itemActualizado.id)) return g
+        return {
+          ...g,
+          total: nuevoTotalGasto ?? g.total,
+          items: (g.items ?? []).map((i) => i.id === itemActualizado.id ? itemActualizado : i),
+        }
+      })
     )
     setItemEditando(null)
   }
@@ -128,17 +134,15 @@ export default function ProyectoDetalle() {
   }
 
   async function handleEliminarItem(item: ItemGasto, gastoId: string) {
-    const gasto = gastos.find((g) => g.id === gastoId)
-    if (!gasto) return
-    const nuevoTotal = gasto.total - item.subtotal
-    const ok = await deleteItemGasto(item.id, gastoId, nuevoTotal)
-    if (ok) {
+    const resultado = await deleteItemGasto(item.id, comentarioEliminacionItem.trim() || undefined)
+    if (resultado) {
       setGastos((prev) => prev.map((g) => g.id === gastoId
-        ? { ...g, total: nuevoTotal, items: (g.items ?? []).filter((i) => i.id !== item.id) }
+        ? { ...g, total: resultado.nuevoTotal, items: (g.items ?? []).filter((i) => i.id !== item.id) }
         : g
       ))
     }
     setConfirmandoEliminarItem(null)
+    setComentarioEliminacionItem('')
   }
 
   function itemARow(i: ItemGasto, gasto: Gasto) {
@@ -152,9 +156,9 @@ export default function ProyectoDetalle() {
       Cantidad: i.cantidad,
       Unidad: i.unidad || '',
       'Precio unitario': i.precio_unitario,
-      Neto: Math.round(neto),
-      IVA: Math.round(iva),
       Bruto: Math.round(bruto),
+      IVA: Math.round(iva),
+      Neto: Math.round(neto),
       Etapa: etapas.find((e) => e.id === i.etapa_id)?.nombre ?? '',
       Partida: partidas.find((p) => p.id === i.partida_id)?.nombre ?? '',
       Etiquetas: i.etiquetas.join(', '),
@@ -329,18 +333,27 @@ export default function ProyectoDetalle() {
             {itemsFiltrados.length === 0 ? <Vacio /> : itemsFiltrados.map((item) => (
               <div key={item.id} className="rounded-xl border border-gray-100 p-4">
                 {confirmandoEliminarItem === item.id && (
-                  <div className="flex items-center justify-between gap-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-2">
-                    <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <button onClick={() => handleEliminarItem(item, item.gasto.id)} className="text-xs font-semibold text-red-600">Sí</button>
-                      <button onClick={() => setConfirmandoEliminarItem(null)} className="text-xs font-medium text-gray-400">No</button>
+                  <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-2 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <button onClick={() => handleEliminarItem(item, item.gasto.id)} className="text-xs font-semibold text-red-600">Sí</button>
+                        <button onClick={() => { setConfirmandoEliminarItem(null); setComentarioEliminacionItem('') }} className="text-xs font-medium text-gray-400">No</button>
+                      </div>
                     </div>
+                    <input
+                      type="text"
+                      value={comentarioEliminacionItem}
+                      onChange={(e) => setComentarioEliminacionItem(e.target.value)}
+                      placeholder="Comentario (opcional)"
+                      className="w-full border border-red-200 rounded-md px-2 py-1 text-xs bg-white"
+                    />
                   </div>
                 )}
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-semibold text-gray-900 flex-1">{item.descripcion}</p>
                   <div className="flex items-center gap-2 shrink-0">
-                    <p className="text-sm font-bold text-gray-900">{formatCLP(item.subtotal)}</p>
+                    <p className="text-sm font-bold text-gray-900">{formatCLP(netoBrutoDeItem(item, item.gasto).bruto)}</p>
                     {puedeEditarItems && (
                       <button
                         onClick={() => setItemEditando(item)}
@@ -365,8 +378,8 @@ export default function ProyectoDetalle() {
                 </div>
                 <p className="text-xs text-gray-400 mt-0.5">{item.cantidad} {item.unidad}</p>
                 {(() => {
-                  const { neto, bruto, iva } = netoBrutoDeItem(item, item.gasto)
-                  return <p className="text-[10px] text-gray-400 mt-0.5">Neto {formatCLP(neto)} · IVA {formatCLP(iva)} · Bruto {formatCLP(bruto)}</p>
+                  const { neto, iva } = netoBrutoDeItem(item, item.gasto)
+                  return <p className="text-[10px] text-gray-400 mt-0.5">IVA {formatCLP(iva)} · Neto {formatCLP(neto)}</p>
                 })()}
                 <div className="flex flex-wrap gap-1 mt-2">
                   {item.etiquetas.map((tag) => (
@@ -428,24 +441,30 @@ export default function ProyectoDetalle() {
                 <div className="mt-2 space-y-1">
                   {(gasto.items ?? []).map((item) => (
                     confirmandoEliminarItem === item.id ? (
-                      <div key={item.id} className="flex items-center justify-between bg-red-50 border border-red-100 rounded-lg px-2 py-1">
-                        <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button onClick={() => handleEliminarItem(item, gasto.id)} className="text-xs font-semibold text-red-600">Sí</button>
-                          <button onClick={() => setConfirmandoEliminarItem(null)} className="text-xs font-medium text-gray-400">No</button>
+                      <div key={item.id} className="bg-red-50 border border-red-100 rounded-lg px-2 py-1 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button onClick={() => handleEliminarItem(item, gasto.id)} className="text-xs font-semibold text-red-600">Sí</button>
+                            <button onClick={() => { setConfirmandoEliminarItem(null); setComentarioEliminacionItem('') }} className="text-xs font-medium text-gray-400">No</button>
+                          </div>
                         </div>
+                        <input
+                          type="text"
+                          value={comentarioEliminacionItem}
+                          onChange={(e) => setComentarioEliminacionItem(e.target.value)}
+                          placeholder="Comentario (opcional)"
+                          className="w-full border border-red-200 rounded-md px-2 py-1 text-xs bg-white"
+                        />
                       </div>
                     ) : (
                       <div key={item.id} className="flex items-center justify-between text-xs text-gray-500">
                         <span className="truncate flex-1">{item.descripcion}</span>
                         <div className="flex items-center gap-2 shrink-0 ml-2">
                           <span>
-                            {formatCLP(item.subtotal)}
                             {(() => {
-                              const r = netoBrutoDeItem(item, gasto)
-                              const otro = r.neto === item.subtotal ? r.bruto : r.neto
-                              const etiqueta = r.neto === item.subtotal ? 'bruto' : 'neto'
-                              return <span className="text-gray-300"> ({etiqueta} {formatCLP(otro)})</span>
+                              const { neto, bruto } = netoBrutoDeItem(item, gasto)
+                              return <>{formatCLP(bruto)}<span className="text-gray-300"> (neto {formatCLP(neto)})</span></>
                             })()}
                           </span>
                           {puedeEditarItems && (
@@ -479,6 +498,40 @@ export default function ProyectoDetalle() {
                   <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">{tag}</span>
                 ))}
               </div>
+              {(gasto.eventos ?? []).length > 0 && (
+                <div className="mt-2">
+                  <button
+                    onClick={() => setHistorialAbierto((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(gasto.id)) next.delete(gasto.id)
+                      else next.add(gasto.id)
+                      return next
+                    })}
+                    className="text-[10px] text-blue-600 font-medium"
+                  >
+                    {historialAbierto.has(gasto.id) ? 'Ocultar historial' : `Ver historial (${(gasto.eventos ?? []).length})`}
+                  </button>
+                  {historialAbierto.has(gasto.id) && (
+                    <div className="mt-1.5 space-y-2 bg-gray-50 rounded-lg p-2">
+                      {[...(gasto.eventos ?? [])]
+                        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                        .map((ev) => (
+                          <div key={ev.id} className="text-[10px] text-gray-500">
+                            <p>
+                              {ev.accion === 'editado' ? '✏️' : '🗑️'}{' '}
+                              <span className="font-medium text-gray-700">{ev.descripcion_item}</span>
+                              {ev.accion === 'editado'
+                                ? <> — {formatCLP(ev.subtotal_anterior)} → {formatCLP(ev.subtotal_nuevo ?? 0)}</>
+                                : <> — eliminado (era {formatCLP(ev.subtotal_anterior)})</>}
+                            </p>
+                            {ev.comentario && <p className="italic text-gray-400 mt-0.5">💬 {ev.comentario}</p>}
+                            <p className="text-gray-300 mt-0.5">{ev.usuario_email} · {formatFecha(ev.created_at.slice(0, 10))}</p>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))
         )}
@@ -585,9 +638,12 @@ function formatFecha(fecha: string): string {
 }
 
 function netoBrutoDeItem(item: ItemGasto, gasto: Gasto) {
-  const items = gasto.items ?? []
-  const sumaExtraida = items.reduce((s, i) => s + i.subtotal, 0)
-  const interpretacion = determinarInterpretacion(sumaExtraida, gasto.total)
+  let interpretacion = gasto.interpretacion_precios
+  if (!interpretacion) {
+    const items = gasto.items ?? []
+    const sumaExtraida = items.reduce((s, i) => s + i.subtotal, 0)
+    interpretacion = determinarInterpretacion(sumaExtraida, gasto.total)
+  }
   return calcularNetoBruto(item.subtotal, interpretacion)
 }
 
