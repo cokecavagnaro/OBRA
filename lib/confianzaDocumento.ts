@@ -50,6 +50,46 @@ export function debeActivarFallback(confianza_documento: number, cruce_valido: b
   return confianza_documento < UMBRAL_BAJA || cruce_valido === false
 }
 
+// Cuando la IA marca que la boleta tiene un descuento general (aplicado al
+// total, no a un ítem puntual), reparte ese descuento proporcionalmente
+// entre los ítems para que su suma vuelva a cuadrar con el total realmente
+// pagado — antes de correr calcularCruce, para no disparar un fallback
+// innecesario por un "descuadre" que en realidad es el descuento.
+export function aplicarDescuentoGeneral<T extends { subtotal: number }>(
+  items: T[],
+  total: number,
+  aplica: boolean
+): { items: T[]; descuentoMonto: number } {
+  if (!aplica) return { items, descuentoMonto: 0 }
+  const sumaOriginal = items.reduce((acc, item) => acc + (item.subtotal ?? 0), 0)
+  if (sumaOriginal <= total) return { items, descuentoMonto: 0 }
+
+  const factor = total / sumaOriginal
+  const ajustados = items.map((item) => ({ ...item, subtotal: Math.round(item.subtotal * factor) }))
+  const residuo = total - ajustados.reduce((acc, item) => acc + item.subtotal, 0)
+  if (residuo !== 0 && ajustados.length > 0) {
+    const idxMayor = ajustados.reduce((iMax, item, idx, arr) => (item.subtotal > arr[iMax].subtotal ? idx : iMax), 0)
+    ajustados[idxMayor].subtotal += residuo
+  }
+  return { items: ajustados, descuentoMonto: sumaOriginal - total }
+}
+
+// Descuento contenido en un ítem específico (no toca el total de la
+// boleta): se infiere de que el subtotal final quedó por debajo de
+// cantidad × precio_unitario — no requiere un campo separado.
+export function descuentoDeItem(item: {
+  cantidad: number
+  precio_unitario: number
+  subtotal: number
+}): { monto: number; antes: number } | null {
+  const antes = Math.round(item.cantidad * item.precio_unitario)
+  const monto = antes - Math.round(item.subtotal)
+  // Cantidades con decimales (ej. litros) generan diferencias de 1 peso por
+  // puro redondeo — no es un descuento real, así que se ignoran.
+  if (monto <= 1) return null
+  return { monto, antes }
+}
+
 function normalizarProveedor(p: string | undefined | null): string {
   return (p ?? '').trim().toLowerCase()
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildContextoAprendizaje, aplicarAprendizajeDeterministico } from '@/lib/aprendizaje'
-import { calcularCruce, debeActivarFallback, esRazonablementeSimilar, type InterpretacionPrecio } from '@/lib/confianzaDocumento'
+import { calcularCruce, debeActivarFallback, esRazonablementeSimilar, aplicarDescuentoGeneral, type InterpretacionPrecio } from '@/lib/confianzaDocumento'
 import { createClient as createServerSupabaseClient } from '@/lib/supabase/server'
 import type { ClasificacionAprendida, ItemAnalizado } from '@/lib/types'
 
@@ -31,8 +31,8 @@ Para cada ítem debes devolver:
 - descripcion: texto exacto del producto/servicio
 - cantidad: número (usa 1 si no se especifica)
 - unidad: "un", "m2", "ml", "kg", "gl", "lt", "hr" u otra unidad apropiada
-- precio_unitario: precio en pesos chilenos (sin puntos ni símbolos)
-- subtotal: cantidad × precio_unitario
+- precio_unitario: precio unitario SIN descuento, en pesos chilenos (sin puntos ni símbolos), tal como aparece impreso
+- subtotal: el monto final de esa línea tal como figura en la boleta. Normalmente subtotal = cantidad × precio_unitario, EXCEPTO cuando esa línea específica tiene su propio descuento (ej. precio tachado, "2x1", rebaja puntual) — en ese caso subtotal debe ser el monto YA con el descuento aplicado (menor que cantidad × precio_unitario), y precio_unitario se mantiene sin descuento. No repartas ahí el descuento general de la boleta (ver más abajo) — eso se maneja aparte
 - categoria: categoría del ítem (ej: "Materiales", "Herramientas", "Pinturas", "Electricidad", "Gasfitería", etc.)
 - etiquetas: array de 1 a 2 etiquetas en minúsculas para agrupar el gasto.
   Reglas:
@@ -53,7 +53,7 @@ Además extrae del documento:
 - rut: RUT del proveedor
 - fecha: fecha en formato YYYY-MM-DD
 - moneda: "CLP" (default)
-- total: monto total de la boleta
+- total: el monto FINAL efectivamente pagado/a pagar, tal como figura impreso como "TOTAL" o "TOTAL A PAGAR" en la boleta — si la boleta tiene un descuento general aplicado al total, este campo debe ser el monto YA con ese descuento aplicado, nunca la suma de los ítems antes de descuento
 
 Además, evalúa la calidad del documento completo y devuelve un objeto adicional "documento":
 {
@@ -61,6 +61,10 @@ Además, evalúa la calidad del documento completo y devuelve un objeto adiciona
     "confianza_documento": número entre 0 y 1 (confianza global en la extracción completa, no solo un ítem),
     "calidad_imagen_percibida": número entre 0 y 1 (qué tan legible percibes la imagen),
     "interpretacion_precios": "neto" o "bruto" — lee la boleta buscando evidencia explícita (líneas como "Neto", "IVA 19%", "Subtotal", "Total" desglosados, o "IVA incluido"). Si los precios de los ítems NO incluyen IVA (hay que sumarles IVA para llegar al total) → "neto". Si los precios de los ítems YA incluyen IVA (son el monto final tal cual se paga) → "bruto". No lo calcules con aritmética — es una lectura de lo que la boleta dice o da a entender, no un cálculo.
+    "descuento_general": {
+      "aplica": true o false — true SOLO si la boleta tiene un descuento aplicado al TOTAL completo (ej. una línea "Descuento", "Dcto", "Rebaja" o "%" que aparece después de sumar los ítems y antes del total final, afectando a toda la compra). false si no hay descuento, o si el único descuento que existe está contenido dentro de una línea de ítem específica (eso ya se refleja en el subtotal de ese ítem, no acá).
+      "descripcion": texto breve de cómo se describe el descuento en la boleta (ej. "10% dcto pronto pago"), o null si aplica=false. No calcules el monto del descuento — solo indica si existe y cómo se describe.
+    }
   }
 }
 Este objeto "documento" es adicional a proveedor, rut, fecha, moneda y total — no los reemplaces ni los anides ahí.
@@ -99,6 +103,7 @@ Responde SOLO con JSON válido, sin texto adicional.`
     // Extraer JSON — Claude a veces lo envuelve en ```json ... ```
     const raw = textBlock.text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim()
     const resultadoOriginal = JSON.parse(raw)
+    procesarDescuentoGeneral(resultadoOriginal)
 
     const confianzaOriginal: number = resultadoOriginal.documento?.confianza_documento ?? 0
     const interpretacionIA = resultadoOriginal.documento?.interpretacion_precios
@@ -133,12 +138,31 @@ interface ResultadoExtraccion {
   proveedor?: string
   total?: number
   items?: ItemAnalizado[]
-  documento?: { confianza_documento?: number; calidad_imagen_percibida?: number; interpretacion_precios?: InterpretacionPrecio }
+  documento?: {
+    confianza_documento?: number
+    calidad_imagen_percibida?: number
+    interpretacion_precios?: InterpretacionPrecio
+    descuento_general?: { aplica?: boolean; descripcion?: string | null }
+  }
   confianza_documento?: number
   verificado_por_reescritura?: boolean
   requiere_atencion?: boolean
   interpretacion_precios?: InterpretacionPrecio
+  descuento_general_monto?: number
+  descuento_general_descripcion?: string | null
   [key: string]: unknown
+}
+
+// Si la IA marcó que hay un descuento general, reparte ese descuento
+// proporcionalmente entre los ítems (para que su suma vuelva a cuadrar con
+// el total realmente pagado) y anota el monto/descripción en el propio
+// resultado — mutando `resultado.items` in-place.
+function procesarDescuentoGeneral(resultado: ResultadoExtraccion): void {
+  const aplica = Boolean(resultado.documento?.descuento_general?.aplica)
+  const { items, descuentoMonto } = aplicarDescuentoGeneral(resultado.items ?? [], resultado.total ?? 0, aplica)
+  resultado.items = items as ItemAnalizado[]
+  resultado.descuento_general_monto = descuentoMonto || undefined
+  resultado.descuento_general_descripcion = descuentoMonto ? resultado.documento?.descuento_general?.descripcion ?? null : null
 }
 
 async function ejecutarFallback(
@@ -182,6 +206,7 @@ async function ejecutarFallback(
 
     const rawFallback = restructBlock.text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim()
     const resultadoFallback = JSON.parse(rawFallback)
+    procesarDescuentoGeneral(resultadoFallback)
     const { cruce_valido: cruceFallbackValido, interpretacion: interpretacionFallback } = calcularCruce(resultadoFallback.items ?? [], resultadoFallback.total ?? 0)
 
     if (cruceFallbackValido) {

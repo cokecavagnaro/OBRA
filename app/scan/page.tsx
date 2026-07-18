@@ -6,7 +6,7 @@ import { formatCLP } from '@/lib/mock'
 import { getProyectos, getEtapas, getPartidas, saveGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { normalizarImagenParaSubida } from '@/lib/imagen'
 import { tienePermiso } from '@/lib/permisos'
-import { determinarInterpretacion, calcularNetoBruto, type InterpretacionPrecio } from '@/lib/confianzaDocumento'
+import { determinarInterpretacion, calcularNetoBruto, descuentoDeItem, type InterpretacionPrecio } from '@/lib/confianzaDocumento'
 import type { Proyecto, Etapa, Partida, ItemAnalizado, Usuario, PermissionOverride } from '@/lib/types'
 
 type Paso = 1 | 2 | 3
@@ -50,6 +50,8 @@ export default function Scan() {
   const [fecha, setFecha] = useState('2024-06-10')
   const [totalBoleta, setTotalBoleta] = useState(0)
   const [interpretacionPrecios, setInterpretacionPrecios] = useState<InterpretacionPrecio | undefined>(undefined)
+  const [descuentoGeneralMonto, setDescuentoGeneralMonto] = useState<number | undefined>(undefined)
+  const [descuentoGeneralDescripcion, setDescuentoGeneralDescripcion] = useState<string | null>(null)
   const [comentario, setComentario] = useState('')
 
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
@@ -246,6 +248,8 @@ export default function Scan() {
       if (data.total) setTotalBoleta(data.total)
       setRequiereAtencion(Boolean(data.requiere_atencion))
       setInterpretacionPrecios(data.interpretacion_precios)
+      setDescuentoGeneralMonto(data.descuento_general_monto)
+      setDescuentoGeneralDescripcion(data.descuento_general_descripcion ?? null)
 
       setModoManual(false)
       setItems(itemsResultado.map((i: ItemAnalizado) => ({
@@ -272,6 +276,8 @@ export default function Scan() {
     setTotalBoleta(0)
     setRequiereAtencion(false)
     setInterpretacionPrecios(undefined)
+    setDescuentoGeneralMonto(undefined)
+    setDescuentoGeneralDescripcion(null)
     setItems([{
       descripcion: '',
       cantidad: 1,
@@ -383,6 +389,8 @@ export default function Scan() {
           creado_por_email: usuarioActual?.email ?? null,
           comentario: comentario.trim() || null,
           interpretacion_precios: modoManual ? 'bruto' : interpretacionPrecios,
+          descuento_general_monto: modoManual ? null : descuentoGeneralMonto,
+          descuento_general_descripcion: modoManual ? null : descuentoGeneralDescripcion,
           imagen_url: imagenUrl,
           items: itemsFinal.map((i) => ({
             descripcion: i.descripcion,
@@ -652,6 +660,15 @@ export default function Scan() {
             </div>
           )}
 
+          {!modoManual && !!descuentoGeneralMonto && (
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+              <p className="text-sm text-blue-700">
+                🏷 Esta boleta tiene un descuento general de {formatCLP(descuentoGeneralMonto)}
+                {descuentoGeneralDescripcion ? ` (${descuentoGeneralDescripcion})` : ''}, ya repartido en los montos de cada ítem.
+              </p>
+            </div>
+          )}
+
           {/* Datos del proveedor */}
           <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Proveedor</p>
@@ -857,9 +874,11 @@ export default function Scan() {
               const sumaExtraidaBoleta = items.reduce((s, i) => s + i.subtotal, 0)
               const interpretacionBoleta = determinarInterpretacion(sumaExtraidaBoleta, totalBoleta)
               const { neto, bruto, iva } = calcularNetoBruto(item.subtotal, interpretacionBoleta)
+              const descuento = descuentoDeItem(item)
               return (
                 <p className="text-[10px] text-gray-400 text-center mb-3">
                   Bruto {formatCLP(bruto)} (Neto {formatCLP(neto)} + IVA {formatCLP(iva)})
+                  {descuento && <> · Desc {formatCLP(descuento.monto)} (antes {formatCLP(descuento.antes)})</>}
                 </p>
               )
             })()}

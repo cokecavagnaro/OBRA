@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
 import { getProyectos, getEtapas, getPartidas, getGastos, getUsuarioActual, getPermisosOverrides, deleteGasto, deleteItemGasto } from '@/lib/supabase/db'
 import { tienePermiso } from '@/lib/permisos'
-import { determinarInterpretacion, calcularNetoBruto } from '@/lib/confianzaDocumento'
+import { determinarInterpretacion, calcularNetoBruto, descuentoDeItem } from '@/lib/confianzaDocumento'
 import * as XLSX from 'xlsx'
 import ClasificacionModal from '@/components/ClasificacionModal'
 import type { Proyecto, Etapa, Partida, Gasto, ItemGasto, Usuario, PermissionOverride } from '@/lib/types'
@@ -379,7 +379,13 @@ export default function ProyectoDetalle() {
                 <p className="text-xs text-gray-400 mt-0.5">{item.cantidad} {item.unidad}</p>
                 {(() => {
                   const { neto, iva } = netoBrutoDeItem(item, item.gasto)
-                  return <p className="text-[10px] text-gray-400 mt-0.5">IVA {formatCLP(iva)} · Neto {formatCLP(neto)}</p>
+                  const descuento = descuentoDeItem(item)
+                  return (
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      IVA {formatCLP(iva)} · Neto {formatCLP(neto)}
+                      {descuento && <> · Desc {formatCLP(descuento.monto)}</>}
+                    </p>
+                  )
                 })()}
                 <div className="flex flex-wrap gap-1 mt-2">
                   {item.etiquetas.map((tag) => (
@@ -464,7 +470,13 @@ export default function ProyectoDetalle() {
                           <span>
                             {(() => {
                               const { neto, bruto } = netoBrutoDeItem(item, gasto)
-                              return <>{formatCLP(bruto)}<span className="text-gray-300"> (neto {formatCLP(neto)})</span></>
+                              const descuento = descuentoDeItem(item)
+                              return (
+                                <>
+                                  {formatCLP(bruto)}
+                                  <span className="text-gray-300"> (neto {formatCLP(neto)}{descuento && <> · desc {formatCLP(descuento.monto)}</>})</span>
+                                </>
+                              )
                             })()}
                           </span>
                           {puedeEditarItems && (
@@ -604,7 +616,18 @@ function GaleriaThumbnail({ gasto }: { gasto: Gasto }) {
               <div>
                 <p className="text-sm font-semibold text-gray-900">{gasto.proveedor}</p>
                 <p className="text-xs text-gray-400 mt-0.5">RUT {gasto.rut_proveedor} · {gasto.fecha_boleta}</p>
-                <p className="text-base font-bold text-gray-900 mt-1">{formatCLP(gasto.total)}</p>
+                {gasto.descuento_general_monto ? (
+                  <div className="mt-1">
+                    <p className="text-xs text-gray-400">Subtotal antes de descuento: {formatCLP(gasto.total + gasto.descuento_general_monto)}</p>
+                    <p className="text-xs text-gray-400">
+                      Descuento: -{formatCLP(gasto.descuento_general_monto)}
+                      {gasto.descuento_general_descripcion ? ` (${gasto.descuento_general_descripcion})` : ''}
+                    </p>
+                    <p className="text-base font-bold text-gray-900 mt-0.5">Total pagado: {formatCLP(gasto.total)}</p>
+                  </div>
+                ) : (
+                  <p className="text-base font-bold text-gray-900 mt-1">{formatCLP(gasto.total)}</p>
+                )}
                 {gasto.creado_por_email && (
                   <p className="text-[10px] text-gray-400 mt-1">Registrado por {gasto.creado_por_email}</p>
                 )}

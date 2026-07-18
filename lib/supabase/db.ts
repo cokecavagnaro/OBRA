@@ -372,6 +372,8 @@ export async function saveGasto(params: {
   creado_por_email: string | null
   comentario: string | null
   interpretacion_precios?: InterpretacionPrecio
+  descuento_general_monto?: number | null
+  descuento_general_descripcion?: string | null
   items: Array<{
     descripcion: string
     cantidad: number
@@ -411,6 +413,8 @@ export async function saveGasto(params: {
       creado_por_email: params.creado_por_email,
       comentario: params.comentario,
       interpretacion_precios: interpretacion,
+      descuento_general_monto: params.descuento_general_monto || null,
+      descuento_general_descripcion: params.descuento_general_descripcion || null,
       estado,
     })
     .select()

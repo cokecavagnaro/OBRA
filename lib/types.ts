@@ -82,6 +82,8 @@ export interface Gasto {
   creado_por_email: string | null
   comentario: string | null
   interpretacion_precios?: InterpretacionPrecio | null
+  descuento_general_monto?: number | null
+  descuento_general_descripcion?: string | null
   estado: EstadoGasto
   created_at: string
   // relaciones expandidas
@@ -126,6 +128,7 @@ export interface DocumentoConfianza {
   confianza_documento: number
   calidad_imagen_percibida: number
   interpretacion_precios?: InterpretacionPrecio
+  descuento_general?: { aplica: boolean; descripcion?: string | null }
 }
 
 // Respuesta de la API de análisis
@@ -141,6 +144,8 @@ export interface RespuestaAnalisis {
   verificado_por_reescritura?: boolean
   requiere_atencion?: boolean
   interpretacion_precios?: InterpretacionPrecio
+  descuento_general_monto?: number
+  descuento_general_descripcion?: string | null
 }
 
 export interface ItemAnalizado {
