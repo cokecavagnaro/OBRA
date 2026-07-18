@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
-  getProyectos, createProyecto, updateProyectoPrompt, updateProyectoPresupuesto, deleteProyecto, getEtapas, createEtapa, getPartidas, createPartida,
+  getProyectos, createProyecto, updateProyectoPresupuesto, deleteProyecto, getEtapas, createEtapa, getPartidas, createPartida,
   updateEtapaPresupuesto, updatePartidaPresupuesto,
   getUsuarioActual, getUsuariosDeCuenta, getCuenta, updateCuentaNombre,
   crearInvitacion, getInvitacionesPendientes, cancelarInvitacion,
@@ -27,8 +27,6 @@ function ConfigContenido() {
   const [loading, setLoading] = useState(true)
 
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState<Proyecto | null>(null)
-  const [editandoPrompt, setEditandoPrompt] = useState(false)
-  const [promptDraft, setPromptDraft] = useState('')
 
   const [nuevaEtapa, setNuevaEtapa] = useState('')
   const [nuevaEtapaPresupuesto, setNuevaEtapaPresupuesto] = useState('')
@@ -173,7 +171,6 @@ function ConfigContenido() {
 
   async function seleccionar(proyecto: Proyecto) {
     setProyectoSeleccionado(proyecto)
-    setEditandoPrompt(false)
     setNuevaEtapa('')
     setNuevaPartida('')
     setEtapaParaPartida('')
@@ -182,14 +179,6 @@ function ConfigContenido() {
     const [e, p] = await Promise.all([getEtapas(proyecto.id), getPartidas(proyecto.id)])
     setEtapas(e)
     setPartidas(p)
-  }
-
-  async function guardarPrompt() {
-    if (!proyectoSeleccionado) return
-    await updateProyectoPrompt(proyectoSeleccionado.id, promptDraft)
-    setProyectos((prev) => prev.map((o) => o.id === proyectoSeleccionado.id ? { ...o, system_prompt: promptDraft } : o))
-    setProyectoSeleccionado((prev) => prev ? { ...prev, system_prompt: promptDraft } : null)
-    setEditandoPrompt(false)
   }
 
   async function actualizarPresupuestoProyecto(valor: string) {
@@ -362,11 +351,6 @@ function ConfigContenido() {
                 }`}
               >
                 <p className="text-sm font-medium text-gray-900">{proyecto.nombre}</p>
-                {proyecto.system_prompt ? (
-                  <p className="text-xs text-gray-400 mt-0.5 truncate">{proyecto.system_prompt}</p>
-                ) : (
-                  <p className="text-xs text-gray-300 mt-0.5 italic">Sin instrucciones</p>
-                )}
               </button>
             ))}
           </div>
@@ -375,40 +359,6 @@ function ConfigContenido() {
         {/* Detalle de proyecto seleccionado */}
         {proyectoSeleccionado && (
           <>
-            {/* System prompt */}
-            <div className="rounded-xl border border-gray-100 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Instrucciones de IA</p>
-                {!editandoPrompt && (
-                  <button
-                    onClick={() => { setEditandoPrompt(true); setPromptDraft(proyectoSeleccionado.system_prompt) }}
-                    className="text-xs text-blue-600 font-medium"
-                  >
-                    ✏ Editar
-                  </button>
-                )}
-              </div>
-              {editandoPrompt ? (
-                <>
-                  <textarea
-                    value={promptDraft}
-                    onChange={(e) => setPromptDraft(e.target.value)}
-                    rows={5}
-                    placeholder="Ej: El hormigón siempre va a Fundaciones aunque no se indique..."
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none"
-                  />
-                  <div className="flex gap-2 mt-2">
-                    <button onClick={() => setEditandoPrompt(false)} className="flex-1 border border-gray-200 rounded-lg py-2 text-xs text-gray-500">Cancelar</button>
-                    <button onClick={guardarPrompt} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-xs font-semibold">Guardar</button>
-                  </div>
-                </>
-              ) : (
-                <p className={`text-sm leading-relaxed ${proyectoSeleccionado.system_prompt ? 'text-gray-700' : 'text-gray-300 italic'}`}>
-                  {proyectoSeleccionado.system_prompt || 'Sin instrucciones definidas'}
-                </p>
-              )}
-            </div>
-
             {/* Presupuesto del proyecto */}
             <div className="rounded-xl border border-gray-100 p-4">
               <div className="flex items-center justify-between gap-2">

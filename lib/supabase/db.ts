@@ -124,11 +124,6 @@ export async function createProyecto(nombre: string, system_prompt = '', presupu
   return data as Proyecto | null
 }
 
-export async function updateProyectoPrompt(id: string, system_prompt: string) {
-  const supabase = createClient()
-  await supabase.from('proyectos').update({ system_prompt }).eq('id', id)
-}
-
 export async function updateProyectoPresupuesto(id: string, presupuesto: number | null): Promise<void> {
   const supabase = createClient()
   await supabase.from('proyectos').update({ presupuesto }).eq('id', id)

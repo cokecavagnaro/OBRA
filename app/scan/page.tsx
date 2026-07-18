@@ -8,7 +8,6 @@ import { normalizarImagenParaSubida } from '@/lib/imagen'
 import { tienePermiso } from '@/lib/permisos'
 import { determinarInterpretacion, calcularNetoBruto, type InterpretacionPrecio } from '@/lib/confianzaDocumento'
 import type { Proyecto, Etapa, Partida, ItemAnalizado, Usuario, PermissionOverride } from '@/lib/types'
-import SystemPromptBox from '@/components/SystemPromptBox'
 
 type Paso = 1 | 2 | 3
 
@@ -26,7 +25,6 @@ export default function Scan() {
   const [proyecto, setProyecto] = useState<Proyecto | null>(null)
   const [etapa, setEtapa] = useState<Etapa | null>(null)
   const [partida, setPartida] = useState<Partida | null>(null)
-  const [contexto, setContexto] = useState('')
 
   // Paso 2
   const [imagenPreview, setImagenPreview] = useState<string | null>(null)
@@ -224,7 +222,7 @@ export default function Scan() {
           imagen_base64: base64,
           media_type: file.type || 'image/jpeg',
           proyecto_id: proyecto.id,
-          contexto_boleta: contexto,
+          contexto_boleta: '',
         }),
       })
 
@@ -381,7 +379,7 @@ export default function Scan() {
           rut_proveedor: rut,
           fecha_boleta: fecha,
           total: totalBoleta || itemsFinal.reduce((s, i) => s + i.subtotal, 0),
-          contexto_boleta: contexto,
+          contexto_boleta: '',
           creado_por_email: usuarioActual?.email ?? null,
           comentario: comentario.trim() || null,
           interpretacion_precios: modoManual ? 'bruto' : interpretacionPrecios,
@@ -472,8 +470,6 @@ export default function Scan() {
             </select>
           </div>
 
-          {proyecto && <SystemPromptBox proyecto={proyecto} />}
-
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
               Etapa <span className="text-gray-300 font-normal">(opcional)</span>
@@ -502,19 +498,6 @@ export default function Scan() {
               <option value="">Sin partida</option>
               {partidasFiltradas.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              Contexto específico <span className="text-gray-300 font-normal">(opcional)</span>
-            </label>
-            <textarea
-              value={contexto}
-              onChange={(e) => setContexto(e.target.value)}
-              placeholder="Ej: Las planchas de OSB de esta boleta son para el baño del piso 2"
-              rows={3}
-              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 resize-none placeholder-gray-300"
-            />
           </div>
 
           <button
