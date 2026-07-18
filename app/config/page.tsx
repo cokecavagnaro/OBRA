@@ -604,8 +604,8 @@ function ConfigContenido() {
 
           {/* Crear contraseña */}
           <div className="rounded-xl border border-gray-100 p-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Contraseña</p>
-            <p className="text-xs text-gray-400 mb-3">Si siempre entras con el link por correo, puedes crear una contraseña para no depender de él.</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Contraseña de acceso</p>
+            <p className="text-xs text-gray-400 mb-3">Acá defines la contraseña con la que vas a entrar la próxima vez. Si es tu primer ingreso, créala ahora; si ya tenías una, puedes cambiarla cuando quieras.</p>
             <div className="space-y-2">
               <input
                 type="password"
