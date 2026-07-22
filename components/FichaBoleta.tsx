@@ -202,7 +202,10 @@ export default function FichaBoleta({
           </div>
         </div>
 
-        <div className="overflow-y-auto flex-1">
+        <div
+          className="overflow-y-auto flex-1"
+          style={!puedoEditar ? { paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px) + 64px)' } : undefined}
+        >
           {gasto.imagen_url ? (
             <img src={gasto.imagen_url} alt={gasto.proveedor} className="w-full" />
           ) : (
@@ -306,10 +309,16 @@ export default function FichaBoleta({
                 )}
               </div>
             )}
+          </div>
+        </div>
 
-            {/* Acciones del aprobador */}
+        {puedoEditar && (
+          <div
+            className="px-4 pt-3 border-t border-gray-100 shrink-0 space-y-3"
+            style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px) + 64px)' }}
+          >
             {puedoResolver && (
-              <div className="space-y-2 pt-1">
+              <div className="space-y-2">
                 {rechazando ? (
                   <div className="space-y-2 bg-red-50 rounded-lg p-3">
                     <textarea
@@ -333,9 +342,8 @@ export default function FichaBoleta({
               </div>
             )}
 
-            {/* Acciones del dueño sobre su boleta rechazada */}
             {puedoGestionarRechazo && (
-              <div className="space-y-2 pt-1">
+              <div className="space-y-2">
                 <input
                   value={comentarioReenvio}
                   onChange={(e) => setComentarioReenvio(e.target.value)}
@@ -359,7 +367,7 @@ export default function FichaBoleta({
               </div>
             )}
           </div>
-        </div>
+        )}
       </div>
 
       {itemEditando && (
