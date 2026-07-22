@@ -374,8 +374,9 @@ export default function Scan() {
           ? items.map((x, idx) => idx === itemActual && !x.etiquetas.includes(t) ? { ...x, etiquetas: [...x.etiquetas, t] } : x)
           : items
 
+        if (!usuarioActual) return
         let imagenUrl = imagenDataUrl
-        if (fileSeleccionadoRef.current && usuarioActual) {
+        if (fileSeleccionadoRef.current) {
           const url = await subirImagenBoleta(usuarioActual.cuenta_id, proyecto.id, fileSeleccionadoRef.current)
           if (url) imagenUrl = url
         }
@@ -386,11 +387,13 @@ export default function Scan() {
           fecha_boleta: fecha,
           total: totalBoleta || itemsFinal.reduce((s, i) => s + i.subtotal, 0),
           contexto_boleta: '',
-          creado_por_email: usuarioActual?.email ?? null,
+          creado_por_email: usuarioActual.email,
           comentario: comentario.trim() || null,
           interpretacion_precios: modoManual ? 'bruto' : interpretacionPrecios,
           descuento_general_monto: modoManual ? null : descuentoGeneralMonto,
           descuento_general_descripcion: modoManual ? null : descuentoGeneralDescripcion,
+          solicitante_id: usuarioActual.id,
+          solicitante_rol: usuarioActual.rol,
           imagen_url: imagenUrl,
           items: itemsFinal.map((i) => ({
             descripcion: i.descripcion,
@@ -962,9 +965,9 @@ export default function Scan() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  Guardando...
+                  {usuarioActual?.rol === 'usuario' ? 'Enviando...' : 'Guardando...'}
                 </>
-              ) : esUltimo ? 'Guardar boleta' : 'Siguiente'}
+              ) : esUltimo ? (usuarioActual?.rol === 'usuario' ? 'Enviar a aprobación' : 'Guardar boleta') : 'Siguiente'}
             </button>
           </div>
 

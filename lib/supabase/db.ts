@@ -1,7 +1,8 @@
 import { createClient } from './client'
 import { normalizarDescripcion } from '../aprendizaje'
 import { determinarInterpretacion, calcularNetoBruto, type InterpretacionPrecio } from '../confianzaDocumento'
-import type { Proyecto, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta, EstadoItem } from '../types'
+import { formatCLP } from '../mock'
+import type { Proyecto, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta, EstadoItem, RolUsuario, GastoEvento, Notificacion } from '../types'
 import type { PermisoKey } from '../permisos'
 
 // ---- Usuarios / cuenta ----
@@ -152,6 +153,10 @@ export async function deleteProyecto(proyecto: Proyecto): Promise<boolean> {
     await supabase.from('items_gasto').delete().in('gasto_id', gastoIds)
     await supabase.from('gastos').delete().in('id', gastoIds)
   }
+  // gasto_eventos tiene fk con cascade en proyecto_id (a diferencia de
+  // item_gasto_eventos/items_gasto/gastos, ver comentario arriba), pero se
+  // limpia igual acá por consistencia con la paranoia ya documentada.
+  await supabase.from('gasto_eventos').delete().eq('proyecto_id', proyecto.id)
 
   await supabase.from('partidas').delete().eq('proyecto_id', proyecto.id)
   await supabase.from('etapas').delete().eq('proyecto_id', proyecto.id)
@@ -208,7 +213,22 @@ export async function updatePartidaPresupuesto(id: string, presupuesto: number |
 
 // ---- Gastos ----
 
-function mapGastoRow(g: Record<string, unknown>): Gasto {
+// gasto_eventos.gasto_id no tiene fk a propósito (ver migración 017: el
+// evento 'eliminada' debe sobrevivir al borrado de su propia boleta), así
+// que PostgREST no puede embeberla automáticamente vía gasto_eventos(*) —
+// se trae en una query aparte y se agrupa acá.
+function agruparEventosPorGasto(eventos: GastoEvento[]): Map<string, GastoEvento[]> {
+  const mapa = new Map<string, GastoEvento[]>()
+  for (const ev of eventos) {
+    if (!ev.gasto_id) continue
+    const lista = mapa.get(ev.gasto_id) ?? []
+    lista.push(ev)
+    mapa.set(ev.gasto_id, lista)
+  }
+  return mapa
+}
+
+function mapGastoRow(g: Record<string, unknown>, historialAprobacion: GastoEvento[] = []): Gasto {
   return {
     ...g,
     etapa_id: '',
@@ -222,30 +242,40 @@ function mapGastoRow(g: Record<string, unknown>): Gasto {
       etiquetas: (i.etiquetas as string[]) ?? [],
     })),
     eventos: (g.item_gasto_eventos as Record<string, unknown>[]) ?? [],
+    historial_aprobacion: historialAprobacion.slice().sort((a, b) => a.created_at.localeCompare(b.created_at)),
   } as unknown as Gasto
 }
 
 export async function getGastos(proyecto_id: string): Promise<Gasto[]> {
   const supabase = createClient()
-  const { data } = await supabase
-    .from('gastos')
-    .select('*, items_gasto(*), item_gasto_eventos(*)')
-    .eq('proyecto_id', proyecto_id)
-    .order('created_at', { ascending: false })
+  const [{ data, error }, { data: eventosData }] = await Promise.all([
+    supabase
+      .from('gastos')
+      .select('*, items_gasto(*), item_gasto_eventos(*)')
+      .eq('proyecto_id', proyecto_id)
+      .order('created_at', { ascending: false }),
+    supabase.from('gasto_eventos').select('*').eq('proyecto_id', proyecto_id),
+  ])
 
+  if (error) console.error('getGastos:', error)
   if (!data) return []
-  return data.map(mapGastoRow)
+  const eventosPorGasto = agruparEventosPorGasto((eventosData ?? []) as GastoEvento[])
+  return data.map((g) => mapGastoRow(g, eventosPorGasto.get(g.id as string) ?? []))
 }
 
 export async function getAllGastos(): Promise<Gasto[]> {
   const supabase = createClient()
-  const { data } = await supabase
-    .from('gastos')
-    .select('*, items_gasto(*), item_gasto_eventos(*)')
-    .order('created_at', { ascending: false })
+  const [{ data }, { data: eventosData }] = await Promise.all([
+    supabase
+      .from('gastos')
+      .select('*, items_gasto(*), item_gasto_eventos(*)')
+      .order('created_at', { ascending: false }),
+    supabase.from('gasto_eventos').select('*'),
+  ])
 
   if (!data) return []
-  return data.map(mapGastoRow)
+  const eventosPorGasto = agruparEventosPorGasto((eventosData ?? []) as GastoEvento[])
+  return data.map((g) => mapGastoRow(g, eventosPorGasto.get(g.id as string) ?? []))
 }
 
 // Recalcula gastos.total sumando el bruto real de los ítems que quedan en la
@@ -361,6 +391,239 @@ export async function subirImagenBoleta(cuentaId: string, proyectoId: string, bl
   return data.publicUrl
 }
 
+// ---- Flujo de aprobación de boletas ----
+
+async function logGastoEvento(params: {
+  gasto_id: string | null
+  proyecto_id: string
+  gasto_proveedor: string
+  gasto_total: number
+  accion: GastoEvento['accion']
+  estado_anterior?: string | null
+  estado_nuevo?: string | null
+  comentario?: string | null
+}): Promise<void> {
+  const supabase = createClient()
+  const usuarioActual = await getUsuarioActual()
+  await supabase.from('gasto_eventos').insert({
+    gasto_id: params.gasto_id,
+    proyecto_id: params.proyecto_id,
+    gasto_proveedor: params.gasto_proveedor,
+    gasto_total: params.gasto_total,
+    accion: params.accion,
+    estado_anterior: params.estado_anterior ?? null,
+    estado_nuevo: params.estado_nuevo ?? null,
+    comentario: params.comentario ?? null,
+    usuario_id: usuarioActual?.id ?? null,
+    usuario_email: usuarioActual?.email ?? '',
+  })
+}
+
+// Delega a una API route con service role: un solicitante común no puede
+// leer las filas de OTROS usuarios de su cuenta bajo RLS (migración 006,
+// reservado a admin/super_admin), así que resolver "quién puede aprobar" y
+// notificarlo no se puede hacer con el cliente autenticado normal.
+async function notificarAprobadores(gastoId: string, proveedor: string, total: number): Promise<void> {
+  try {
+    await fetch('/api/solicitar-aprobacion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gasto_id: gastoId, proveedor, total }),
+    })
+  } catch (err) {
+    console.error('notificarAprobadores:', err)
+  }
+}
+
+async function notificarSolicitante(gasto: { solicitante_id: string | null; proyecto_id: string; proveedor: string; total: number }, tipo: 'boleta_aprobada' | 'boleta_rechazada'): Promise<void> {
+  if (!gasto.solicitante_id) return
+  const supabase = createClient()
+  const { data: proyecto } = await supabase.from('proyectos').select('cuenta_id').eq('id', gasto.proyecto_id).single()
+  if (!proyecto?.cuenta_id) return
+  const mensaje = tipo === 'boleta_aprobada'
+    ? `Tu boleta de ${gasto.proveedor} (${formatCLP(gasto.total)}) fue aprobada`
+    : `Tu boleta de ${gasto.proveedor} (${formatCLP(gasto.total)}) fue rechazada`
+  await supabase.from('notificaciones').insert({
+    usuario_id: gasto.solicitante_id,
+    cuenta_id: proyecto.cuenta_id,
+    tipo,
+    gasto_id: null,
+    mensaje,
+  })
+}
+
+// Solo uno de varios aprobadores puede resolver una boleta: el guard
+// .eq('estado_aprobacion', 'pendiente') hace que, si dos aprobadores actúan
+// casi al mismo tiempo, el segundo update no afecte ninguna fila.
+export async function aprobarBoleta(gastoId: string): Promise<{ ok: boolean; yaResuelta?: boolean }> {
+  const supabase = createClient()
+  const usuarioActual = await getUsuarioActual()
+  if (!usuarioActual) return { ok: false }
+
+  const { data, error } = await supabase
+    .from('gastos')
+    .update({
+      estado_aprobacion: 'aprobado',
+      aprobado_por_id: usuarioActual.id,
+      aprobado_por_email: usuarioActual.email,
+      fecha_resolucion: new Date().toISOString(),
+      motivo_rechazo: null,
+    })
+    .eq('id', gastoId)
+    .eq('estado_aprobacion', 'pendiente')
+    .select('id, proyecto_id, proveedor, total, solicitante_id')
+    .maybeSingle()
+
+  if (error) {
+    console.error('aprobarBoleta:', error)
+    return { ok: false }
+  }
+  if (!data) return { ok: false, yaResuelta: true }
+
+  await logGastoEvento({
+    gasto_id: data.id,
+    proyecto_id: data.proyecto_id,
+    gasto_proveedor: data.proveedor,
+    gasto_total: data.total,
+    accion: 'aprobada',
+    estado_anterior: 'pendiente',
+    estado_nuevo: 'aprobado',
+  })
+  await notificarSolicitante(data, 'boleta_aprobada')
+  return { ok: true }
+}
+
+export async function rechazarBoleta(gastoId: string, motivo: string): Promise<{ ok: boolean; yaResuelta?: boolean }> {
+  const supabase = createClient()
+  const usuarioActual = await getUsuarioActual()
+  if (!usuarioActual || !motivo.trim()) return { ok: false }
+
+  const { data, error } = await supabase
+    .from('gastos')
+    .update({
+      estado_aprobacion: 'rechazado',
+      aprobado_por_id: usuarioActual.id,
+      aprobado_por_email: usuarioActual.email,
+      fecha_resolucion: new Date().toISOString(),
+      motivo_rechazo: motivo.trim(),
+    })
+    .eq('id', gastoId)
+    .eq('estado_aprobacion', 'pendiente')
+    .select('id, proyecto_id, proveedor, total, solicitante_id')
+    .maybeSingle()
+
+  if (error) {
+    console.error('rechazarBoleta:', error)
+    return { ok: false }
+  }
+  if (!data) return { ok: false, yaResuelta: true }
+
+  await logGastoEvento({
+    gasto_id: data.id,
+    proyecto_id: data.proyecto_id,
+    gasto_proveedor: data.proveedor,
+    gasto_total: data.total,
+    accion: 'rechazada',
+    estado_anterior: 'pendiente',
+    estado_nuevo: 'rechazado',
+    comentario: motivo.trim(),
+  })
+  await notificarSolicitante(data, 'boleta_rechazada')
+  return { ok: true }
+}
+
+// Solo el dueño de la boleta reenvía la suya (chequeado en la UI); el guard
+// .eq('estado_aprobacion', 'rechazado') evita reenviar una que ya no lo está.
+export async function reenviarBoleta(gastoId: string, comentario?: string): Promise<{ ok: boolean }> {
+  const supabase = createClient()
+  const usuarioActual = await getUsuarioActual()
+  if (!usuarioActual) return { ok: false }
+
+  const { data, error } = await supabase
+    .from('gastos')
+    .update({
+      estado_aprobacion: 'pendiente',
+      fecha_solicitud: new Date().toISOString(),
+      fecha_resolucion: null,
+      motivo_rechazo: null,
+      aprobado_por_id: null,
+      aprobado_por_email: null,
+    })
+    .eq('id', gastoId)
+    .eq('estado_aprobacion', 'rechazado')
+    .select('id, proyecto_id, proveedor, total')
+    .maybeSingle()
+
+  if (error || !data) {
+    console.error('reenviarBoleta:', error)
+    return { ok: false }
+  }
+
+  await logGastoEvento({
+    gasto_id: data.id,
+    proyecto_id: data.proyecto_id,
+    gasto_proveedor: data.proveedor,
+    gasto_total: data.total,
+    accion: 'reenviada',
+    estado_anterior: 'rechazado',
+    estado_nuevo: 'pendiente',
+    comentario,
+  })
+
+  await notificarAprobadores(data.id, data.proveedor, data.total)
+  return { ok: true }
+}
+
+// Editor de campos de la boleta (no de ítems) — usado tanto por el aprobador
+// (antes de aprobar) como por el dueño (antes de reenviar tras un rechazo).
+export async function updateGastoDatos(
+  gastoId: string,
+  cambios: { proveedor?: string; rut_proveedor?: string; fecha_boleta?: string },
+  comentario?: string
+): Promise<{ ok: boolean }> {
+  const supabase = createClient()
+  const { data: gastoActual } = await supabase.from('gastos').select('proyecto_id, proveedor, total').eq('id', gastoId).single()
+  if (!gastoActual) return { ok: false }
+
+  const { error } = await supabase.from('gastos').update(cambios).eq('id', gastoId)
+  if (error) {
+    console.error('updateGastoDatos:', error)
+    return { ok: false }
+  }
+
+  await logGastoEvento({
+    gasto_id: gastoId,
+    proyecto_id: gastoActual.proyecto_id,
+    gasto_proveedor: cambios.proveedor ?? gastoActual.proveedor,
+    gasto_total: gastoActual.total,
+    accion: 'editada',
+    comentario,
+  })
+  return { ok: true }
+}
+
+// ---- Notificaciones ----
+
+export async function getNotificaciones(usuarioId: string): Promise<Notificacion[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('notificaciones')
+    .select('*')
+    .eq('usuario_id', usuarioId)
+    .order('created_at', { ascending: false })
+  return (data ?? []) as Notificacion[]
+}
+
+export async function marcarNotificacionLeida(id: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('notificaciones').update({ leida: true }).eq('id', id)
+}
+
+export async function marcarTodasNotificacionesLeidas(usuarioId: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('notificaciones').update({ leida: true }).eq('usuario_id', usuarioId).eq('leida', false)
+}
+
 export async function saveGasto(params: {
   proyecto_id: string
   proveedor: string
@@ -374,6 +637,8 @@ export async function saveGasto(params: {
   interpretacion_precios?: InterpretacionPrecio
   descuento_general_monto?: number | null
   descuento_general_descripcion?: string | null
+  solicitante_id: string
+  solicitante_rol: RolUsuario
   items: Array<{
     descripcion: string
     cantidad: number
@@ -400,6 +665,11 @@ export async function saveGasto(params: {
   const sumaItems = params.items.reduce((s, i) => s + (i.subtotal || 0), 0)
   const interpretacion = params.interpretacion_precios ?? determinarInterpretacion(sumaItems, totalValido)
 
+  // Solo un usuario sin rol admin/super_admin pasa por el flujo de
+  // aprobación — nunca hay autoaprobación para 'usuario'.
+  const requiereAprobacion = params.solicitante_rol === 'usuario'
+  const ahora = new Date().toISOString()
+
   const { data: gasto, error } = await supabase
     .from('gastos')
     .insert({
@@ -416,6 +686,9 @@ export async function saveGasto(params: {
       descuento_general_monto: params.descuento_general_monto || null,
       descuento_general_descripcion: params.descuento_general_descripcion || null,
       estado,
+      estado_aprobacion: requiereAprobacion ? 'pendiente' : 'aprobado',
+      solicitante_id: params.solicitante_id,
+      fecha_solicitud: requiereAprobacion ? ahora : null,
     })
     .select()
     .single()
@@ -423,6 +696,18 @@ export async function saveGasto(params: {
   if (error || !gasto) {
     console.error('Error saving gasto:', error)
     return null
+  }
+
+  if (requiereAprobacion) {
+    await logGastoEvento({
+      gasto_id: gasto.id,
+      proyecto_id: params.proyecto_id,
+      gasto_proveedor: gasto.proveedor,
+      gasto_total: gasto.total,
+      accion: 'solicitada',
+      estado_nuevo: 'pendiente',
+    })
+    await notificarAprobadores(gasto.id, gasto.proveedor, gasto.total)
   }
 
   if (params.items.length > 0) {
@@ -449,6 +734,12 @@ export async function saveGasto(params: {
 
 export async function deleteGasto(id: string): Promise<boolean> {
   const supabase = createClient()
+  const { data: gastoActual } = await supabase
+    .from('gastos')
+    .select('proyecto_id, proveedor, total, estado_aprobacion')
+    .eq('id', id)
+    .single()
+
   const { error: errorItems } = await supabase.from('items_gasto').delete().eq('gasto_id', id)
   if (errorItems) {
     console.error('deleteGasto (items):', errorItems)
@@ -458,6 +749,17 @@ export async function deleteGasto(id: string): Promise<boolean> {
   if (error) {
     console.error('deleteGasto:', error)
     return false
+  }
+
+  if (gastoActual) {
+    await logGastoEvento({
+      gasto_id: id,
+      proyecto_id: gastoActual.proyecto_id,
+      gasto_proveedor: gastoActual.proveedor,
+      gasto_total: gastoActual.total,
+      accion: 'eliminada',
+      estado_anterior: gastoActual.estado_aprobacion,
+    })
   }
   return true
 }

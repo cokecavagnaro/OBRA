@@ -8,6 +8,7 @@ import { tienePermiso } from '@/lib/permisos'
 import { determinarInterpretacion, calcularNetoBruto, descuentoDeItem } from '@/lib/confianzaDocumento'
 import * as XLSX from 'xlsx'
 import ClasificacionModal from '@/components/ClasificacionModal'
+import FichaBoleta from '@/components/FichaBoleta'
 import type { Proyecto, Etapa, Partida, Gasto, ItemGasto, Usuario, PermissionOverride } from '@/lib/types'
 
 export default function ProyectoDetalle() {
@@ -67,12 +68,14 @@ export default function ProyectoDetalle() {
     </div>
   )
 
-  const totalProyecto = gastos.reduce((s, g) => s + g.total, 0)
-  const ivaProyecto = gastos.reduce((s, g) => s + (g.items ?? []).reduce((si, i) => si + netoBrutoDeItem(i, g).iva, 0), 0)
+  const gastosAprobados = gastos.filter((g) => g.estado_aprobacion === 'aprobado')
+  const totalProyecto = gastosAprobados.reduce((s, g) => s + g.total, 0)
+  const ivaProyecto = gastosAprobados.reduce((s, g) => s + (g.items ?? []).reduce((si, i) => si + netoBrutoDeItem(i, g).iva, 0), 0)
   const pendientesCount = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
+  const porAprobarCount = gastos.filter((g) => g.estado_aprobacion === 'pendiente').length
 
   function gastoDeItems(filtro: (i: ItemGasto) => boolean): number {
-    return gastos.reduce((s, g) => s + (g.items ?? []).filter(filtro).reduce((si, i) => si + netoBrutoDeItem(i, g).bruto, 0), 0)
+    return gastosAprobados.reduce((s, g) => s + (g.items ?? []).filter(filtro).reduce((si, i) => si + netoBrutoDeItem(i, g).bruto, 0), 0)
   }
 
   const partidasDisponibles = filtroEtapa
@@ -125,6 +128,14 @@ export default function ProyectoDetalle() {
       })
     )
     setItemEditando(null)
+  }
+
+  function handleGastoActualizadoDesdeFicha(gastoActualizado: Gasto) {
+    setGastos((prev) => prev.map((g) => g.id === gastoActualizado.id ? gastoActualizado : g))
+  }
+
+  function handleGastoEliminadoDesdeFicha(gastoId: string) {
+    setGastos((prev) => prev.filter((g) => g.id !== gastoId))
   }
 
   async function handleEliminarGasto(gastoId: string) {
@@ -190,11 +201,18 @@ export default function ProyectoDetalle() {
             <h1 className="text-lg font-bold text-gray-900 truncate">{proyecto.nombre}</h1>
             <p className="text-xs text-gray-400">{gastos.length} boleta{gastos.length !== 1 ? 's' : ''}</p>
           </div>
-          {pendientesCount > 0 && (
-            <span className="bg-amber-100 text-amber-700 text-[10px] font-medium px-2 py-1 rounded-full shrink-0">
-              ⚠ {pendientesCount} pendiente{pendientesCount > 1 ? 's' : ''}
-            </span>
-          )}
+          <div className="flex flex-col gap-1 items-end shrink-0">
+            {pendientesCount > 0 && (
+              <span className="bg-amber-100 text-amber-700 text-[10px] font-medium px-2 py-1 rounded-full">
+                ⚠ {pendientesCount} sin etiquetar
+              </span>
+            )}
+            {porAprobarCount > 0 && (
+              <span className="bg-amber-100 text-amber-700 text-[10px] font-medium px-2 py-1 rounded-full">
+                🕓 {porAprobarCount} por aprobar
+              </span>
+            )}
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
@@ -230,7 +248,19 @@ export default function ProyectoDetalle() {
             Boletas escaneadas ({gastos.length})
           </p>
           <div className="grid grid-cols-3 gap-2">
-            {gastos.map((g) => <GaleriaThumbnail key={g.id} gasto={g} />)}
+            {gastos.map((g) => (
+              <GaleriaThumbnail
+                key={g.id}
+                gasto={g}
+                usuarioActual={usuarioActual}
+                overrides={overrides}
+                etapas={etapas}
+                partidas={partidas}
+                etiquetasSugeridas={etiquetasUnicas}
+                onActualizado={handleGastoActualizadoDesdeFicha}
+                onEliminado={handleGastoEliminadoDesdeFicha}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -581,24 +611,40 @@ export default function ProyectoDetalle() {
   )
 }
 
-async function descargarImagen(url: string, nombreArchivo: string) {
-  const res = await fetch(url)
-  const blob = await res.blob()
-  const objectUrl = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = objectUrl
-  a.download = nombreArchivo
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(objectUrl)
+const BADGE_ESTADO_THUMB: Record<string, string> = {
+  pendiente: 'bg-amber-400 text-white',
+  rechazado: 'bg-red-500 text-white',
 }
+const LABEL_ESTADO_THUMB: Record<string, string> = { pendiente: 'Pendiente', rechazado: 'Rechazada' }
 
-function GaleriaThumbnail({ gasto }: { gasto: Gasto }) {
+function GaleriaThumbnail({
+  gasto,
+  usuarioActual,
+  overrides,
+  etapas,
+  partidas,
+  etiquetasSugeridas,
+  onActualizado,
+  onEliminado,
+}: {
+  gasto: Gasto
+  usuarioActual: Usuario | null
+  overrides: PermissionOverride[]
+  etapas: Etapa[]
+  partidas: Partida[]
+  etiquetasSugeridas: string[]
+  onActualizado: (gasto: Gasto) => void
+  onEliminado: (gastoId: string) => void
+}) {
   const [expandido, setExpandido] = useState(false)
   return (
     <>
-      <button onClick={() => setExpandido(true)} className="rounded-xl overflow-hidden border border-gray-100 text-left w-full">
+      <button onClick={() => setExpandido(true)} className="relative rounded-xl overflow-hidden border border-gray-100 text-left w-full">
+        {gasto.estado_aprobacion !== 'aprobado' && (
+          <span className={`absolute top-1 left-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full z-10 ${BADGE_ESTADO_THUMB[gasto.estado_aprobacion]}`}>
+            {LABEL_ESTADO_THUMB[gasto.estado_aprobacion]}
+          </span>
+        )}
         {gasto.imagen_url ? (
           <img src={gasto.imagen_url} alt={gasto.proveedor} className="w-full h-16 object-cover" />
         ) : (
@@ -610,55 +656,17 @@ function GaleriaThumbnail({ gasto }: { gasto: Gasto }) {
         </div>
       </button>
       {expandido && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={() => setExpandido(false)}>
-          <div className="bg-white rounded-t-2xl w-full max-w-[390px] flex flex-col" style={{ maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 shrink-0">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{gasto.proveedor}</p>
-                <p className="text-xs text-gray-400 mt-0.5">RUT {gasto.rut_proveedor} · {gasto.fecha_boleta}</p>
-                {gasto.descuento_general_monto ? (
-                  <div className="mt-1">
-                    <p className="text-xs text-gray-400">Subtotal antes de descuento: {formatCLP(gasto.total + gasto.descuento_general_monto)}</p>
-                    <p className="text-xs text-gray-400">
-                      Descuento: -{formatCLP(gasto.descuento_general_monto)}
-                      {gasto.descuento_general_descripcion ? ` (${gasto.descuento_general_descripcion})` : ''}
-                    </p>
-                    <p className="text-base font-bold text-gray-900 mt-0.5">Total pagado: {formatCLP(gasto.total)}</p>
-                  </div>
-                ) : (
-                  <p className="text-base font-bold text-gray-900 mt-1">{formatCLP(gasto.total)}</p>
-                )}
-                {gasto.creado_por_email && (
-                  <p className="text-[10px] text-gray-400 mt-1">Registrado por {gasto.creado_por_email}</p>
-                )}
-                {gasto.comentario && (
-                  <p className="text-xs text-gray-500 italic mt-1">💬 {gasto.comentario}</p>
-                )}
-              </div>
-              <div className="flex flex-col gap-2 items-end shrink-0 ml-3">
-                {gasto.imagen_url && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); descargarImagen(gasto.imagen_url!, `boleta-${gasto.proveedor}.jpg`) }}
-                    className="flex items-center gap-1 bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Descargar
-                  </button>
-                )}
-                <button onClick={() => setExpandido(false)} className="text-xs text-gray-400 px-3 py-1.5 border border-gray-200 rounded-lg">Cerrar</button>
-              </div>
-            </div>
-            <div className="overflow-y-auto flex-1">
-              {gasto.imagen_url ? (
-                <img src={gasto.imagen_url} alt={gasto.proveedor} className="w-full" />
-              ) : (
-                <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-5xl">🧾</div>
-              )}
-            </div>
-          </div>
-        </div>
+        <FichaBoleta
+          gasto={gasto}
+          usuarioActual={usuarioActual}
+          overrides={overrides}
+          etapas={etapas}
+          partidas={partidas}
+          etiquetasSugeridas={etiquetasSugeridas}
+          onActualizado={onActualizado}
+          onEliminado={(gastoId) => { onEliminado(gastoId); setExpandido(false) }}
+          onCerrar={() => setExpandido(false)}
+        />
       )}
     </>
   )

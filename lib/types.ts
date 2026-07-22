@@ -4,6 +4,7 @@ export type Moneda = 'CLP' | 'UF'
 export type RolUsuario = 'super_admin' | 'admin' | 'usuario'
 export type EstadoGasto = 'confirmado' | 'pendiente'
 export type EstadoItem = 'confirmado' | 'pendiente' | 'rechazado'
+export type EstadoAprobacion = 'pendiente' | 'aprobado' | 'rechazado'
 
 export interface Cuenta {
   id: string
@@ -85,6 +86,14 @@ export interface Gasto {
   descuento_general_monto?: number | null
   descuento_general_descripcion?: string | null
   estado: EstadoGasto
+  // flujo de aprobación
+  estado_aprobacion: EstadoAprobacion
+  solicitante_id: string | null
+  aprobado_por_id: string | null
+  aprobado_por_email: string | null
+  fecha_solicitud: string | null
+  fecha_resolucion: string | null
+  motivo_rechazo: string | null
   created_at: string
   // relaciones expandidas
   proyecto?: Proyecto
@@ -92,6 +101,33 @@ export interface Gasto {
   partida?: Partida
   items?: ItemGasto[]
   eventos?: ItemGastoEvento[]
+  historial_aprobacion?: GastoEvento[]
+}
+
+export interface GastoEvento {
+  id: string
+  gasto_id: string | null
+  proyecto_id: string
+  gasto_proveedor: string
+  gasto_total: number
+  accion: 'solicitada' | 'editada' | 'aprobada' | 'rechazada' | 'reenviada' | 'eliminada'
+  estado_anterior: string | null
+  estado_nuevo: string | null
+  comentario: string | null
+  usuario_id: string | null
+  usuario_email: string
+  created_at: string
+}
+
+export interface Notificacion {
+  id: string
+  usuario_id: string
+  cuenta_id: string
+  tipo: 'solicitud_aprobacion' | 'boleta_aprobada' | 'boleta_rechazada'
+  gasto_id: string | null
+  mensaje: string
+  leida: boolean
+  created_at: string
 }
 
 export interface ItemGastoEvento {

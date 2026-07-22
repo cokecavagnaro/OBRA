@@ -29,12 +29,12 @@ export default function Inicio() {
   const nombreUsuario = usuario?.nombre?.trim() || usuario?.email?.split('@')[0] || ''
 
   const pendientesCount = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
-  const totalGlobal = gastos.reduce((s, g) => s + g.total, 0)
+  const totalGlobal = gastos.filter((g) => g.estado_aprobacion === 'aprobado').reduce((s, g) => s + g.total, 0)
   const totalBoletas = gastos.length
 
   const proyectosConTotales = proyectos.map((proyecto) => {
     const gastosProyecto = gastos.filter((g) => g.proyecto_id === proyecto.id)
-    const total = gastosProyecto.reduce((s, g) => s + g.total, 0)
+    const total = gastosProyecto.filter((g) => g.estado_aprobacion === 'aprobado').reduce((s, g) => s + g.total, 0)
     const boletas = gastosProyecto.length
     const pendientes = gastosProyecto.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
     return { ...proyecto, total, boletas, pendientes }

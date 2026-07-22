@@ -3,34 +3,58 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { getAllGastos } from '@/lib/supabase/db'
+import { getAllGastos, getUsuarioActual, getPermisosOverrides, getNotificaciones } from '@/lib/supabase/db'
+import { tienePermiso } from '@/lib/permisos'
+import type { PermissionOverride } from '@/lib/types'
 
 const tabs = [
   { href: '/', label: 'Inicio', icon: HomeIcon },
   { href: '/scan', label: 'Escanear', icon: CameraIcon },
   { href: '/pendientes', label: 'Pendientes', icon: ClockIcon },
+  { href: '/aprobaciones', label: 'Aprobar', icon: CheckIcon },
+  { href: '/notificaciones', label: 'Avisos', icon: BellIcon },
 ]
 
 export default function BottomNav() {
   const pathname = usePathname()
   const [pendientes, setPendientes] = useState(0)
+  const [porAprobar, setPorAprobar] = useState(0)
+  const [avisos, setAvisos] = useState(0)
 
   useEffect(() => {
     if (pathname === '/login' || pathname.startsWith('/auth')) return
-    getAllGastos().then((gastos) => {
-      const count = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
-      setPendientes(count)
+
+    getUsuarioActual().then(async (usuario) => {
+      if (!usuario) return
+      const overrides: PermissionOverride[] = await getPermisosOverrides(usuario.id)
+      const esAprobador = tienePermiso(usuario, overrides, 'approve_boletas')
+
+      const [gastos, notificaciones] = await Promise.all([getAllGastos(), getNotificaciones(usuario.id)])
+
+      setPendientes(gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length)
+      setPorAprobar(
+        esAprobador
+          ? gastos.filter((g) => g.estado_aprobacion === 'pendiente').length
+          : gastos.filter((g) => g.estado_aprobacion === 'rechazado' && g.solicitante_id === usuario.id).length
+      )
+      setAvisos(notificaciones.filter((n) => !n.leida).length)
     })
   }, [pathname])
 
   if (pathname === '/login' || pathname.startsWith('/auth')) return null
 
+  const badges: Record<string, number> = {
+    '/pendientes': pendientes,
+    '/aprobaciones': porAprobar,
+    '/notificaciones': avisos,
+  }
+
   return (
     <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] bg-white border-t border-gray-200 z-50">
-      <div className="flex items-center justify-around h-16 px-2">
+      <div className="flex items-center justify-around h-16 px-1">
         {tabs.map(({ href, label, icon: Icon }) => {
           const active = pathname === href
-          const isPendientes = href === '/pendientes'
+          const badge = badges[href] ?? 0
           return (
             <Link
               key={href}
@@ -40,14 +64,14 @@ export default function BottomNav() {
               }`}
             >
               <div className="relative">
-                <Icon className="w-6 h-6" />
-                {isPendientes && pendientes > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-amber-400 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                    {pendientes > 9 ? '9+' : pendientes}
+                <Icon className="w-5 h-5" />
+                {badge > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-amber-400 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {badge > 9 ? '9+' : badge}
                   </span>
                 )}
               </div>
-              <span className="text-[10px] font-medium">{label}</span>
+              <span className="text-[9px] font-medium">{label}</span>
             </Link>
           )
         })}
@@ -77,6 +101,22 @@ function ClockIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+
+function BellIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
     </svg>
   )
 }
