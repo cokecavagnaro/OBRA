@@ -1,7 +1,6 @@
 import { createClient } from './client'
 import { normalizarDescripcion } from '../aprendizaje'
 import { determinarInterpretacion, calcularNetoBruto, type InterpretacionPrecio } from '../confianzaDocumento'
-import { formatCLP } from '../mock'
 import type { Proyecto, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta, EstadoItem, RolUsuario, GastoEvento, Notificacion } from '../types'
 import type { PermisoKey } from '../permisos'
 
@@ -435,21 +434,22 @@ async function notificarAprobadores(gastoId: string, proveedor: string, total: n
   }
 }
 
-async function notificarSolicitante(gasto: { solicitante_id: string | null; proyecto_id: string; proveedor: string; total: number }, tipo: 'boleta_aprobada' | 'boleta_rechazada'): Promise<void> {
-  if (!gasto.solicitante_id) return
-  const supabase = createClient()
-  const { data: proyecto } = await supabase.from('proyectos').select('cuenta_id').eq('id', gasto.proyecto_id).single()
-  if (!proyecto?.cuenta_id) return
-  const mensaje = tipo === 'boleta_aprobada'
-    ? `Tu boleta de ${gasto.proveedor} (${formatCLP(gasto.total)}) fue aprobada`
-    : `Tu boleta de ${gasto.proveedor} (${formatCLP(gasto.total)}) fue rechazada`
-  await supabase.from('notificaciones').insert({
-    usuario_id: gasto.solicitante_id,
-    cuenta_id: proyecto.cuenta_id,
-    tipo,
-    gasto_id: null,
-    mensaje,
-  })
+// Notifica al solicitante que su boleta fue resuelta. Delega a una API route
+// server-side (igual que notificarAprobadores): la RLS de `notificaciones`
+// exige `usuario_id = auth.uid()` en el insert (migración 019), así que un
+// cliente autenticado normal no puede crear un aviso dirigido a otra
+// persona — el tipo/mensaje se derivan server-side del estado real del
+// gasto, no de lo que mande este cliente.
+async function notificarSolicitante(gastoId: string): Promise<void> {
+  try {
+    await fetch('/api/notificar-solicitante', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gasto_id: gastoId }),
+    })
+  } catch (err) {
+    console.error('notificarSolicitante:', err)
+  }
 }
 
 // Solo uno de varios aprobadores puede resolver una boleta: el guard
@@ -489,7 +489,7 @@ export async function aprobarBoleta(gastoId: string): Promise<{ ok: boolean; yaR
     estado_anterior: 'pendiente',
     estado_nuevo: 'aprobado',
   })
-  await notificarSolicitante(data, 'boleta_aprobada')
+  await notificarSolicitante(data.id)
   return { ok: true }
 }
 
@@ -528,7 +528,7 @@ export async function rechazarBoleta(gastoId: string, motivo: string): Promise<{
     estado_nuevo: 'rechazado',
     comentario: motivo.trim(),
   })
-  await notificarSolicitante(data, 'boleta_rechazada')
+  await notificarSolicitante(data.id)
   return { ok: true }
 }
 
