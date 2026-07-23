@@ -5,11 +5,20 @@ export const FACTOR_IVA = 1.19
 
 export type InterpretacionPrecio = 'neto' | 'bruto'
 
+// De dónde salió la decisión bruto/neto — para poder auditarla y mostrarla,
+// en orden de confiabilidad decreciente (ver determinarInterpretacionConIva).
+export type FuenteInterpretacion = 'iva_impreso' | 'texto_ia' | 'cuadre_total' | 'default_bruto'
+
 export interface ResultadoCruce {
   suma_bruto: number
   diferencia: number
   cruce_valido: boolean
   interpretacion: InterpretacionPrecio
+}
+
+export interface ResultadoInterpretacionConIva {
+  interpretacion: InterpretacionPrecio
+  fuente: FuenteInterpretacion
 }
 
 // Decide, solo con aritmética, si los precios de esta boleta ya vienen en
@@ -18,15 +27,68 @@ export interface ResultadoCruce {
 // No depende de que la IA clasifique nada: distintas boletas usan distintas
 // convenciones (neto+IVA desglosado vs. bruto directo) y esto lo detecta caso
 // a caso.
+// NOTA: esta función queda como utilidad de comparación de bajo nivel (la
+// usa calcularCruce para VALIDAR un cuadre, no para decidir la interpretación
+// de una boleta) — la decisión real vive en determinarInterpretacionConIva.
 export function determinarInterpretacion(sumaExtraida: number, total: number): InterpretacionPrecio {
   const diferenciaComoNeto = Math.abs(total - sumaExtraida * FACTOR_IVA)
   const diferenciaComoBruto = Math.abs(total - sumaExtraida)
   return diferenciaComoNeto <= diferenciaComoBruto ? 'neto' : 'bruto'
 }
 
-export function calcularCruce(items: { subtotal: number }[], total: number): ResultadoCruce {
+// Tolerancia proporcional al monto: TOLERANCIA_CRUCE fijo como piso para
+// boletas chicas, hasta 0.5% del total en boletas grandes — evita exigir
+// cuadre-al-peso cuando el redondeo por línea se acumula en boletas con
+// muchos ítems.
+export function tolerancia(total: number): number {
+  return Math.max(TOLERANCIA_CRUCE, Math.round(Math.abs(total) * 0.005))
+}
+
+// Fuente de verdad para bruto/neto — jerarquía de 4 señales, de más a menos
+// confiable:
+//  1. IVA impreso explícito (dato real de la boleta, no una suposición del
+//     19%): si sumaExtraida cuadra con el neto implícito (total - iva) → neto;
+//     si cuadra con el total tal cual → bruto.
+//  2. Juicio textual de la IA (ya leyó la boleta buscando evidencia
+//     explícita) — se respeta tal cual, sin pisarlo con aritmética.
+//  3. Cuadre aritmético contra el total tal cual → bruto. Nunca concluye
+//     "neto" por esta vía: adivinar neto por distancia matemática (comparando
+//     contra suma×1.19) fue la causa raíz del bug de clasificación errónea.
+//  4. Sin ninguna evidencia → default duro a bruto.
+export function determinarInterpretacionConIva(
+  sumaExtraida: number,
+  total: number,
+  ivaImpreso: number | null | undefined,
+  interpretacionTextoIA?: InterpretacionPrecio
+): ResultadoInterpretacionConIva {
+  const tol = tolerancia(total)
+
+  if (typeof ivaImpreso === 'number' && ivaImpreso > 0) {
+    const netoReal = total - ivaImpreso
+    if (Math.abs(sumaExtraida - netoReal) <= tol) return { interpretacion: 'neto', fuente: 'iva_impreso' }
+    if (Math.abs(sumaExtraida - total) <= tol) return { interpretacion: 'bruto', fuente: 'iva_impreso' }
+    // iva_impreso existe pero ninguna hipótesis cuadra con la suma de ítems
+    // (ítem faltante/mal leído) — no decide con este dato, cae a la próxima señal.
+  }
+
+  if (interpretacionTextoIA === 'neto' || interpretacionTextoIA === 'bruto') {
+    return { interpretacion: interpretacionTextoIA, fuente: 'texto_ia' }
+  }
+
+  if (Math.abs(sumaExtraida - total) <= tol) {
+    return { interpretacion: 'bruto', fuente: 'cuadre_total' }
+  }
+
+  return { interpretacion: 'bruto', fuente: 'default_bruto' }
+}
+
+export function calcularCruce(
+  items: { subtotal: number }[],
+  total: number,
+  interpretacionForzada?: InterpretacionPrecio
+): ResultadoCruce {
   const sumaExtraida = items.reduce((acc, item) => acc + (item.subtotal ?? 0), 0)
-  const interpretacion = determinarInterpretacion(sumaExtraida, total)
+  const interpretacion = interpretacionForzada ?? determinarInterpretacion(sumaExtraida, total)
   const suma_bruto = interpretacion === 'neto' ? sumaExtraida * FACTOR_IVA : sumaExtraida
   const diferencia = Math.abs(total - suma_bruto)
   return { suma_bruto, diferencia, cruce_valido: diferencia <= TOLERANCIA_CRUCE, interpretacion }

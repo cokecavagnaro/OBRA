@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildContextoAprendizaje, aplicarAprendizajeDeterministico } from '@/lib/aprendizaje'
-import { calcularCruce, debeActivarFallback, esRazonablementeSimilar, aplicarDescuentoGeneral, type InterpretacionPrecio } from '@/lib/confianzaDocumento'
+import { calcularCruce, debeActivarFallback, esRazonablementeSimilar, aplicarDescuentoGeneral, determinarInterpretacionConIva, type InterpretacionPrecio, type FuenteInterpretacion } from '@/lib/confianzaDocumento'
 import { createClient as createServerSupabaseClient } from '@/lib/supabase/server'
 import type { ClasificacionAprendida, ItemAnalizado } from '@/lib/types'
 
@@ -60,6 +60,15 @@ Además, evalúa la calidad del documento completo y devuelve un objeto adiciona
   "documento": {
     "confianza_documento": número entre 0 y 1 (confianza global en la extracción completa, no solo un ítem),
     "calidad_imagen_percibida": número entre 0 y 1 (qué tan legible percibes la imagen),
+    "iva_impreso": monto de IVA (impuesto) tal como aparece IMPRESO en la boleta, en pesos chilenos (sin puntos ni símbolos) — número, o null si la boleta no imprime un monto de IVA explícito.
+      Las boletas de construcción en Chile varían mucho en formato; busca cualquiera de estos patrones u otros equivalentes:
+      - "IVA 19%: $XX.XXX", "I.V.A.: $XX.XXX", "IVA 19% - Impto. Incluido: $XX.XXX"
+      - Boletas electrónicas SII con desglose de tres líneas: "Monto Neto" / "IVA" / "Monto Total"
+      - "19% incluido: $XX.XXX", "Impuesto: $XX.XXX", "Imp. incluido $XX.XXX", "Total de Impuestos: $XX.XXX"
+      Reglas estrictas:
+      - Devuelve el monto EXACTO impreso. Nunca lo calcules tú mismo como 19% del neto o del total — si no ves una cifra de IVA impresa, es null.
+      - Si aparece la palabra "IVA" sin monto asociado (ej. solo "Precios incluyen IVA") → null.
+      - Boletas informales de ferretería sin desglose tributario → null. Es el caso normal, no un error.
     "interpretacion_precios": "neto" o "bruto" — lee la boleta buscando evidencia explícita (líneas como "Neto", "IVA 19%", "Subtotal", "Total" desglosados, o "IVA incluido"). Si los precios de los ítems NO incluyen IVA (hay que sumarles IVA para llegar al total) → "neto". Si los precios de los ítems YA incluyen IVA (son el monto final tal cual se paga) → "bruto". No lo calcules con aritmética — es una lectura de lo que la boleta dice o da a entender, no un cálculo.
     "descuento_general": {
       "aplica": true o false — true SOLO si la boleta tiene un descuento aplicado al TOTAL completo (ej. una línea "Descuento", "Dcto", "Rebaja" o "%" que aparece después de sumar los ítems y antes del total final, afectando a toda la compra). false si no hay descuento, o si el único descuento que existe está contenido dentro de una línea de ítem específica (eso ya se refleja en el subtotal de ese ítem, no acá).
@@ -106,21 +115,28 @@ Responde SOLO con JSON válido, sin texto adicional.`
     procesarDescuentoGeneral(resultadoOriginal)
 
     const confianzaOriginal: number = resultadoOriginal.documento?.confianza_documento ?? 0
-    const interpretacionIA = resultadoOriginal.documento?.interpretacion_precios
-    const { cruce_valido: cruceOriginalValido, interpretacion: interpretacionCalculada } = calcularCruce(resultadoOriginal.items ?? [], resultadoOriginal.total ?? 0)
-    // Si la IA leyó la boleta y dice una interpretación distinta a la que da
-    // el cruce aritmético, es una señal fuerte de que algo no cuadra — se
-    // suma como motivo de fallback además de confianza baja/cruce inválido.
-    const discrepanciaInterpretacion = interpretacionIA !== undefined && interpretacionIA !== interpretacionCalculada
+    const sumaOriginal = (resultadoOriginal.items ?? []).reduce((s: number, i: ItemAnalizado) => s + (i.subtotal ?? 0), 0)
+    const ivaImpresoOriginal = resultadoOriginal.documento?.iva_impreso ?? null
+    const { interpretacion: interpretacionDecidida, fuente: fuenteDecidida } = determinarInterpretacionConIva(
+      sumaOriginal,
+      resultadoOriginal.total ?? 0,
+      ivaImpresoOriginal,
+      resultadoOriginal.documento?.interpretacion_precios
+    )
+    // El cruce aritmético ahora VALIDA la decisión ya tomada (¿la suma de
+    // ítems cuadra con el total bajo esa interpretación?), no la reemplaza.
+    const { cruce_valido: cruceOriginalValido } = calcularCruce(resultadoOriginal.items ?? [], resultadoOriginal.total ?? 0, interpretacionDecidida)
 
     let resultadoFinal = resultadoOriginal
-    if (debeActivarFallback(confianzaOriginal, cruceOriginalValido) || discrepanciaInterpretacion) {
-      resultadoFinal = await ejecutarFallback(resultadoOriginal, userContent, systemPrompt)
+    if (debeActivarFallback(confianzaOriginal, cruceOriginalValido)) {
+      resultadoFinal = await ejecutarFallback(resultadoOriginal, interpretacionDecidida, fuenteDecidida, userContent, systemPrompt)
     } else {
       resultadoFinal.confianza_documento = confianzaOriginal
       resultadoFinal.verificado_por_reescritura = false
       resultadoFinal.requiere_atencion = false
-      resultadoFinal.interpretacion_precios = interpretacionCalculada
+      resultadoFinal.interpretacion_precios = interpretacionDecidida
+      resultadoFinal.iva_impreso = ivaImpresoOriginal
+      resultadoFinal.fuente_interpretacion = fuenteDecidida
     }
 
     if (Array.isArray(resultadoFinal.items)) {
@@ -142,12 +158,15 @@ interface ResultadoExtraccion {
     confianza_documento?: number
     calidad_imagen_percibida?: number
     interpretacion_precios?: InterpretacionPrecio
+    iva_impreso?: number | null
     descuento_general?: { aplica?: boolean; descripcion?: string | null }
   }
   confianza_documento?: number
   verificado_por_reescritura?: boolean
   requiere_atencion?: boolean
   interpretacion_precios?: InterpretacionPrecio
+  iva_impreso?: number | null
+  fuente_interpretacion?: FuenteInterpretacion
   descuento_general_monto?: number
   descuento_general_descripcion?: string | null
   [key: string]: unknown
@@ -167,6 +186,8 @@ function procesarDescuentoGeneral(resultado: ResultadoExtraccion): void {
 
 async function ejecutarFallback(
   resultadoOriginal: ResultadoExtraccion,
+  interpretacionOriginal: InterpretacionPrecio,
+  fuenteOriginal: FuenteInterpretacion,
   userContent: Anthropic.MessageParam['content'],
   systemPrompt: string
 ): Promise<ResultadoExtraccion> {
@@ -207,7 +228,16 @@ async function ejecutarFallback(
     const rawFallback = restructBlock.text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim()
     const resultadoFallback = JSON.parse(rawFallback)
     procesarDescuentoGeneral(resultadoFallback)
-    const { cruce_valido: cruceFallbackValido, interpretacion: interpretacionFallback } = calcularCruce(resultadoFallback.items ?? [], resultadoFallback.total ?? 0)
+
+    const sumaFallback = (resultadoFallback.items ?? []).reduce((s: number, i: ItemAnalizado) => s + (i.subtotal ?? 0), 0)
+    const ivaImpresoFallback = resultadoFallback.documento?.iva_impreso ?? null
+    const { interpretacion: interpretacionFallback, fuente: fuenteFallback } = determinarInterpretacionConIva(
+      sumaFallback,
+      resultadoFallback.total ?? 0,
+      ivaImpresoFallback,
+      resultadoFallback.documento?.interpretacion_precios
+    )
+    const { cruce_valido: cruceFallbackValido } = calcularCruce(resultadoFallback.items ?? [], resultadoFallback.total ?? 0, interpretacionFallback)
 
     if (cruceFallbackValido) {
       const similar = esRazonablementeSimilar(
@@ -215,21 +245,31 @@ async function ejecutarFallback(
         { proveedor: resultadoFallback.proveedor ?? '', total: resultadoFallback.total ?? 0 }
       )
       if (similar) {
-        const { interpretacion: interpretacionOriginal } = calcularCruce(resultadoOriginal.items ?? [], resultadoOriginal.total ?? 0)
-        return { ...resultadoOriginal, confianza_documento: 0.90, verificado_por_reescritura: true, requiere_atencion: false, interpretacion_precios: interpretacionOriginal }
+        return {
+          ...resultadoOriginal, confianza_documento: 0.90, verificado_por_reescritura: true, requiere_atencion: false,
+          interpretacion_precios: interpretacionOriginal, iva_impreso: resultadoOriginal.documento?.iva_impreso ?? null, fuente_interpretacion: fuenteOriginal,
+        }
       }
-      return { ...resultadoFallback, confianza_documento: 0.65, verificado_por_reescritura: true, requiere_atencion: false, interpretacion_precios: interpretacionFallback }
+      return {
+        ...resultadoFallback, confianza_documento: 0.65, verificado_por_reescritura: true, requiere_atencion: false,
+        interpretacion_precios: interpretacionFallback, iva_impreso: ivaImpresoFallback, fuente_interpretacion: fuenteFallback,
+      }
     }
 
     // Cruce sigue sin cuadrar — no se reintenta más. Se usa el resultado del
     // fallback como definitivo: es el intento más limpio disponible, viene
     // de una transcripción de texto independiente de la lectura original.
-    return { ...resultadoFallback, confianza_documento: 0.25, verificado_por_reescritura: true, requiere_atencion: true, interpretacion_precios: interpretacionFallback }
+    return {
+      ...resultadoFallback, confianza_documento: 0.25, verificado_por_reescritura: true, requiere_atencion: true,
+      interpretacion_precios: interpretacionFallback, iva_impreso: ivaImpresoFallback, fuente_interpretacion: fuenteFallback,
+    }
   } catch (err) {
     console.error('[analizar-boleta] fallback falló', err)
     // El fallback mismo falló/no parseó — degradar sin romper la request.
     // Se mantiene la extracción ORIGINAL (no hay dato de fallback usable).
-    const { interpretacion: interpretacionOriginal } = calcularCruce(resultadoOriginal.items ?? [], resultadoOriginal.total ?? 0)
-    return { ...resultadoOriginal, confianza_documento: 0.25, verificado_por_reescritura: false, requiere_atencion: true, interpretacion_precios: interpretacionOriginal }
+    return {
+      ...resultadoOriginal, confianza_documento: 0.25, verificado_por_reescritura: false, requiere_atencion: true,
+      interpretacion_precios: interpretacionOriginal, iva_impreso: resultadoOriginal.documento?.iva_impreso ?? null, fuente_interpretacion: fuenteOriginal,
+    }
   }
 }

@@ -1,6 +1,6 @@
 import { createClient } from './client'
 import { normalizarDescripcion } from '../aprendizaje'
-import { determinarInterpretacion, calcularNetoBruto, type InterpretacionPrecio } from '../confianzaDocumento'
+import { determinarInterpretacionConIva, calcularNetoBruto, type InterpretacionPrecio, type FuenteInterpretacion } from '../confianzaDocumento'
 import type { Proyecto, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta, EstadoItem, RolUsuario, GastoEvento, Notificacion } from '../types'
 import type { PermisoKey } from '../permisos'
 
@@ -290,9 +290,10 @@ async function recalcularTotalGasto(gastoId: string): Promise<number> {
   let interpretacion = gasto?.interpretacion_precios as InterpretacionPrecio | null | undefined
   if (!interpretacion) {
     // Boleta creada antes de que existiera esta columna: se calcula una vez
-    // con el método dinámico anterior y queda guardada para la próxima.
+    // con la jerarquía de señales (sin iva_impreso disponible acá, cae al
+    // cuadre contra el total o al default bruto) y queda guardada para la próxima.
     const sumaExtraida = itemsList.reduce((s, i) => s + i.subtotal, 0)
-    interpretacion = determinarInterpretacion(sumaExtraida, gasto?.total ?? 0)
+    interpretacion = determinarInterpretacionConIva(sumaExtraida, gasto?.total ?? 0, null).interpretacion
   }
 
   const nuevoTotal = Math.round(
@@ -635,6 +636,8 @@ export async function saveGasto(params: {
   creado_por_email: string | null
   comentario: string | null
   interpretacion_precios?: InterpretacionPrecio
+  iva_impreso?: number | null
+  fuente_interpretacion?: FuenteInterpretacion | null
   descuento_general_monto?: number | null
   descuento_general_descripcion?: string | null
   solicitante_id: string
@@ -663,7 +666,10 @@ export async function saveGasto(params: {
     : params.items.reduce((s, i) => s + (i.subtotal || 0), 0)
 
   const sumaItems = params.items.reduce((s, i) => s + (i.subtotal || 0), 0)
-  const interpretacion = params.interpretacion_precios ?? determinarInterpretacion(sumaItems, totalValido)
+  // Sin iva_impreso/texto IA disponibles acá (defensivo: en la práctica
+  // route.ts siempre manda interpretacion_precios ya decidida) — cae directo
+  // a cuadre-contra-total o default bruto, nunca "adivina" neto.
+  const interpretacion = params.interpretacion_precios ?? determinarInterpretacionConIva(sumaItems, totalValido, null).interpretacion
 
   // Solo un usuario sin rol admin/super_admin pasa por el flujo de
   // aprobación — nunca hay autoaprobación para 'usuario'.
@@ -683,6 +689,8 @@ export async function saveGasto(params: {
       creado_por_email: params.creado_por_email,
       comentario: params.comentario,
       interpretacion_precios: interpretacion,
+      iva_impreso: params.iva_impreso ?? null,
+      fuente_interpretacion: params.fuente_interpretacion ?? null,
       descuento_general_monto: params.descuento_general_monto || null,
       descuento_general_descripcion: params.descuento_general_descripcion || null,
       estado,

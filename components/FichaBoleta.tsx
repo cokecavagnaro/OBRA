@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { formatCLP } from '@/lib/mock'
 import { tienePermiso } from '@/lib/permisos'
 import { aprobarBoleta, rechazarBoleta, reenviarBoleta, updateGastoDatos, deleteGasto, deleteItemGasto } from '@/lib/supabase/db'
-import { descuentoDeItem } from '@/lib/confianzaDocumento'
+import { descuentoDeItem, calcularNetoBruto } from '@/lib/confianzaDocumento'
 import ClasificacionModal from './ClasificacionModal'
+import CruceItemsTotal from './CruceItemsTotal'
 import type { Gasto, ItemGasto, Etapa, Partida, Usuario, PermissionOverride } from '@/lib/types'
 
 interface Props {
@@ -247,12 +248,15 @@ export default function FichaBoleta({
               )
             )}
 
+            <CruceItemsTotal items={gasto.items ?? []} total={gasto.total} interpretacion={gasto.interpretacion_precios ?? undefined} />
+
             {/* Ítems */}
             {(gasto.items ?? []).length > 0 && (
               <div className="space-y-1.5">
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Ítems</p>
                 {(gasto.items ?? []).map((item) => {
                   const descuento = descuentoDeItem(item)
+                  const { bruto } = calcularNetoBruto(item.subtotal, gasto.interpretacion_precios ?? 'bruto')
                   return confirmandoEliminarItem === item.id ? (
                     <div key={item.id} className="bg-red-50 border border-red-100 rounded-lg px-2 py-1.5 flex items-center justify-between">
                       <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>
@@ -266,7 +270,7 @@ export default function FichaBoleta({
                       <span className="truncate flex-1">{item.descripcion}</span>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
                         <span>
-                          {formatCLP(item.subtotal)}
+                          {formatCLP(bruto)}
                           {descuento && <span className="text-gray-300"> · desc {formatCLP(descuento.monto)}</span>}
                         </span>
                         {puedoEditar && (

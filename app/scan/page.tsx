@@ -6,7 +6,8 @@ import { formatCLP } from '@/lib/mock'
 import { getProyectos, getEtapas, getPartidas, saveGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { normalizarImagenParaSubida } from '@/lib/imagen'
 import { tienePermiso } from '@/lib/permisos'
-import { determinarInterpretacion, calcularNetoBruto, descuentoDeItem, type InterpretacionPrecio } from '@/lib/confianzaDocumento'
+import { calcularNetoBruto, descuentoDeItem, type InterpretacionPrecio, type FuenteInterpretacion } from '@/lib/confianzaDocumento'
+import CruceItemsTotal from '@/components/CruceItemsTotal'
 import type { Proyecto, Etapa, Partida, ItemAnalizado, Usuario, PermissionOverride } from '@/lib/types'
 
 type Paso = 1 | 2 | 3
@@ -40,7 +41,10 @@ export default function Scan() {
   const fileRef = useRef<HTMLInputElement>(null)
   const fileGaleriaRef = useRef<HTMLInputElement>(null)
 
-  // Paso 3 — one item at a time
+  // Paso 3 — primero se revisan los totales (cuadre bruto/neto vs. total e
+  // IVA impreso), después se etiqueta ítem a ítem. Para cuando el usuario
+  // llega al carrusel, bruto/neto ya está resuelto y estable.
+  const [revisionTotales, setRevisionTotales] = useState(true)
   const [items, setItems] = useState<ItemAnalizado[]>(ITEMS_DEMO)
   const [itemActual, setItemActual] = useState(0)
   const [tagInput, setTagInput] = useState('')
@@ -50,6 +54,8 @@ export default function Scan() {
   const [fecha, setFecha] = useState('2024-06-10')
   const [totalBoleta, setTotalBoleta] = useState(0)
   const [interpretacionPrecios, setInterpretacionPrecios] = useState<InterpretacionPrecio | undefined>(undefined)
+  const [ivaImpreso, setIvaImpreso] = useState<number | null>(null)
+  const [fuenteInterpretacion, setFuenteInterpretacion] = useState<FuenteInterpretacion | null>(null)
   const [descuentoGeneralMonto, setDescuentoGeneralMonto] = useState<number | undefined>(undefined)
   const [descuentoGeneralDescripcion, setDescuentoGeneralDescripcion] = useState<string | null>(null)
   const [comentario, setComentario] = useState('')
@@ -248,6 +254,8 @@ export default function Scan() {
       if (data.total) setTotalBoleta(data.total)
       setRequiereAtencion(Boolean(data.requiere_atencion))
       setInterpretacionPrecios(data.interpretacion_precios)
+      setIvaImpreso(data.iva_impreso ?? null)
+      setFuenteInterpretacion(data.fuente_interpretacion ?? null)
       setDescuentoGeneralMonto(data.descuento_general_monto)
       setDescuentoGeneralDescripcion(data.descuento_general_descripcion ?? null)
 
@@ -259,6 +267,7 @@ export default function Scan() {
       })))
       setItemActual(0)
       setTagInput('')
+      setRevisionTotales(true)
       setPaso(3)
     } catch (err) {
       console.error(err)
@@ -276,6 +285,8 @@ export default function Scan() {
     setTotalBoleta(0)
     setRequiereAtencion(false)
     setInterpretacionPrecios(undefined)
+    setIvaImpreso(null)
+    setFuenteInterpretacion(null)
     setDescuentoGeneralMonto(undefined)
     setDescuentoGeneralDescripcion(null)
     setItems([{
@@ -292,6 +303,9 @@ export default function Scan() {
     }])
     setItemActual(0)
     setTagInput('')
+    // Ingreso manual no pasa por la IA, así que no hay nada que reconciliar
+    // contra IVA impreso/total leído — se salta directo al carrusel.
+    setRevisionTotales(false)
     setPaso(3)
   }
 
@@ -390,6 +404,8 @@ export default function Scan() {
           creado_por_email: usuarioActual.email,
           comentario: comentario.trim() || null,
           interpretacion_precios: modoManual ? 'bruto' : interpretacionPrecios,
+          iva_impreso: modoManual ? null : ivaImpreso,
+          fuente_interpretacion: modoManual ? null : fuenteInterpretacion,
           descuento_general_monto: modoManual ? null : descuentoGeneralMonto,
           descuento_general_descripcion: modoManual ? null : descuentoGeneralDescripcion,
           solicitante_id: usuarioActual.id,
@@ -447,7 +463,11 @@ export default function Scan() {
       <div className="px-4 pt-12 pb-4 border-b border-gray-100">
         <div className="flex items-center justify-between mb-4">
           <button
-            onClick={() => paso > 1 ? setPaso((paso - 1) as Paso) : router.push('/')}
+            onClick={() => {
+              if (paso === 3 && !revisionTotales && !modoManual) { setRevisionTotales(true); return }
+              if (paso > 1) setPaso((paso - 1) as Paso)
+              else router.push('/')
+            }}
             className="text-gray-400"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -455,7 +475,7 @@ export default function Scan() {
             </svg>
           </button>
           <h2 className="text-sm font-semibold text-gray-900">
-            {paso === 1 ? 'Contexto de la boleta' : paso === 2 ? 'Fotografiar boleta' : 'Clasificar ítems'}
+            {paso === 1 ? 'Contexto de la boleta' : paso === 2 ? 'Fotografiar boleta' : revisionTotales ? 'Revisar totales' : 'Clasificar ítems'}
           </h2>
           <span className="text-xs text-gray-400">{paso}/3</span>
         </div>
@@ -627,8 +647,47 @@ export default function Scan() {
         </div>
       )}
 
-      {/* Paso 3 — Clasificación ítem a ítem */}
-      {paso === 3 && item && (
+      {/* Paso 3, sub-fase "revisión de totales" — primero se confirma que la
+          suma de ítems cuadre contra el total (y el IVA impreso, si existe),
+          antes de dejar avanzar al etiquetado ítem a ítem. */}
+      {paso === 3 && revisionTotales && (
+        <div className="px-4 py-5 flex flex-col gap-4">
+          {requiereAtencion && (
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+              <p className="text-sm text-amber-700">
+                ⚠ La IA tuvo baja confianza al leer esta boleta. Revisa con cuidado los datos y montos antes de continuar.
+              </p>
+            </div>
+          )}
+
+          {!!descuentoGeneralMonto && (
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+              <p className="text-sm text-blue-700">
+                🏷 Esta boleta tiene un descuento general de {formatCLP(descuentoGeneralMonto)}
+                {descuentoGeneralDescripcion ? ` (${descuentoGeneralDescripcion})` : ''}, ya repartido en los montos de cada ítem.
+              </p>
+            </div>
+          )}
+
+          <CruceItemsTotal
+            items={items}
+            total={totalBoleta}
+            interpretacion={interpretacionPrecios}
+            ivaImpreso={ivaImpreso}
+            variante="detallada"
+          />
+
+          <button
+            onClick={() => setRevisionTotales(false)}
+            className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold"
+          >
+            Continuar a clasificar ítems
+          </button>
+        </div>
+      )}
+
+      {/* Paso 3, sub-fase "etiquetado" — clasificación ítem a ítem */}
+      {paso === 3 && !revisionTotales && item && (
         <div className="px-4 py-5 flex flex-col gap-4">
 
           {/* Progreso */}
@@ -655,21 +714,8 @@ export default function Scan() {
             ))}
           </div>
 
-          {!modoManual && requiereAtencion && (
-            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-              <p className="text-sm text-amber-700">
-                ⚠ La IA tuvo baja confianza al leer esta boleta. Revisa con cuidado los datos y montos antes de guardar.
-              </p>
-            </div>
-          )}
-
-          {!modoManual && !!descuentoGeneralMonto && (
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
-              <p className="text-sm text-blue-700">
-                🏷 Esta boleta tiene un descuento general de {formatCLP(descuentoGeneralMonto)}
-                {descuentoGeneralDescripcion ? ` (${descuentoGeneralDescripcion})` : ''}, ya repartido en los montos de cada ítem.
-              </p>
-            </div>
+          {!modoManual && (
+            <CruceItemsTotal items={items} total={totalBoleta} interpretacion={interpretacionPrecios} />
           )}
 
           {/* Datos del proveedor */}
@@ -861,9 +907,7 @@ export default function Scan() {
                 />
               </div>
               {(() => {
-                const sumaExtraidaBoleta = items.reduce((s, i) => s + i.subtotal, 0)
-                const interpretacionBoleta = determinarInterpretacion(sumaExtraidaBoleta, totalBoleta)
-                const { bruto } = calcularNetoBruto(item.subtotal, interpretacionBoleta)
+                const { bruto } = calcularNetoBruto(item.subtotal, interpretacionPrecios ?? 'bruto')
                 return (
                   <div className="bg-white rounded-xl p-2 text-center border border-blue-100 bg-blue-50">
                     <p className="text-[10px] text-blue-400">Subtotal</p>
@@ -874,9 +918,7 @@ export default function Scan() {
             </div>
 
             {(() => {
-              const sumaExtraidaBoleta = items.reduce((s, i) => s + i.subtotal, 0)
-              const interpretacionBoleta = determinarInterpretacion(sumaExtraidaBoleta, totalBoleta)
-              const { neto, bruto, iva } = calcularNetoBruto(item.subtotal, interpretacionBoleta)
+              const { neto, bruto, iva } = calcularNetoBruto(item.subtotal, interpretacionPrecios ?? 'bruto')
               const descuento = descuentoDeItem(item)
               return (
                 <p className="text-[10px] text-gray-400 text-center mb-3">

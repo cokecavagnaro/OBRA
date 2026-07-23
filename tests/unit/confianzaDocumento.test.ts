@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   determinarInterpretacion,
+  determinarInterpretacionConIva,
+  tolerancia,
   calcularCruce,
   calcularNetoBruto,
   debeActivarFallback,
@@ -53,6 +55,92 @@ describe('calcularCruce', () => {
     const r = calcularCruce([], 0)
     expect(r.suma_bruto).toBe(0)
     expect(r.cruce_valido).toBe(true)
+  })
+
+  it('con interpretación forzada, valida el cuadre contra esa interpretación sin volver a inferirla', () => {
+    // Sin forzar, 100 vs 119 se detectaría como 'neto' (cuadra exacto). Forzando
+    // 'bruto', debe validar 100 vs 119 tal cual (no cuadra) en vez de ignorar el forzado.
+    const r = calcularCruce([{ subtotal: 100 }], 119, 'bruto')
+    expect(r.interpretacion).toBe('bruto')
+    expect(r.suma_bruto).toBe(100)
+    expect(r.cruce_valido).toBe(false)
+  })
+
+  it('sin interpretación forzada, se comporta igual que antes (retrocompatible)', () => {
+    const r = calcularCruce([{ subtotal: 155150 }], 155150)
+    expect(r.interpretacion).toBe('bruto')
+    expect(r.cruce_valido).toBe(true)
+  })
+})
+
+describe('tolerancia', () => {
+  it('usa el piso fijo TOLERANCIA_CRUCE para totales chicos', () => {
+    expect(tolerancia(1000)).toBe(TOLERANCIA_CRUCE)
+  })
+
+  it('escala a 0.5% del total en boletas grandes', () => {
+    expect(tolerancia(1000000)).toBe(5000)
+  })
+})
+
+describe('determinarInterpretacionConIva', () => {
+  it('regresión: Comercial Costa Sur — IVA impreso + suma de ítems = total → BRUTO (antes se clasificaba mal)', () => {
+    // Total $155.150, IVA impreso $24.773 (neto_real=$130.377). Los ítems
+    // extraídos ya suman el bruto — antes el sistema los tomaba como "neto"
+    // y les sumaba 19% de más, descuadrando el total guardado.
+    const r = determinarInterpretacionConIva(155150, 155150, 24773)
+    expect(r.interpretacion).toBe('bruto')
+    expect(r.fuente).toBe('iva_impreso')
+  })
+
+  it('caso simétrico: con IVA impreso y suma de ítems = neto real, detecta NETO', () => {
+    const r = determinarInterpretacionConIva(130377, 155150, 24773)
+    expect(r.interpretacion).toBe('neto')
+    expect(r.fuente).toBe('iva_impreso')
+  })
+
+  it('sin IVA impreso, respeta el juicio textual de la IA aunque la aritmética sugiera lo contrario', () => {
+    const r = determinarInterpretacionConIva(100, 100, null, 'neto')
+    expect(r.interpretacion).toBe('neto')
+    expect(r.fuente).toBe('texto_ia')
+  })
+
+  it('sin IVA impreso ni texto IA, cuadra por aritmética contra el total tal cual → bruto', () => {
+    const r = determinarInterpretacionConIva(119, 119, null, undefined)
+    expect(r.interpretacion).toBe('bruto')
+    expect(r.fuente).toBe('cuadre_total')
+  })
+
+  it('nunca concluye "neto" solo por aritmética sin evidencia (a diferencia de la lógica vieja)', () => {
+    // suma×1.19=119 ≈ total=119 — con la lógica vieja esto daba "neto" por
+    // cuadre matemático. Sin iva_impreso ni texto IA, ahora no hay señal 3
+    // que concluya neto: cae directo a default bruto.
+    const r = determinarInterpretacionConIva(100, 119, null, undefined)
+    expect(r.interpretacion).toBe('bruto')
+    expect(r.fuente).toBe('default_bruto')
+  })
+
+  it('sin ninguna evidencia y sin cuadre, default duro a bruto', () => {
+    const r = determinarInterpretacionConIva(50, 500, null, undefined)
+    expect(r.interpretacion).toBe('bruto')
+    expect(r.fuente).toBe('default_bruto')
+  })
+
+  it('iva_impreso presente pero ninguna hipótesis cuadra con la suma — cae a la siguiente señal', () => {
+    const r = determinarInterpretacionConIva(999, 155150, 24773, 'neto')
+    expect(r.fuente).toBe('texto_ia')
+    expect(r.interpretacion).toBe('neto')
+  })
+
+  it('ivaImpreso null se trata igual que ausente', () => {
+    const r = determinarInterpretacionConIva(119, 119, null)
+    expect(r.fuente).toBe('cuadre_total')
+  })
+
+  it('ivaImpreso 0 no se toma como señal 1 (no hay IVA real de $0 útil para decidir)', () => {
+    const r = determinarInterpretacionConIva(119, 119, 0)
+    expect(r.fuente).toBe('cuadre_total')
+    expect(r.interpretacion).toBe('bruto')
   })
 })
 

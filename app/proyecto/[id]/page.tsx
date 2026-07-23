@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
 import { getProyectos, getEtapas, getPartidas, getGastos, getUsuarioActual, getPermisosOverrides, deleteGasto, deleteItemGasto } from '@/lib/supabase/db'
 import { tienePermiso } from '@/lib/permisos'
-import { determinarInterpretacion, calcularNetoBruto, descuentoDeItem } from '@/lib/confianzaDocumento'
+import { determinarInterpretacionConIva, calcularNetoBruto, descuentoDeItem } from '@/lib/confianzaDocumento'
 import * as XLSX from 'xlsx'
 import ClasificacionModal from '@/components/ClasificacionModal'
 import FichaBoleta from '@/components/FichaBoleta'
@@ -689,7 +689,7 @@ function netoBrutoDeItem(item: ItemGasto, gasto: Gasto) {
   if (!interpretacion) {
     const items = gasto.items ?? []
     const sumaExtraida = items.reduce((s, i) => s + i.subtotal, 0)
-    interpretacion = determinarInterpretacion(sumaExtraida, gasto.total)
+    interpretacion = determinarInterpretacionConIva(sumaExtraida, gasto.total, gasto.iva_impreso ?? null).interpretacion
   }
   return calcularNetoBruto(item.subtotal, interpretacion)
 }

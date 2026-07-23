@@ -1,4 +1,4 @@
-import type { InterpretacionPrecio } from './confianzaDocumento'
+import type { InterpretacionPrecio, FuenteInterpretacion } from './confianzaDocumento'
 
 export type Moneda = 'CLP' | 'UF'
 export type RolUsuario = 'super_admin' | 'admin' | 'usuario'
@@ -83,6 +83,8 @@ export interface Gasto {
   creado_por_email: string | null
   comentario: string | null
   interpretacion_precios?: InterpretacionPrecio | null
+  iva_impreso?: number | null
+  fuente_interpretacion?: FuenteInterpretacion | null
   descuento_general_monto?: number | null
   descuento_general_descripcion?: string | null
   estado: EstadoGasto
@@ -164,6 +166,7 @@ export interface DocumentoConfianza {
   confianza_documento: number
   calidad_imagen_percibida: number
   interpretacion_precios?: InterpretacionPrecio
+  iva_impreso?: number | null
   descuento_general?: { aplica: boolean; descripcion?: string | null }
 }
 
@@ -180,6 +183,8 @@ export interface RespuestaAnalisis {
   verificado_por_reescritura?: boolean
   requiere_atencion?: boolean
   interpretacion_precios?: InterpretacionPrecio
+  iva_impreso?: number | null
+  fuente_interpretacion?: FuenteInterpretacion
   descuento_general_monto?: number
   descuento_general_descripcion?: string | null
 }
