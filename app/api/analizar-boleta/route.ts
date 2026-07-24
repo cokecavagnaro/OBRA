@@ -49,9 +49,9 @@ Para cada ítem debes devolver:
 - confianza: número entre 0 y 1 indicando qué tan seguro estás del análisis
 
 Además extrae del documento:
-- proveedor: nombre del proveedor
-- rut: RUT del proveedor
-- fecha: fecha en formato YYYY-MM-DD
+- proveedor: nombre del proveedor, tal como aparece impreso. Si la imagen no permite leerlo con confianza razonable (borroso, cortado, ilegible) → devuelve "" (string vacío). Nunca inventes ni "completes" un nombre parecido o plausible — un campo vacío es preferible a un dato incorrecto, porque el usuario lo puede completar a mano pero un nombre inventado puede pasar desapercibido y quedar mal registrado.
+- rut: RUT del proveedor, mismo criterio que proveedor — si no se lee con confianza razonable, "" (nunca inventes dígitos).
+- fecha: fecha en formato YYYY-MM-DD, mismo criterio — si no se lee con confianza razonable, "" (nunca inventes una fecha).
 - moneda: "CLP" (default)
 - total: el monto FINAL efectivamente pagado/a pagar, tal como figura impreso como "TOTAL" o "TOTAL A PAGAR" en la boleta — si la boleta tiene un descuento general aplicado al total, este campo debe ser el monto YA con ese descuento aplicado, nunca la suma de los ítems antes de descuento
 

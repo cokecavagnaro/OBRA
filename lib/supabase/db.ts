@@ -379,9 +379,24 @@ export async function updateItemGasto(id: string, params: {
   return { ok: true, nuevoTotal }
 }
 
+// crypto.randomUUID() solo existe en contextos seguros (HTTPS o localhost) —
+// en producción (Vercel, siempre HTTPS) nunca falta, pero al probar por IP
+// local sin HTTPS (ej. desde el celular contra el servidor de desarrollo)
+// el navegador lo deshabilita y esto rompe la subida de la imagen.
+function generarUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
 export async function subirImagenBoleta(cuentaId: string, proyectoId: string, blob: Blob): Promise<string | null> {
   const supabase = createClient()
-  const path = `${cuentaId}/${proyectoId}/${crypto.randomUUID()}.jpg`
+  const path = `${cuentaId}/${proyectoId}/${generarUUID()}.jpg`
   const { error } = await supabase.storage.from('boletas').upload(path, blob, { contentType: 'image/jpeg' })
   if (error) {
     console.error('subirImagenBoleta:', error)

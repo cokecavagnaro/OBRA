@@ -168,12 +168,7 @@ export default function Scan() {
     } catch (err) {
       console.error('Error al procesar imagen:', err)
       if (capturaTokenRef.current !== token) return
-      const esHeic = /^image\/hei[cf]$/.test(file.type) || /\.hei[cf]$/i.test(file.name)
-      setErrorImagen(
-        esHeic
-          ? 'Esta foto es formato HEIC y no se pudo leer aquí. Prueba sacarla con la cámara en vez de elegirla de Fotos.'
-          : 'No pudimos procesar esta imagen. Prueba con otra foto.'
-      )
+      setErrorImagen('No pudimos procesar esta imagen. Prueba con otra foto.')
     } finally {
       if (capturaTokenRef.current === token) setProcesandoImagen(false)
       input.value = ''
@@ -248,9 +243,12 @@ export default function Scan() {
       }
 
       setImagenDataUrl(dataUrl)
-      if (data.proveedor) setProveedor(data.proveedor)
-      if (data.rut) setRut(data.rut)
-      if (data.fecha) setFecha(data.fecha)
+      // Siempre se fija (no solo si viene truthy): si la IA no logró leer
+      // el dato y devolvió "", el campo debe verse vacío en pantalla — no
+      // quedarse pegado al proveedor/RUT/fecha del escaneo anterior.
+      setProveedor(data.proveedor ?? '')
+      setRut(data.rut ?? '')
+      setFecha(data.fecha ?? '')
       if (data.total) setTotalBoleta(data.total)
       setRequiereAtencion(Boolean(data.requiere_atencion))
       setInterpretacionPrecios(data.interpretacion_precios)
@@ -721,37 +719,39 @@ export default function Scan() {
           {/* Datos del proveedor */}
           <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Proveedor</p>
-            {modoManual ? (
-              <div className="space-y-1.5 mt-1">
+            {/* Siempre editable (no solo en modo manual): si la IA no pudo leer
+                proveedor/RUT/fecha con confianza, los deja vacíos a propósito
+                (ver prompt en analizar-boleta/route.ts) en vez de inventarlos —
+                y el usuario tiene que poder completarlos acá mismo. */}
+            {!modoManual && (!proveedor || !rut) && (
+              <p className="text-xs font-medium text-amber-600 mt-1 mb-1.5">
+                ⚠ La IA no pudo leer con confianza {!proveedor && !rut ? 'el proveedor ni el RUT' : !proveedor ? 'el proveedor' : 'el RUT'} de la foto — complétalo abajo, no se inventó ningún dato.
+              </p>
+            )}
+            <div className="space-y-1.5 mt-1">
+              <input
+                type="text"
+                value={proveedor}
+                onChange={(e) => setProveedor(e.target.value)}
+                placeholder={!modoManual && !proveedor ? 'Sin leer — escribe el nombre del proveedor' : 'Nombre del proveedor'}
+                className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-800 bg-white placeholder-gray-300"
+              />
+              <div className="flex gap-1.5">
                 <input
                   type="text"
-                  value={proveedor}
-                  onChange={(e) => setProveedor(e.target.value)}
-                  placeholder="Nombre del proveedor"
-                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-800 bg-white placeholder-gray-300"
+                  value={rut}
+                  onChange={(e) => setRut(e.target.value)}
+                  placeholder={!modoManual && !rut ? 'Sin leer — RUT (opcional)' : 'RUT (opcional)'}
+                  className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white placeholder-gray-300"
                 />
-                <div className="flex gap-1.5">
-                  <input
-                    type="text"
-                    value={rut}
-                    onChange={(e) => setRut(e.target.value)}
-                    placeholder="RUT (opcional)"
-                    className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white placeholder-gray-300"
-                  />
-                  <input
-                    type="date"
-                    value={fecha}
-                    onChange={(e) => setFecha(e.target.value)}
-                    className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white"
-                  />
-                </div>
+                <input
+                  type="date"
+                  value={fecha}
+                  onChange={(e) => setFecha(e.target.value)}
+                  className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white"
+                />
               </div>
-            ) : (
-              <>
-                <p className="text-sm font-semibold text-gray-900 mt-0.5">{proveedor}</p>
-                <p className="text-xs text-gray-400">RUT {rut} · {fecha}</p>
-              </>
-            )}
+            </div>
             <div className="mt-2 pt-2 border-t border-gray-200">
               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
                 Comentario <span className="text-gray-300 font-normal">(opcional)</span>
