@@ -85,6 +85,12 @@ export default function FichaBoleta({
   const puedoResolver = esAprobador && gasto.estado_aprobacion === 'pendiente'
   const puedoGestionarRechazo = esSolicitante && gasto.estado_aprobacion === 'rechazado'
   const puedoEditar = puedoResolver || puedoGestionarRechazo
+  // A diferencia de puedoEditar (solo pendiente/rechazada), re-escanear tiene
+  // que seguir disponible aunque la boleta ya esté aprobada — un error de
+  // lectura de la IA se puede notar recién después de aprobar. Restringido a
+  // admin/super_admin (no a cualquier aprobador o solicitante).
+  const esAdmin = usuarioActual?.rol === 'admin' || usuarioActual?.rol === 'super_admin'
+  const puedeReescanear = esAdmin && !!gasto.imagen_url
 
   function actualizarLocal(cambios: Partial<Gasto>) {
     const actualizado = { ...gasto, ...cambios }
@@ -291,13 +297,12 @@ export default function FichaBoleta({
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setEditandoDatos(true)} className="text-xs text-blue-600 font-medium">Editar proveedor / RUT / fecha</button>
-                  {gasto.imagen_url && (
-                    <button onClick={() => setConfirmandoReescaneo(true)} className="text-xs text-blue-600 font-medium">🔄 Re-escanear</button>
-                  )}
-                </div>
+                <button onClick={() => setEditandoDatos(true)} className="text-xs text-blue-600 font-medium">Editar proveedor / RUT / fecha</button>
               )
+            )}
+
+            {puedeReescanear && !editandoDatos && (
+              <button onClick={() => setConfirmandoReescaneo(true)} className="text-xs text-blue-600 font-medium">🔄 Re-escanear</button>
             )}
 
             {confirmandoReescaneo && (
