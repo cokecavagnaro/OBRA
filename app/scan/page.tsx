@@ -962,7 +962,7 @@ export default function Scan() {
 
                 {/* Sugerencias */}
                 {mostrarSugerencias && sugerenciasFiltradas.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto overscroll-contain">
                     {sugerenciasFiltradas.map((t) => (
                       <button
                         key={t}
