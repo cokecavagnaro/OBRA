@@ -8,10 +8,11 @@ interface Props {
   total: number
   interpretacion?: InterpretacionPrecio
   ivaImpreso?: number | null
+  otrosImpuestos?: number | null
   variante?: 'compacta' | 'detallada'
 }
 
-export default function CruceItemsTotal({ items, total, interpretacion, ivaImpreso, variante = 'compacta' }: Props) {
+export default function CruceItemsTotal({ items, total, interpretacion, ivaImpreso, otrosImpuestos, variante = 'compacta' }: Props) {
   const { suma_bruto, diferencia, cruce_valido } = calcularCruce(items, total, interpretacion)
 
   return (
@@ -22,7 +23,10 @@ export default function CruceItemsTotal({ items, total, interpretacion, ivaImpre
           {typeof ivaImpreso === 'number' && ivaImpreso > 0 && (
             <>
               <FilaMonto label="IVA impreso" valor={ivaImpreso} />
-              <FilaMonto label="Neto implícito" valor={total - ivaImpreso} />
+              {typeof otrosImpuestos === 'number' && otrosImpuestos > 0 && (
+                <FilaMonto label="Otros impuestos" valor={otrosImpuestos} />
+              )}
+              <FilaMonto label="Neto implícito" valor={total - ivaImpreso - (otrosImpuestos ?? 0)} />
             </>
           )}
           <FilaMonto label="Suma de ítems (neto)" valor={calcularNetoBruto(suma_bruto, interpretacion ?? 'bruto').neto} />

@@ -293,6 +293,20 @@ export async function getAllGastos(): Promise<Gasto[]> {
   return data.map((g) => mapGastoRow(g, eventosPorGasto.get(g.id as string) ?? []))
 }
 
+export async function getGastoPorId(id: string): Promise<Gasto | null> {
+  const supabase = createClient()
+  const [{ data }, { data: eventosData }] = await Promise.all([
+    supabase
+      .from('gastos')
+      .select('*, proyectos(nombre), items_gasto(*), item_gasto_eventos(*)')
+      .eq('id', id)
+      .single(),
+    supabase.from('gasto_eventos').select('*').eq('gasto_id', id),
+  ])
+  if (!data) return null
+  return mapGastoRow(data, (eventosData ?? []) as GastoEvento[])
+}
+
 // Recalcula gastos.total sumando el bruto real de los ítems que quedan en la
 // base, usando la interpretación (neto/bruto) ya fija de esa boleta — así
 // editar o borrar un ítem nunca deja el total desactualizado ni depende de
@@ -673,6 +687,7 @@ export async function saveGasto(params: {
   comentario: string | null
   interpretacion_precios?: InterpretacionPrecio
   iva_impreso?: number | null
+  otros_impuestos?: number | null
   fuente_interpretacion?: FuenteInterpretacion | null
   descuento_general_monto?: number | null
   descuento_general_descripcion?: string | null
@@ -690,6 +705,8 @@ export async function saveGasto(params: {
     etapa_id?: string
     partida_id?: string
     estado: string
+    descuento_monto?: number | null
+    descuento_descripcion?: string | null
   }>
 }): Promise<string | null> {
   const supabase = createClient()
@@ -726,6 +743,7 @@ export async function saveGasto(params: {
       comentario: params.comentario,
       interpretacion_precios: interpretacion,
       iva_impreso: params.iva_impreso ?? null,
+      otros_impuestos: params.otros_impuestos ?? null,
       fuente_interpretacion: params.fuente_interpretacion ?? null,
       descuento_general_monto: params.descuento_general_monto || null,
       descuento_general_descripcion: params.descuento_general_descripcion || null,
@@ -769,6 +787,8 @@ export async function saveGasto(params: {
         etapa_id: item.etapa_id || null,
         partida_id: item.partida_id || null,
         estado: item.estado,
+        descuento_monto: item.descuento_monto ?? null,
+        descuento_descripcion: item.descuento_descripcion ?? null,
       }))
     )
   }
@@ -813,6 +833,7 @@ export async function reescanearGasto(gastoId: string, datos: RespuestaAnalisis)
       total: totalValido,
       interpretacion_precios: interpretacion,
       iva_impreso: datos.iva_impreso ?? null,
+      otros_impuestos: datos.otros_impuestos ?? null,
       fuente_interpretacion: datos.fuente_interpretacion ?? null,
       descuento_general_monto: datos.descuento_general_monto || null,
       descuento_general_descripcion: datos.descuento_general_descripcion || null,
@@ -839,6 +860,8 @@ export async function reescanearGasto(gastoId: string, datos: RespuestaAnalisis)
         etapa_id: item.etapa_id || null,
         partida_id: item.partida_id || null,
         estado: 'pendiente',
+        descuento_monto: item.descuento_monto ?? null,
+        descuento_descripcion: item.descuento_descripcion ?? null,
       }))
     )
   }

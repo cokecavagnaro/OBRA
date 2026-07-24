@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
 import { tienePermiso } from '@/lib/permisos'
-import { aprobarBoleta, rechazarBoleta, reenviarBoleta, updateGastoDatos, deleteGasto, deleteItemGasto, reescanearGasto } from '@/lib/supabase/db'
-import { descuentoDeItem, calcularNetoBruto } from '@/lib/confianzaDocumento'
+import { aprobarBoleta, rechazarBoleta, reenviarBoleta, updateGastoDatos, deleteGasto, deleteItemGasto } from '@/lib/supabase/db'
+import { calcularNetoBruto } from '@/lib/confianzaDocumento'
 import ClasificacionModal from './ClasificacionModal'
 import CruceItemsTotal from './CruceItemsTotal'
 import type { Gasto, ItemGasto, Etapa, Partida, Usuario, PermissionOverride } from '@/lib/types'
@@ -62,9 +63,9 @@ export default function FichaBoleta({
   onEliminado,
   onCerrar,
 }: Props) {
+  const router = useRouter()
   const [gasto, setGasto] = useState(gastoInicial)
   const [itemEditando, setItemEditando] = useState<ItemGasto | null>(null)
-  const [clasificandoTrasReescaneo, setClasificandoTrasReescaneo] = useState(false)
   const [confirmandoEliminarItem, setConfirmandoEliminarItem] = useState<string | null>(null)
   const [rechazando, setRechazando] = useState(false)
   const [motivoRechazo, setMotivoRechazo] = useState('')
@@ -78,8 +79,6 @@ export default function FichaBoleta({
   const [fechaEdit, setFechaEdit] = useState(gasto.fecha_boleta)
   const [historialAbierto, setHistorialAbierto] = useState(false)
   const [confirmandoReescaneo, setConfirmandoReescaneo] = useState(false)
-  const [reescaneando, setReescaneando] = useState(false)
-  const [errorReescaneo, setErrorReescaneo] = useState<string | null>(null)
 
   const esAprobador = usuarioActual ? tienePermiso(usuarioActual, overrides, 'approve_boletas') : false
   const esSolicitante = !!usuarioActual && usuarioActual.id === gasto.solicitante_id
@@ -155,66 +154,20 @@ export default function FichaBoleta({
     }
   }
 
-  async function handleReescanear() {
-    if (!gasto.imagen_url) return
-    setErrorReescaneo(null)
-    setReescaneando(true)
-    try {
-      const resImagen = await fetch(gasto.imagen_url)
-      const blob = await resImagen.blob()
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve((reader.result as string).split(',')[1])
-        reader.onerror = reject
-        reader.readAsDataURL(blob)
-      })
-
-      const res = await fetch('/api/analizar-boleta', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imagen_base64: base64,
-          media_type: blob.type || 'image/jpeg',
-          proyecto_id: gasto.proyecto_id,
-          contexto_boleta: gasto.contexto_boleta,
-        }),
-      })
-      if (!res.ok) throw new Error('No pudimos re-escanear la boleta. Intenta de nuevo.')
-      const datos = await res.json()
-
-      const gastoActualizado = await reescanearGasto(gasto.id, datos)
-      if (!gastoActualizado) throw new Error('No pudimos guardar el re-escaneo.')
-
-      setGasto(gastoActualizado)
-      onActualizado(gastoActualizado)
-      setConfirmandoReescaneo(false)
-      // Los ítems nuevos vienen sin etiquetas (mismo estado que un escaneo
-      // recién hecho) — se entra directo a clasificarlos, uno por uno, igual
-      // que en el flujo de escaneo original.
-      const primerItem = (gastoActualizado.items ?? []).find((i) => i.etiquetas.length === 0)
-      if (primerItem) {
-        setClasificandoTrasReescaneo(true)
-        setItemEditando(primerItem)
-      }
-    } catch (err) {
-      setErrorReescaneo(err instanceof Error ? err.message : 'No pudimos re-escanear la boleta.')
-    } finally {
-      setReescaneando(false)
-    }
+  // Re-escanear navega a /scan en modo edición (mismo flujo que un escaneo
+  // nuevo: revisión de totales y carrusel de etiquetado) en vez de sobrescribir
+  // acá mismo — así nada se persiste hasta que el usuario llega al final y
+  // confirma "Guardar boleta".
+  function handleReescanear() {
+    onCerrar()
+    router.push(`/scan?reescanear=${gasto.id}`)
   }
 
   function handleItemGuardado(itemActualizado: ItemGasto, _nuevasEtapas: Etapa[], _nuevasPartidas: Partida[], nuevoTotalGasto?: number) {
-    const itemsActualizados = (gasto.items ?? []).map((i) => i.id === itemActualizado.id ? itemActualizado : i)
-    actualizarLocal({ total: nuevoTotalGasto ?? gasto.total, items: itemsActualizados })
-    // Si venimos de un re-escaneo, se sigue con el próximo ítem sin
-    // etiquetas en vez de cerrar el modal — mismo criterio que el carrusel
-    // de escaneo original, uno por uno hasta terminar. Fuera de ese flujo
-    // (editar un ítem suelto a mano), cerrar como siempre.
-    if (clasificandoTrasReescaneo) {
-      const siguiente = itemsActualizados.find((i) => i.id !== itemActualizado.id && i.etiquetas.length === 0)
-      if (siguiente) { setItemEditando(siguiente); return }
-      setClasificandoTrasReescaneo(false)
-    }
+    actualizarLocal({
+      total: nuevoTotalGasto ?? gasto.total,
+      items: (gasto.items ?? []).map((i) => i.id === itemActualizado.id ? itemActualizado : i),
+    })
     setItemEditando(null)
   }
 
@@ -323,13 +276,10 @@ export default function FichaBoleta({
 
             {confirmandoReescaneo && (
               <div className="space-y-2 bg-amber-50 border border-amber-100 rounded-lg p-3">
-                <p className="text-xs text-amber-700">¿Volver a escanear esta boleta? La IA va a leer la foto de nuevo y esto reemplaza los datos e ítems actuales (etiquetas y clasificaciones incluidas).</p>
-                {errorReescaneo && <p className="text-xs text-red-600">{errorReescaneo}</p>}
+                <p className="text-xs text-amber-700">¿Volver a escanear esta boleta? Vas a revisar los datos nuevos y clasificar los ítems antes de guardar los cambios.</p>
                 <div className="flex gap-2">
-                  <button onClick={handleReescanear} disabled={reescaneando} className="flex-1 bg-amber-500 text-white rounded-lg py-1.5 text-xs font-semibold disabled:opacity-50">
-                    {reescaneando ? 'Re-escaneando...' : 'Sí, re-escanear'}
-                  </button>
-                  <button onClick={() => { setConfirmandoReescaneo(false); setErrorReescaneo(null) }} disabled={reescaneando} className="text-xs text-gray-400 px-3">Cancelar</button>
+                  <button onClick={handleReescanear} className="flex-1 bg-amber-500 text-white rounded-lg py-1.5 text-xs font-semibold">Sí, re-escanear</button>
+                  <button onClick={() => setConfirmandoReescaneo(false)} className="text-xs text-gray-400 px-3">Cancelar</button>
                 </div>
               </div>
             )}
@@ -341,7 +291,6 @@ export default function FichaBoleta({
               <div className="space-y-1.5">
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Ítems</p>
                 {(gasto.items ?? []).map((item) => {
-                  const descuento = descuentoDeItem(item)
                   const { bruto } = calcularNetoBruto(item.subtotal, gasto.interpretacion_precios ?? 'bruto')
                   return confirmandoEliminarItem === item.id ? (
                     <div key={item.id} className="bg-red-50 border border-red-100 rounded-lg px-2 py-1.5 flex items-center justify-between">
@@ -357,7 +306,8 @@ export default function FichaBoleta({
                       <div className="flex items-center gap-2 shrink-0 ml-2">
                         <span>
                           {formatCLP(bruto)}
-                          {descuento && <span className="text-gray-300"> · desc {formatCLP(descuento.monto)}</span>}
+                          {/* Solo descuentos IMPRESOS en la boleta — nunca inferidos por aritmética */}
+                          {!!item.descuento_monto && <span className="text-gray-300"> · desc {formatCLP(item.descuento_monto)}</span>}
                         </span>
                         {puedoEditar && (
                           <>
@@ -469,7 +419,7 @@ export default function FichaBoleta({
           etiquetasSugeridas={etiquetasSugeridas}
           puedeEtiquetar
           onGuardado={handleItemGuardado}
-          onCerrar={() => { setItemEditando(null); setClasificandoTrasReescaneo(false) }}
+          onCerrar={() => setItemEditando(null)}
         />
       )}
     </div>

@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { createEtapa, createPartida, updateItemGasto, upsertClasificacionAprendida } from '@/lib/supabase/db'
 import { formatCLP } from '@/lib/mock'
-import { descuentoDeItem } from '@/lib/confianzaDocumento'
 import type { ItemGasto, Etapa, Partida } from '@/lib/types'
 
 interface Props {
@@ -230,15 +229,13 @@ export default function ClasificacionModal({
             </div>
           </div>
 
-          {(() => {
-            const descuento = descuentoDeItem(item)
-            if (!descuento) return null
-            return (
-              <p className="text-[10px] text-gray-400 -mt-3">
-                Descuento aplicado: -{formatCLP(descuento.monto)} (antes {formatCLP(descuento.antes)})
-              </p>
-            )
-          })()}
+          {/* Solo descuentos IMPRESOS en la boleta — nunca inferidos por aritmética */}
+          {!!item.descuento_monto && (
+            <p className="text-[10px] text-gray-400 -mt-3">
+              Descuento aplicado: -{formatCLP(item.descuento_monto)}
+              {item.descuento_descripcion ? ` (${item.descuento_descripcion})` : ''}
+            </p>
+          )}
 
           {/* Etiquetas */}
           <div>

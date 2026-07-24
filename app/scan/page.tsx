@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useRef, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getProyectos, getEtapas, getPartidas, getEtiquetas, saveGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
+import { getProyectos, getEtapas, getPartidas, getEtiquetas, getGastoPorId, saveGasto, reescanearGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { normalizarImagenParaSubida } from '@/lib/imagen'
 import { tienePermiso } from '@/lib/permisos'
-import { calcularNetoBruto, descuentoDeItem, type InterpretacionPrecio, type FuenteInterpretacion } from '@/lib/confianzaDocumento'
+import { calcularNetoBruto, calcularCruce, type InterpretacionPrecio, type FuenteInterpretacion } from '@/lib/confianzaDocumento'
 import CruceItemsTotal from '@/components/CruceItemsTotal'
 import type { Proyecto, Etapa, Partida, ItemAnalizado, Usuario, PermissionOverride } from '@/lib/types'
 
@@ -18,8 +18,12 @@ const ITEMS_DEMO: ItemAnalizado[] = [
   { descripcion: 'Elemento no identificado', cantidad: 1, unidad: 'gl', precio_unitario: 5500, subtotal: 5500, categoria: 'Sin clasificar', etiquetas: [], confianza: 0.45 },
 ]
 
-export default function Scan() {
+function ScanContenido() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const gastoIdReescaneo = searchParams.get('reescanear')
+  const [cargandoReescaneo, setCargandoReescaneo] = useState(!!gastoIdReescaneo)
+  const [errorCargaReescaneo, setErrorCargaReescaneo] = useState<string | null>(null)
   const [paso, setPaso] = useState<Paso>(1)
 
   // Paso 1
@@ -55,6 +59,8 @@ export default function Scan() {
   const [totalBoleta, setTotalBoleta] = useState(0)
   const [interpretacionPrecios, setInterpretacionPrecios] = useState<InterpretacionPrecio | undefined>(undefined)
   const [ivaImpreso, setIvaImpreso] = useState<number | null>(null)
+  const [otrosImpuestos, setOtrosImpuestos] = useState<number | null>(null)
+  const [confirmandoDescuadre, setConfirmandoDescuadre] = useState(false)
   const [fuenteInterpretacion, setFuenteInterpretacion] = useState<FuenteInterpretacion | null>(null)
   const [descuentoGeneralMonto, setDescuentoGeneralMonto] = useState<number | undefined>(undefined)
   const [descuentoGeneralDescripcion, setDescuentoGeneralDescripcion] = useState<string | null>(null)
@@ -87,6 +93,95 @@ export default function Scan() {
       setPermisosCargados(true)
     })
   }, [])
+
+  // Modo re-escaneo (?reescanear=<gasto_id>, ver components/FichaBoleta.tsx):
+  // se saltan paso 1 y 2 (proyecto y foto ya se conocen del gasto existente),
+  // se re-analiza la imagen ya guardada con la IA, y se aterriza directo en
+  // paso 3 / revisión de totales — mismo punto de entrada que un escaneo
+  // nuevo desde ahí en adelante.
+  useEffect(() => {
+    if (!gastoIdReescaneo || !permisosCargados) return
+    if (!usuarioActual || (usuarioActual.rol !== 'admin' && usuarioActual.rol !== 'super_admin')) {
+      setErrorCargaReescaneo('Solo un administrador puede re-escanear boletas.')
+      setCargandoReescaneo(false)
+      return
+    }
+    let cancelado = false
+    ;(async () => {
+      try {
+        const gasto = await getGastoPorId(gastoIdReescaneo)
+        if (!gasto || !gasto.imagen_url) throw new Error('No pudimos encontrar la boleta a re-escanear.')
+
+        const [proyectosData, etapasData, partidasData, tagsData] = await Promise.all([
+          getProyectos(),
+          getEtapas(gasto.proyecto_id),
+          getPartidas(gasto.proyecto_id),
+          getEtiquetas(gasto.proyecto_id),
+        ])
+        if (cancelado) return
+        setProyecto(proyectosData.find((p) => p.id === gasto.proyecto_id) ?? null)
+        setEtapasFiltradas(etapasData)
+        setPartidasFiltradas(partidasData)
+        setTagsProyecto(tagsData)
+
+        const resImagen = await fetch(gasto.imagen_url)
+        const blob = await resImagen.blob()
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve((reader.result as string).split(',')[1])
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
+        })
+
+        const res = await fetch('/api/analizar-boleta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imagen_base64: base64,
+            media_type: blob.type || 'image/jpeg',
+            proyecto_id: gasto.proyecto_id,
+            contexto_boleta: gasto.contexto_boleta,
+          }),
+        })
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null)
+          throw new Error(errData?.error || 'No pudimos re-escanear la boleta. Intenta de nuevo.')
+        }
+        const data = await res.json()
+        const itemsResultado = data.items ?? []
+        if (itemsResultado.length === 0) throw new Error('No pudimos identificar ítems en esta boleta.')
+        if (cancelado) return
+
+        setProveedor(data.proveedor ?? '')
+        setRut(data.rut ?? '')
+        setFecha(data.fecha ?? '')
+        if (data.total) setTotalBoleta(data.total)
+        setRequiereAtencion(Boolean(data.requiere_atencion))
+        setInterpretacionPrecios(data.interpretacion_precios)
+        setIvaImpreso(data.iva_impreso ?? null)
+        setOtrosImpuestos(data.otros_impuestos ?? null)
+        setFuenteInterpretacion(data.fuente_interpretacion ?? null)
+        setDescuentoGeneralMonto(data.descuento_general_monto)
+        setDescuentoGeneralDescripcion(data.descuento_general_descripcion ?? null)
+        setModoManual(false)
+        setItems(itemsResultado.map((i: ItemAnalizado) => ({
+          ...i,
+          etapa_id: i.etapa_id ?? '',
+          partida_id: i.partida_id ?? '',
+        })))
+        setItemActual(0)
+        setTagInput('')
+        setConfirmandoDescuadre(false)
+        setRevisionTotales(true)
+        setPaso(3)
+      } catch (err) {
+        if (!cancelado) setErrorCargaReescaneo(err instanceof Error ? err.message : 'No pudimos re-escanear la boleta.')
+      } finally {
+        if (!cancelado) setCargandoReescaneo(false)
+      }
+    })()
+    return () => { cancelado = true }
+  }, [gastoIdReescaneo, permisosCargados, usuarioActual])
 
   const paso1Completo = !!proyecto
 
@@ -255,6 +350,7 @@ export default function Scan() {
       setRequiereAtencion(Boolean(data.requiere_atencion))
       setInterpretacionPrecios(data.interpretacion_precios)
       setIvaImpreso(data.iva_impreso ?? null)
+      setOtrosImpuestos(data.otros_impuestos ?? null)
       setFuenteInterpretacion(data.fuente_interpretacion ?? null)
       setDescuentoGeneralMonto(data.descuento_general_monto)
       setDescuentoGeneralDescripcion(data.descuento_general_descripcion ?? null)
@@ -267,6 +363,7 @@ export default function Scan() {
       })))
       setItemActual(0)
       setTagInput('')
+      setConfirmandoDescuadre(false)
       setRevisionTotales(true)
       setPaso(3)
     } catch (err) {
@@ -286,6 +383,7 @@ export default function Scan() {
     setRequiereAtencion(false)
     setInterpretacionPrecios(undefined)
     setIvaImpreso(null)
+    setOtrosImpuestos(null)
     setFuenteInterpretacion(null)
     setDescuentoGeneralMonto(undefined)
     setDescuentoGeneralDescripcion(null)
@@ -378,16 +476,47 @@ export default function Scan() {
     guardandoRef.current = true
     setGuardando(true)
     try {
-      if (proyecto) {
-        // Si quedó texto sin confirmar en el input de etiqueta (el usuario escribió
-        // pero nunca tocó Enter/"+ Crear etiqueta"), se incorpora acá antes de guardar
-        // — leer `items` del estado directamente se arriesga a perder ese tag porque
-        // el setItems de addTag no llega a re-renderizar antes de este guardado.
-        const t = tagPendiente?.toLowerCase().trim()
-        const itemsFinal = t
-          ? items.map((x, idx) => idx === itemActual && !x.etiquetas.includes(t) ? { ...x, etiquetas: [...x.etiquetas, t] } : x)
-          : items
+      // Si quedó texto sin confirmar en el input de etiqueta (el usuario escribió
+      // pero nunca tocó Enter/"+ Crear etiqueta"), se incorpora acá antes de guardar
+      // — leer `items` del estado directamente se arriesga a perder ese tag porque
+      // el setItems de addTag no llega a re-renderizar antes de este guardado.
+      const t = tagPendiente?.toLowerCase().trim()
+      const itemsFinal = t
+        ? items.map((x, idx) => idx === itemActual && !x.etiquetas.includes(t) ? { ...x, etiquetas: [...x.etiquetas, t] } : x)
+        : items
 
+      if (gastoIdReescaneo) {
+        await reescanearGasto(gastoIdReescaneo, {
+          proveedor,
+          rut,
+          fecha,
+          moneda: 'CLP',
+          items: itemsFinal,
+          total: totalBoleta || itemsFinal.reduce((s, i) => s + i.subtotal, 0),
+          interpretacion_precios: modoManual ? 'bruto' : interpretacionPrecios,
+          iva_impreso: modoManual ? null : ivaImpreso,
+          otros_impuestos: modoManual ? null : otrosImpuestos,
+          fuente_interpretacion: modoManual ? undefined : (fuenteInterpretacion ?? undefined),
+          descuento_general_monto: modoManual ? undefined : descuentoGeneralMonto,
+          descuento_general_descripcion: modoManual ? null : descuentoGeneralDescripcion,
+        })
+        if (proyecto) {
+          for (const i of itemsFinal) {
+            if (i.etiquetas.length > 0) {
+              await upsertClasificacionAprendida({
+                proyecto_id: proyecto.id,
+                descripcion: i.descripcion,
+                categoria: i.categoria,
+                etiquetas: i.etiquetas,
+              })
+            }
+          }
+        }
+        router.push('/')
+        return
+      }
+
+      if (proyecto) {
         if (!usuarioActual) return
         let imagenUrl = imagenDataUrl
         if (fileSeleccionadoRef.current) {
@@ -405,6 +534,7 @@ export default function Scan() {
           comentario: comentario.trim() || null,
           interpretacion_precios: modoManual ? 'bruto' : interpretacionPrecios,
           iva_impreso: modoManual ? null : ivaImpreso,
+          otros_impuestos: modoManual ? null : otrosImpuestos,
           fuente_interpretacion: modoManual ? null : fuenteInterpretacion,
           descuento_general_monto: modoManual ? null : descuentoGeneralMonto,
           descuento_general_descripcion: modoManual ? null : descuentoGeneralDescripcion,
@@ -423,6 +553,8 @@ export default function Scan() {
             etapa_id: i.etapa_id,
             partida_id: i.partida_id,
             estado: i.etiquetas.length > 0 ? 'confirmado' : 'pendiente',
+            descuento_monto: modoManual ? null : i.descuento_monto ?? null,
+            descuento_descripcion: modoManual ? null : i.descuento_descripcion ?? null,
           })),
         })
 
@@ -457,6 +589,27 @@ export default function Scan() {
     )
   }
 
+  if (gastoIdReescaneo && errorCargaReescaneo) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center gap-3">
+        <p className="text-sm font-medium text-gray-600">{errorCargaReescaneo}</p>
+        <button onClick={() => router.back()} className="text-xs text-blue-600 font-medium">Volver</button>
+      </div>
+    )
+  }
+
+  if (gastoIdReescaneo && cargandoReescaneo) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-3">
+        <svg className="w-6 h-6 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+        <p className="text-sm text-gray-500">Re-escaneando boleta...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -465,6 +618,7 @@ export default function Scan() {
           <button
             onClick={() => {
               if (paso === 3 && !revisionTotales && !modoManual) { setRevisionTotales(true); return }
+              if (gastoIdReescaneo) { router.back(); return }
               if (paso > 1) setPaso((paso - 1) as Paso)
               else router.push('/')
             }}
@@ -546,6 +700,12 @@ export default function Scan() {
         <div className="px-4 py-5 space-y-4">
           <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handleCaptura} className="hidden" />
           <input ref={fileGaleriaRef} type="file" accept="image/*" onChange={handleCaptura} className="hidden" />
+
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+            <p className="text-xs text-blue-700">
+              📸 La foto debe mostrar la boleta completa: los montos de cada ítem, los descuentos si hay, el IVA, los impuestos y el TOTAL. Sin esos datos el sistema no puede validar los cálculos.
+            </p>
+          </div>
 
           {(errorImagen || errorAnalisis) && (
             <div className="bg-red-50 border border-red-100 rounded-xl p-3">
@@ -647,10 +807,13 @@ export default function Scan() {
         </div>
       )}
 
-      {/* Paso 3, sub-fase "revisión de totales" — primero se confirma que la
-          suma de ítems cuadre contra el total (y el IVA impreso, si existe),
-          antes de dejar avanzar al etiquetado ítem a ítem. */}
-      {paso === 3 && revisionTotales && (
+      {/* Paso 3, sub-fase "revisión de totales" — compuerta real: no se llega
+          al etiquetado con números que no cuadran. Se puede corregir acá
+          mismo (total e ítems editables), volver a sacar la foto, o continuar
+          con descuadre solo mediante confirmación explícita. */}
+      {paso === 3 && revisionTotales && (() => {
+        const cruceRevision = calcularCruce(items, totalBoleta, interpretacionPrecios ?? 'bruto')
+        return (
         <div className="px-4 py-5 flex flex-col gap-4">
           {requiereAtencion && (
             <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
@@ -674,17 +837,103 @@ export default function Scan() {
             total={totalBoleta}
             interpretacion={interpretacionPrecios}
             ivaImpreso={ivaImpreso}
+            otrosImpuestos={otrosImpuestos}
             variante="detallada"
           />
 
-          <button
-            onClick={() => setRevisionTotales(false)}
-            className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold"
-          >
-            Continuar a clasificar ítems
-          </button>
+          {/* Montos editables: corregir acá mismo hasta que cuadre */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Montos por ítem (editables)</p>
+            {items.map((i, idx) => (
+              <div key={idx} className="flex items-center justify-between gap-2">
+                <span className="truncate flex-1 text-xs text-gray-600">
+                  {i.descripcion}
+                  {!!i.descuento_monto && (
+                    <span className="text-[10px] text-gray-400"> · desc −{formatCLP(i.descuento_monto)}</span>
+                  )}
+                </span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={i.subtotal}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    setItems((prev) => prev.map((x, idx2) => idx2 === idx ? { ...x, subtotal: v } : x))
+                  }}
+                  className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-right text-xs text-gray-700 bg-white"
+                />
+              </div>
+            ))}
+            <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-gray-100">
+              <span className="text-xs font-semibold text-gray-700">Total boleta</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={totalBoleta}
+                onChange={(e) => setTotalBoleta(Number(e.target.value))}
+                className="w-28 border border-gray-200 rounded-lg px-2 py-1 text-right text-xs font-semibold text-gray-900 bg-white"
+              />
+            </div>
+          </div>
+
+          {cruceRevision.cruce_valido ? (
+            <button
+              onClick={() => setRevisionTotales(false)}
+              className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold"
+            >
+              Continuar a clasificar ítems
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <button
+                disabled
+                className="w-full bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold opacity-40 cursor-not-allowed"
+              >
+                Continuar a clasificar ítems
+              </button>
+
+              {!gastoIdReescaneo && (
+                <div className="space-y-1.5">
+                  <button
+                    onClick={() => { setConfirmandoDescuadre(false); setPaso(2) }}
+                    className="w-full border border-blue-200 text-blue-600 rounded-xl py-3 text-sm font-semibold"
+                  >
+                    📷 Volver a sacar la foto
+                  </button>
+                  <p className="text-[11px] text-gray-400 px-1">
+                    Asegúrate de que en la foto salgan los montos de cada ítem, los descuentos, el IVA, los impuestos y el TOTAL — si algo quedó cortado o borroso, la lectura falla.
+                  </p>
+                </div>
+              )}
+
+              {confirmandoDescuadre ? (
+                <div className="space-y-2 bg-amber-50 border border-amber-100 rounded-lg p-3">
+                  <p className="text-xs text-amber-700">
+                    ¿Continuar igual con un descuadre de {formatCLP(Math.round(cruceRevision.diferencia))}? La boleta quedará marcada con este descuadre y los montos por producto pueden no reflejar lo realmente pagado.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setConfirmandoDescuadre(false); setRevisionTotales(false) }}
+                      className="flex-1 bg-amber-500 text-white rounded-lg py-1.5 text-xs font-semibold"
+                    >
+                      Sí, continuar igual
+                    </button>
+                    <button onClick={() => setConfirmandoDescuadre(false)} className="text-xs text-gray-400 px-3">Cancelar</button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmandoDescuadre(true)}
+                  className="w-full border border-amber-300 text-amber-600 rounded-xl py-2.5 text-xs font-semibold"
+                >
+                  Continuar igual con descuadre de {formatCLP(Math.round(cruceRevision.diferencia))}
+                </button>
+              )}
+            </div>
+          )}
         </div>
-      )}
+        )
+      })()}
 
       {/* Paso 3, sub-fase "etiquetado" — clasificación ítem a ítem */}
       {paso === 3 && !revisionTotales && item && (
@@ -921,11 +1170,11 @@ export default function Scan() {
 
             {(() => {
               const { neto, bruto, iva } = calcularNetoBruto(item.subtotal, interpretacionPrecios ?? 'bruto')
-              const descuento = descuentoDeItem(item)
               return (
                 <p className="text-[10px] text-gray-400 text-center mb-3">
                   Bruto {formatCLP(bruto)} (Neto {formatCLP(neto)} + IVA {formatCLP(iva)})
-                  {descuento && <> · Desc {formatCLP(descuento.monto)} (antes {formatCLP(descuento.antes)})</>}
+                  {/* Solo descuentos IMPRESOS en la boleta — nunca inferidos por aritmética */}
+                  {!!item.descuento_monto && <> · Desc {formatCLP(item.descuento_monto)}{item.descuento_descripcion ? ` (${item.descuento_descripcion})` : ''}</>}
                 </p>
               )
             })()}
@@ -1025,5 +1274,13 @@ export default function Scan() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function Scan() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-gray-400 text-sm">Cargando...</p></div>}>
+      <ScanContenido />
+    </Suspense>
   )
 }

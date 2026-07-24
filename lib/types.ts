@@ -1,4 +1,4 @@
-import type { InterpretacionPrecio, FuenteInterpretacion } from './confianzaDocumento'
+import type { InterpretacionPrecio, FuenteInterpretacion, DescuentoImpreso } from './confianzaDocumento'
 
 export type Moneda = 'CLP' | 'UF'
 export type RolUsuario = 'super_admin' | 'admin' | 'usuario'
@@ -84,6 +84,7 @@ export interface Gasto {
   comentario: string | null
   interpretacion_precios?: InterpretacionPrecio | null
   iva_impreso?: number | null
+  otros_impuestos?: number | null
   fuente_interpretacion?: FuenteInterpretacion | null
   descuento_general_monto?: number | null
   descuento_general_descripcion?: string | null
@@ -159,6 +160,10 @@ export interface ItemGasto {
   etapa_id: string
   partida_id: string
   estado: EstadoItem
+  // Descuento IMPRESO en la boleta y aplicado a esta línea por el servidor —
+  // nunca inferido por aritmética ni calculado por la IA.
+  descuento_monto?: number | null
+  descuento_descripcion?: string | null
   created_at: string
 }
 
@@ -167,7 +172,8 @@ export interface DocumentoConfianza {
   calidad_imagen_percibida: number
   interpretacion_precios?: InterpretacionPrecio
   iva_impreso?: number | null
-  descuento_general?: { aplica: boolean; descripcion?: string | null }
+  otros_impuestos_impreso?: number | null
+  descuentos?: DescuentoImpreso[]
 }
 
 // Respuesta de la API de análisis
@@ -184,6 +190,7 @@ export interface RespuestaAnalisis {
   requiere_atencion?: boolean
   interpretacion_precios?: InterpretacionPrecio
   iva_impreso?: number | null
+  otros_impuestos?: number | null
   fuente_interpretacion?: FuenteInterpretacion
   descuento_general_monto?: number
   descuento_general_descripcion?: string | null
@@ -200,6 +207,8 @@ export interface ItemAnalizado {
   confianza: number
   etapa_id?: string
   partida_id?: string
+  descuento_monto?: number | null
+  descuento_descripcion?: string | null
 }
 
 // Estado del formulario de escaneo

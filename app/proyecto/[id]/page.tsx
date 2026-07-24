@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
 import { getProyectos, getEtapas, getPartidas, getGastos, getUsuarioActual, getPermisosOverrides, deleteGasto, deleteItemGasto } from '@/lib/supabase/db'
 import { tienePermiso } from '@/lib/permisos'
-import { determinarInterpretacionConIva, calcularNetoBruto, descuentoDeItem } from '@/lib/confianzaDocumento'
+import { determinarInterpretacionConIva, calcularNetoBruto } from '@/lib/confianzaDocumento'
 import * as XLSX from 'xlsx'
 import ClasificacionModal from '@/components/ClasificacionModal'
 import FichaBoleta from '@/components/FichaBoleta'
@@ -409,11 +409,11 @@ export default function ProyectoDetalle() {
                 <p className="text-xs text-gray-400 mt-0.5">{item.cantidad} {item.unidad}</p>
                 {(() => {
                   const { neto, iva } = netoBrutoDeItem(item, item.gasto)
-                  const descuento = descuentoDeItem(item)
                   return (
                     <p className="text-[10px] text-gray-400 mt-0.5">
                       IVA {formatCLP(iva)} · Neto {formatCLP(neto)}
-                      {descuento && <> · Desc {formatCLP(descuento.monto)}</>}
+                      {/* Solo descuentos IMPRESOS en la boleta — nunca inferidos por aritmética */}
+                      {!!item.descuento_monto && <> · Desc {formatCLP(item.descuento_monto)}</>}
                     </p>
                   )
                 })()}
@@ -500,11 +500,10 @@ export default function ProyectoDetalle() {
                           <span>
                             {(() => {
                               const { neto, bruto } = netoBrutoDeItem(item, gasto)
-                              const descuento = descuentoDeItem(item)
                               return (
                                 <>
                                   {formatCLP(bruto)}
-                                  <span className="text-gray-300"> (neto {formatCLP(neto)}{descuento && <> · desc {formatCLP(descuento.monto)}</>})</span>
+                                  <span className="text-gray-300"> (neto {formatCLP(neto)}{!!item.descuento_monto && <> · desc {formatCLP(item.descuento_monto)}</>})</span>
                                 </>
                               )
                             })()}

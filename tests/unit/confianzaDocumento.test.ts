@@ -9,6 +9,8 @@ import {
   aplicarDescuentoGeneral,
   descuentoDeItem,
   esRazonablementeSimilar,
+  reconciliarBoleta,
+  reconciliarYDeterminarInterpretacion,
   TOLERANCIA_CRUCE,
   UMBRAL_BAJA,
   FACTOR_IVA,
@@ -255,5 +257,140 @@ describe('esRazonablementeSimilar', () => {
       { proveedor: 'Sodimac', total: 1000 },
       { proveedor: 'Easy', total: 1000 }
     )).toBe(false)
+  })
+})
+
+type ItemTest = { descripcion: string; subtotal: number; descuento_monto?: number | null; descuento_descripcion?: string | null }
+
+describe('reconciliarBoleta', () => {
+  it('H2: la suma ya cuadra con el total → no aplica descuentos de nuevo (doble conteo imposible)', () => {
+    const items: ItemTest[] = [{ descripcion: 'Diesel', subtotal: 56247 }]
+    const r = reconciliarBoleta(items, [{ descripcion: 'Descuento cupón', monto: 2461, aplica_a: 'Diesel' }], 56247)
+    expect(r.cruce_valido).toBe(true)
+    expect(r.items[0].subtotal).toBe(56247)
+    expect(r.items[0].descuento_monto).toBeUndefined()
+    expect(r.descuentoGeneralMonto).toBe(0)
+  })
+
+  it('H1: suma − descuento impreso cuadra → aplica el descuento al ítem que calza (caso COPEC)', () => {
+    const items: ItemTest[] = [{ descripcion: 'Diesel', subtotal: 58708 }]
+    const r = reconciliarBoleta(items, [{ descripcion: 'Descuento cupon $50/lt', monto: 2461, aplica_a: 'Diesel' }], 56247)
+    expect(r.cruce_valido).toBe(true)
+    expect(r.items[0].subtotal).toBe(56247)
+    expect(r.items[0].descuento_monto).toBe(2461)
+    expect(r.items[0].descuento_descripcion).toBe('Descuento cupon $50/lt')
+    expect(r.descuentoGeneralMonto).toBe(0)
+  })
+
+  it('H1 sin aplica_a: el descuento se reparte proporcional como descuento general', () => {
+    const items = [
+      { descripcion: 'Cemento', subtotal: 8000 },
+      { descripcion: 'Arena', subtotal: 2000 },
+    ]
+    const r = reconciliarBoleta(items, [{ descripcion: '10% dcto', monto: 1000, aplica_a: null }], 9000)
+    expect(r.cruce_valido).toBe(true)
+    expect(r.items.reduce((s, i) => s + i.subtotal, 0)).toBe(9000)
+    expect(r.descuentoGeneralMonto).toBe(1000)
+    expect(r.descuentoGeneralDescripcion).toBe('10% dcto')
+  })
+
+  it('H3: descuento declarado sin monto impreso → el monto se DERIVA como suma − total', () => {
+    const items = [{ descripcion: 'Pintura', subtotal: 10000 }]
+    const r = reconciliarBoleta(items, [{ descripcion: '2x1', monto: null, aplica_a: null }], 8000)
+    expect(r.cruce_valido).toBe(true)
+    expect(r.items[0].subtotal).toBe(8000)
+    expect(r.descuentoGeneralMonto).toBe(2000)
+  })
+
+  it('H4: nada cuadra → cruce inválido y los ítems quedan intactos (no se inventa nada)', () => {
+    const items = [{ descripcion: 'Diesel', subtotal: 53708 }]
+    const r = reconciliarBoleta(items, [{ descripcion: 'Descuento', monto: 2461, aplica_a: null }], 56247)
+    expect(r.cruce_valido).toBe(false)
+    expect(r.items[0].subtotal).toBe(53708)
+    expect(r.descuentoGeneralMonto).toBe(0)
+  })
+
+  it('sin descuentos y con descuadre real, no cuadra', () => {
+    const r = reconciliarBoleta([{ descripcion: 'X', subtotal: 51247 }], [], 56247)
+    expect(r.cruce_valido).toBe(false)
+    expect(r.diferencia).toBe(5000)
+  })
+
+  it('descuadre de pocos pesos queda dentro de la tolerancia proporcional', () => {
+    const r = reconciliarBoleta([{ descripcion: 'X', subtotal: 49998 }], [], 50000)
+    expect(r.cruce_valido).toBe(true)
+  })
+})
+
+describe('reconciliarYDeterminarInterpretacion', () => {
+  it('regresión COPEC completa: descuento impreso + IVA + impuesto combustibles cuadran como bruto', () => {
+    // Boleta real: Diesel $58.708, cupón −$2.461, Total $56.247
+    // (Neto $42.400 + Imp.Comb $5.791 + IVA $8.056)
+    const itemsCopec: ItemTest[] = [{ descripcion: 'Diesel', subtotal: 58708 }]
+    const r = reconciliarYDeterminarInterpretacion(
+      itemsCopec,
+      [{ descripcion: 'Descuento cupon $50/lt', monto: 2461, aplica_a: 'Diesel' }],
+      56247,
+      8056,
+      5791,
+      'bruto'
+    )
+    expect(r.cruce_valido).toBe(true)
+    expect(r.interpretacion).toBe('bruto')
+    expect(r.items[0].subtotal).toBe(56247)
+    expect(r.items[0].descuento_monto).toBe(2461)
+  })
+
+  it('boleta neta con desglose impreso: cuadra contra total − IVA − otros impuestos', () => {
+    // Neto 42.400 impreso por ítem; IVA 8.056 + imp comb 5.791 → total 56.247
+    const r = reconciliarYDeterminarInterpretacion(
+      [{ descripcion: 'Diesel', subtotal: 42400 }],
+      [],
+      56247,
+      8056,
+      5791
+    )
+    expect(r.cruce_valido).toBe(true)
+    expect(r.interpretacion).toBe('neto')
+    expect(r.fuente).toBe('iva_impreso')
+  })
+
+  it('boleta neta clásica (Comercial Costa Sur): ítems netos + IVA impreso sin otros impuestos', () => {
+    const r = reconciliarYDeterminarInterpretacion(
+      [{ descripcion: 'Materiales', subtotal: 130377 }],
+      [],
+      155150,
+      24773,
+      null
+    )
+    expect(r.cruce_valido).toBe(true)
+    expect(r.interpretacion).toBe('neto')
+  })
+
+  it('sin IVA impreso pero texto IA dice neto: valida contra total ÷ 1.19 aproximado', () => {
+    const r = reconciliarYDeterminarInterpretacion(
+      [{ descripcion: 'X', subtotal: 100000 }],
+      [],
+      119000,
+      null,
+      null,
+      'neto'
+    )
+    expect(r.cruce_valido).toBe(true)
+    expect(r.interpretacion).toBe('neto')
+    expect(r.fuente).toBe('texto_ia')
+  })
+
+  it('nada cuadra y sin señales → default bruto con cruce inválido', () => {
+    const r = reconciliarYDeterminarInterpretacion(
+      [{ descripcion: 'X', subtotal: 51247 }],
+      [],
+      56247,
+      null,
+      null
+    )
+    expect(r.cruce_valido).toBe(false)
+    expect(r.interpretacion).toBe('bruto')
+    expect(r.fuente).toBe('default_bruto')
   })
 })
