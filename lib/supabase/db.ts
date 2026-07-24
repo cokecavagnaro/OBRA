@@ -1,7 +1,8 @@
 import { createClient } from './client'
+import { formatCLP } from '../mock'
 import { normalizarDescripcion } from '../aprendizaje'
 import { determinarInterpretacionConIva, calcularNetoBruto, type InterpretacionPrecio, type FuenteInterpretacion } from '../confianzaDocumento'
-import type { Proyecto, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta, EstadoItem, RolUsuario, GastoEvento, Notificacion } from '../types'
+import type { Proyecto, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta, EstadoItem, RolUsuario, GastoEvento, Notificacion, RespuestaAnalisis } from '../types'
 import type { PermisoKey } from '../permisos'
 
 // ---- Usuarios / cuenta ----
@@ -210,6 +211,20 @@ export async function updatePartidaPresupuesto(id: string, presupuesto: number |
   await supabase.from('partidas').update({ presupuesto }).eq('id', id)
 }
 
+// ---- Etiquetas ----
+
+// Etiquetas ya usadas en algún ítem del proyecto, para sugerir en vez de
+// escribirlas siempre a mano (alcance por proyecto, igual que getEtapas/getPartidas).
+export async function getEtiquetas(proyecto_id: string): Promise<string[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('items_gasto')
+    .select('etiquetas, gastos!inner(proyecto_id)')
+    .eq('gastos.proyecto_id', proyecto_id)
+  const todas = (data ?? []).flatMap((r) => (r.etiquetas as string[]) ?? [])
+  return Array.from(new Set(todas)).sort()
+}
+
 // ---- Gastos ----
 
 // gasto_eventos.gasto_id no tiene fk a propósito (ver migración 017: el
@@ -233,6 +248,7 @@ function mapGastoRow(g: Record<string, unknown>, historialAprobacion: GastoEvent
     etapa_id: '',
     partida_id: '',
     moneda: (g.moneda as string) ?? 'CLP',
+    proyecto: g.proyectos ? { nombre: (g.proyectos as { nombre: string }).nombre } as Proyecto : undefined,
     items: ((g.items_gasto as Record<string, unknown>[]) ?? []).map((i) => ({
       ...i,
       etapa_id: (i.etapa_id as string) ?? '',
@@ -250,7 +266,7 @@ export async function getGastos(proyecto_id: string): Promise<Gasto[]> {
   const [{ data, error }, { data: eventosData }] = await Promise.all([
     supabase
       .from('gastos')
-      .select('*, items_gasto(*), item_gasto_eventos(*)')
+      .select('*, proyectos(nombre), items_gasto(*), item_gasto_eventos(*)')
       .eq('proyecto_id', proyecto_id)
       .order('created_at', { ascending: false }),
     supabase.from('gasto_eventos').select('*').eq('proyecto_id', proyecto_id),
@@ -267,7 +283,7 @@ export async function getAllGastos(): Promise<Gasto[]> {
   const [{ data }, { data: eventosData }] = await Promise.all([
     supabase
       .from('gastos')
-      .select('*, items_gasto(*), item_gasto_eventos(*)')
+      .select('*, proyectos(nombre), items_gasto(*), item_gasto_eventos(*)')
       .order('created_at', { ascending: false }),
     supabase.from('gasto_eventos').select('*'),
   ])
@@ -440,11 +456,15 @@ async function logGastoEvento(params: {
 // notificarlo no se puede hacer con el cliente autenticado normal.
 async function notificarAprobadores(gastoId: string, proveedor: string, total: number): Promise<void> {
   try {
-    await fetch('/api/solicitar-aprobacion', {
+    const res = await fetch('/api/solicitar-aprobacion', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gasto_id: gastoId, proveedor, total }),
     })
+    // fetch() sigue redirects por defecto y no tira error por status HTTP —
+    // sin este chequeo, una sesión inválida (redirect a /login) o un error
+    // del servidor quedan completamente silenciosos, sin avisar en consola.
+    if (!res.ok) console.error('notificarAprobadores: respuesta no-ok', res.status, await res.text().catch(() => ''))
   } catch (err) {
     console.error('notificarAprobadores:', err)
   }
@@ -458,11 +478,12 @@ async function notificarAprobadores(gastoId: string, proveedor: string, total: n
 // gasto, no de lo que mande este cliente.
 async function notificarSolicitante(gastoId: string): Promise<void> {
   try {
-    await fetch('/api/notificar-solicitante', {
+    const res = await fetch('/api/notificar-solicitante', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gasto_id: gastoId }),
     })
+    if (!res.ok) console.error('notificarSolicitante: respuesta no-ok', res.status, await res.text().catch(() => ''))
   } catch (err) {
     console.error('notificarSolicitante:', err)
   }
@@ -753,6 +774,90 @@ export async function saveGasto(params: {
   }
 
   return gasto.id
+}
+
+// Vuelve a analizar la boleta con IA (misma imagen ya guardada) y sobrescribe
+// proveedor/RUT/fecha/total/ítems — los ítems nuevos quedan sin etiquetas
+// (mismo estado que un escaneo recién hecho), así que el gasto vuelve a
+// 'pendiente' de clasificación. Queda registrado en gasto_eventos (migración
+// 021) igual que el resto del historial de la boleta.
+export async function reescanearGasto(gastoId: string, datos: RespuestaAnalisis): Promise<Gasto | null> {
+  const supabase = createClient()
+  const { data: gastoActual } = await supabase
+    .from('gastos')
+    .select('proyecto_id, proveedor, total')
+    .eq('id', gastoId)
+    .single()
+  if (!gastoActual) return null
+
+  const { error: errorItems } = await supabase.from('items_gasto').delete().eq('gasto_id', gastoId)
+  if (errorItems) {
+    console.error('reescanearGasto (borrar items):', errorItems)
+    return null
+  }
+
+  const hoy = new Date().toISOString().split('T')[0]
+  const fechaValida = /^\d{4}-\d{2}-\d{2}$/.test(datos.fecha) ? datos.fecha : hoy
+  const sumaItems = datos.items.reduce((s, i) => s + (i.subtotal || 0), 0)
+  const totalValido = typeof datos.total === 'number' && datos.total > 0 ? datos.total : sumaItems
+  const interpretacion = datos.interpretacion_precios
+    ?? determinarInterpretacionConIva(sumaItems, totalValido, datos.iva_impreso ?? null).interpretacion
+  const proveedorNuevo = datos.proveedor || 'Sin proveedor'
+
+  const { error } = await supabase
+    .from('gastos')
+    .update({
+      proveedor: proveedorNuevo,
+      rut_proveedor: datos.rut || '',
+      fecha_boleta: fechaValida,
+      total: totalValido,
+      interpretacion_precios: interpretacion,
+      iva_impreso: datos.iva_impreso ?? null,
+      fuente_interpretacion: datos.fuente_interpretacion ?? null,
+      descuento_general_monto: datos.descuento_general_monto || null,
+      descuento_general_descripcion: datos.descuento_general_descripcion || null,
+      estado: 'pendiente',
+    })
+    .eq('id', gastoId)
+  if (error) {
+    console.error('reescanearGasto:', error)
+    return null
+  }
+
+  if (datos.items.length > 0) {
+    await supabase.from('items_gasto').insert(
+      datos.items.map((item) => ({
+        gasto_id: gastoId,
+        descripcion: item.descripcion,
+        cantidad: item.cantidad,
+        unidad: item.unidad,
+        precio_unitario: item.precio_unitario,
+        subtotal: item.subtotal,
+        categoria: item.categoria,
+        etiquetas: item.etiquetas,
+        confianza_ia: item.confianza,
+        etapa_id: item.etapa_id || null,
+        partida_id: item.partida_id || null,
+        estado: 'pendiente',
+      }))
+    )
+  }
+
+  await logGastoEvento({
+    gasto_id: gastoId,
+    proyecto_id: gastoActual.proyecto_id,
+    gasto_proveedor: proveedorNuevo,
+    gasto_total: totalValido,
+    accion: 'reescaneada',
+    comentario: `Proveedor: ${gastoActual.proveedor} → ${proveedorNuevo}; Total: ${formatCLP(gastoActual.total)} → ${formatCLP(totalValido)}`,
+  })
+
+  const { data: gastoNuevo } = await supabase
+    .from('gastos')
+    .select('*, proyectos(nombre), items_gasto(*), item_gasto_eventos(*)')
+    .eq('id', gastoId)
+    .single()
+  return gastoNuevo ? mapGastoRow(gastoNuevo) : null
 }
 
 export async function deleteGasto(id: string): Promise<boolean> {

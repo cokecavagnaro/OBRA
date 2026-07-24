@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getAllGastos, getUsuarioActual, getPermisosOverrides, getEtapas, getPartidas } from '@/lib/supabase/db'
+import { getAllGastos, getUsuarioActual, getPermisosOverrides, getEtapas, getPartidas, getEtiquetas } from '@/lib/supabase/db'
 import { tienePermiso } from '@/lib/permisos'
 import FichaBoleta from '@/components/FichaBoleta'
 import type { Gasto, Etapa, Partida, Usuario, PermissionOverride } from '@/lib/types'
@@ -30,6 +30,7 @@ function AprobacionesContenido() {
   const [gastoSeleccionado, setGastoSeleccionado] = useState<Gasto | null>(null)
   const [etapasSel, setEtapasSel] = useState<Etapa[]>([])
   const [partidasSel, setPartidasSel] = useState<Partida[]>([])
+  const [etiquetasSel, setEtiquetasSel] = useState<string[]>([])
 
   const esAprobador = usuarioActual ? tienePermiso(usuarioActual, overrides, 'approve_boletas') : false
 
@@ -43,9 +44,10 @@ function AprobacionesContenido() {
 
   async function abrirFicha(g: Gasto) {
     setGastoSeleccionado(g)
-    const [e, p] = await Promise.all([getEtapas(g.proyecto_id), getPartidas(g.proyecto_id)])
+    const [e, p, tags] = await Promise.all([getEtapas(g.proyecto_id), getPartidas(g.proyecto_id), getEtiquetas(g.proyecto_id)])
     setEtapasSel(e)
     setPartidasSel(p)
+    setEtiquetasSel(tags)
   }
 
   function handleActualizado(gastoActualizado: Gasto) {
@@ -123,6 +125,7 @@ function AprobacionesContenido() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{g.proveedor}</p>
+                  {g.proyecto?.nombre && <p className="text-xs font-medium text-blue-600 mt-0.5">📁 {g.proyecto.nombre}</p>}
                   <p className="text-xs text-gray-400 mt-0.5">Solicitada por {g.creado_por_email ?? 'desconocido'}</p>
                 </div>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${BADGE_ESTADO[g.estado_aprobacion]}`}>
@@ -160,7 +163,10 @@ function AprobacionesContenido() {
               <div className="space-y-1.5">
                 {grupo.boletas.map((g) => (
                   <button key={g.id} onClick={() => abrirFicha(g)} className="w-full flex items-center justify-between text-xs text-gray-500">
-                    <span className="truncate flex-1 text-left">{g.proveedor}</span>
+                    <span className="truncate flex-1 text-left">
+                      {g.proveedor}
+                      {g.proyecto?.nombre && <span className="text-blue-600 font-medium"> · 📁 {g.proyecto.nombre}</span>}
+                    </span>
                     <span className="shrink-0 ml-2">{formatCLP(g.total)}</span>
                   </button>
                 ))}
@@ -177,7 +183,7 @@ function AprobacionesContenido() {
           overrides={overrides}
           etapas={etapasSel}
           partidas={partidasSel}
-          etiquetasSugeridas={[]}
+          etiquetasSugeridas={etiquetasSel}
           onActualizado={handleActualizado}
           onEliminado={handleEliminado}
           onCerrar={() => setGastoSeleccionado(null)}

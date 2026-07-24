@@ -27,7 +27,17 @@ export async function middleware(request: NextRequest) {
   const isPublic = request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/auth')
 
-  if (!user && !isPublic) {
+  // Las rutas /api/* manejan su propio chequeo de auth y devuelven un 401 en
+  // JSON (ver app/api/solicitar-aprobacion, notificar-solicitante, etc.) —
+  // antes, si la sesión no era válida acá, el middleware las redirigía a
+  // /login (HTML) en vez de dejarlas responder. Un fetch() sigue redirects
+  // por defecto, así que el caller recibía un 200 con el HTML del login en
+  // vez de un error, y como esas llamadas son "fire and forget" sin chequear
+  // res.ok, la falla quedaba completamente invisible (nunca se creaba la
+  // notificación, y nunca se veía ningún error ni en el server ni en el navegador).
+  const esApi = request.nextUrl.pathname.startsWith('/api/')
+
+  if (!user && !isPublic && !esApi) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

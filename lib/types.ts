@@ -112,7 +112,7 @@ export interface GastoEvento {
   proyecto_id: string
   gasto_proveedor: string
   gasto_total: number
-  accion: 'solicitada' | 'editada' | 'aprobada' | 'rechazada' | 'reenviada' | 'eliminada'
+  accion: 'solicitada' | 'editada' | 'aprobada' | 'rechazada' | 'reenviada' | 'eliminada' | 'reescaneada'
   estado_anterior: string | null
   estado_nuevo: string | null
   comentario: string | null

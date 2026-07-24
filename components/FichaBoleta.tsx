@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { formatCLP } from '@/lib/mock'
 import { tienePermiso } from '@/lib/permisos'
-import { aprobarBoleta, rechazarBoleta, reenviarBoleta, updateGastoDatos, deleteGasto, deleteItemGasto } from '@/lib/supabase/db'
+import { aprobarBoleta, rechazarBoleta, reenviarBoleta, updateGastoDatos, deleteGasto, deleteItemGasto, reescanearGasto } from '@/lib/supabase/db'
 import { descuentoDeItem, calcularNetoBruto } from '@/lib/confianzaDocumento'
 import ClasificacionModal from './ClasificacionModal'
 import CruceItemsTotal from './CruceItemsTotal'
@@ -35,6 +35,7 @@ const LABEL_ACCION: Record<string, string> = {
   rechazada: '⛔ Rechazada',
   reenviada: '🔁 Reenviada',
   eliminada: '🗑️ Eliminada',
+  reescaneada: '🔄 Re-escaneada',
 }
 
 async function descargarImagen(url: string, nombreArchivo: string) {
@@ -75,6 +76,9 @@ export default function FichaBoleta({
   const [rutEdit, setRutEdit] = useState(gasto.rut_proveedor)
   const [fechaEdit, setFechaEdit] = useState(gasto.fecha_boleta)
   const [historialAbierto, setHistorialAbierto] = useState(false)
+  const [confirmandoReescaneo, setConfirmandoReescaneo] = useState(false)
+  const [reescaneando, setReescaneando] = useState(false)
+  const [errorReescaneo, setErrorReescaneo] = useState<string | null>(null)
 
   const esAprobador = usuarioActual ? tienePermiso(usuarioActual, overrides, 'approve_boletas') : false
   const esSolicitante = !!usuarioActual && usuarioActual.id === gasto.solicitante_id
@@ -144,6 +148,46 @@ export default function FichaBoleta({
     }
   }
 
+  async function handleReescanear() {
+    if (!gasto.imagen_url) return
+    setErrorReescaneo(null)
+    setReescaneando(true)
+    try {
+      const resImagen = await fetch(gasto.imagen_url)
+      const blob = await resImagen.blob()
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve((reader.result as string).split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      })
+
+      const res = await fetch('/api/analizar-boleta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imagen_base64: base64,
+          media_type: blob.type || 'image/jpeg',
+          proyecto_id: gasto.proyecto_id,
+          contexto_boleta: gasto.contexto_boleta,
+        }),
+      })
+      if (!res.ok) throw new Error('No pudimos re-escanear la boleta. Intenta de nuevo.')
+      const datos = await res.json()
+
+      const gastoActualizado = await reescanearGasto(gasto.id, datos)
+      if (!gastoActualizado) throw new Error('No pudimos guardar el re-escaneo.')
+
+      setGasto(gastoActualizado)
+      onActualizado(gastoActualizado)
+      setConfirmandoReescaneo(false)
+    } catch (err) {
+      setErrorReescaneo(err instanceof Error ? err.message : 'No pudimos re-escanear la boleta.')
+    } finally {
+      setReescaneando(false)
+    }
+  }
+
   function handleItemGuardado(itemActualizado: ItemGasto, _nuevasEtapas: Etapa[], _nuevasPartidas: Partida[], nuevoTotalGasto?: number) {
     actualizarLocal({
       total: nuevoTotalGasto ?? gasto.total,
@@ -167,6 +211,9 @@ export default function FichaBoleta({
                 {LABEL_ESTADO[gasto.estado_aprobacion]}
               </span>
             </div>
+            {gasto.proyecto?.nombre && (
+              <p className="text-xs font-semibold text-blue-600 mt-0.5">📁 {gasto.proyecto.nombre}</p>
+            )}
             <p className="text-xs text-gray-400 mt-0.5">RUT {gasto.rut_proveedor} · {gasto.fecha_boleta}</p>
             {gasto.descuento_general_monto ? (
               <div className="mt-1">
@@ -244,8 +291,26 @@ export default function FichaBoleta({
                   </div>
                 </div>
               ) : (
-                <button onClick={() => setEditandoDatos(true)} className="text-xs text-blue-600 font-medium">Editar proveedor / RUT / fecha</button>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setEditandoDatos(true)} className="text-xs text-blue-600 font-medium">Editar proveedor / RUT / fecha</button>
+                  {gasto.imagen_url && (
+                    <button onClick={() => setConfirmandoReescaneo(true)} className="text-xs text-blue-600 font-medium">🔄 Re-escanear</button>
+                  )}
+                </div>
               )
+            )}
+
+            {confirmandoReescaneo && (
+              <div className="space-y-2 bg-amber-50 border border-amber-100 rounded-lg p-3">
+                <p className="text-xs text-amber-700">¿Volver a escanear esta boleta? La IA va a leer la foto de nuevo y esto reemplaza los datos e ítems actuales (etiquetas y clasificaciones incluidas).</p>
+                {errorReescaneo && <p className="text-xs text-red-600">{errorReescaneo}</p>}
+                <div className="flex gap-2">
+                  <button onClick={handleReescanear} disabled={reescaneando} className="flex-1 bg-amber-500 text-white rounded-lg py-1.5 text-xs font-semibold disabled:opacity-50">
+                    {reescaneando ? 'Re-escaneando...' : 'Sí, re-escanear'}
+                  </button>
+                  <button onClick={() => { setConfirmandoReescaneo(false); setErrorReescaneo(null) }} disabled={reescaneando} className="text-xs text-gray-400 px-3">Cancelar</button>
+                </div>
+              </div>
             )}
 
             <CruceItemsTotal items={gasto.items ?? []} total={gasto.total} interpretacion={gasto.interpretacion_precios ?? undefined} />

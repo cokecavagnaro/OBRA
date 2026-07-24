@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getProyectos, getEtapas, getPartidas, saveGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
+import { getProyectos, getEtapas, getPartidas, getEtiquetas, saveGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { normalizarImagenParaSubida } from '@/lib/imagen'
 import { tienePermiso } from '@/lib/permisos'
 import { calcularNetoBruto, descuentoDeItem, type InterpretacionPrecio, type FuenteInterpretacion } from '@/lib/confianzaDocumento'
@@ -63,6 +63,7 @@ export default function Scan() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [etapasFiltradas, setEtapasFiltradas] = useState<Etapa[]>([])
   const [partidasFiltradas, setPartidasFiltradas] = useState<Partida[]>([])
+  const [tagsProyecto, setTagsProyecto] = useState<string[]>([])
 
   // Creación inline en paso 3
   const [creandoEtapaInline, setCreandoEtapaInline] = useState(false)
@@ -88,7 +89,6 @@ export default function Scan() {
   }, [])
 
   const paso1Completo = !!proyecto
-  const tagsProyecto: string[] = []
 
   const item = items[itemActual]
   const esUltimo = itemActual === items.length - 1
@@ -101,12 +101,14 @@ export default function Scan() {
     setEtapa(null)
     setPartida(null)
     if (o) {
-      const [e, p] = await Promise.all([getEtapas(o.id), getPartidas(o.id)])
+      const [e, p, tags] = await Promise.all([getEtapas(o.id), getPartidas(o.id), getEtiquetas(o.id)])
       setEtapasFiltradas(e)
       setPartidasFiltradas(p)
+      setTagsProyecto(tags)
     } else {
       setEtapasFiltradas([])
       setPartidasFiltradas([])
+      setTagsProyecto([])
     }
   }
 
