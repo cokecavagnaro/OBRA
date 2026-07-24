@@ -64,6 +64,7 @@ export default function FichaBoleta({
 }: Props) {
   const [gasto, setGasto] = useState(gastoInicial)
   const [itemEditando, setItemEditando] = useState<ItemGasto | null>(null)
+  const [clasificandoTrasReescaneo, setClasificandoTrasReescaneo] = useState(false)
   const [confirmandoEliminarItem, setConfirmandoEliminarItem] = useState<string | null>(null)
   const [rechazando, setRechazando] = useState(false)
   const [motivoRechazo, setMotivoRechazo] = useState('')
@@ -187,6 +188,14 @@ export default function FichaBoleta({
       setGasto(gastoActualizado)
       onActualizado(gastoActualizado)
       setConfirmandoReescaneo(false)
+      // Los ítems nuevos vienen sin etiquetas (mismo estado que un escaneo
+      // recién hecho) — se entra directo a clasificarlos, uno por uno, igual
+      // que en el flujo de escaneo original.
+      const primerItem = (gastoActualizado.items ?? []).find((i) => i.etiquetas.length === 0)
+      if (primerItem) {
+        setClasificandoTrasReescaneo(true)
+        setItemEditando(primerItem)
+      }
     } catch (err) {
       setErrorReescaneo(err instanceof Error ? err.message : 'No pudimos re-escanear la boleta.')
     } finally {
@@ -195,10 +204,17 @@ export default function FichaBoleta({
   }
 
   function handleItemGuardado(itemActualizado: ItemGasto, _nuevasEtapas: Etapa[], _nuevasPartidas: Partida[], nuevoTotalGasto?: number) {
-    actualizarLocal({
-      total: nuevoTotalGasto ?? gasto.total,
-      items: (gasto.items ?? []).map((i) => i.id === itemActualizado.id ? itemActualizado : i),
-    })
+    const itemsActualizados = (gasto.items ?? []).map((i) => i.id === itemActualizado.id ? itemActualizado : i)
+    actualizarLocal({ total: nuevoTotalGasto ?? gasto.total, items: itemsActualizados })
+    // Si venimos de un re-escaneo, se sigue con el próximo ítem sin
+    // etiquetas en vez de cerrar el modal — mismo criterio que el carrusel
+    // de escaneo original, uno por uno hasta terminar. Fuera de ese flujo
+    // (editar un ítem suelto a mano), cerrar como siempre.
+    if (clasificandoTrasReescaneo) {
+      const siguiente = itemsActualizados.find((i) => i.id !== itemActualizado.id && i.etiquetas.length === 0)
+      if (siguiente) { setItemEditando(siguiente); return }
+      setClasificandoTrasReescaneo(false)
+    }
     setItemEditando(null)
   }
 
@@ -453,7 +469,7 @@ export default function FichaBoleta({
           etiquetasSugeridas={etiquetasSugeridas}
           puedeEtiquetar
           onGuardado={handleItemGuardado}
-          onCerrar={() => setItemEditando(null)}
+          onCerrar={() => { setItemEditando(null); setClasificandoTrasReescaneo(false) }}
         />
       )}
     </div>
