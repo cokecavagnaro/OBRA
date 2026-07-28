@@ -12,6 +12,7 @@ import {
 } from '@/lib/supabase/db'
 import { tienePermiso, PERMISOS, type PermisoKey } from '@/lib/permisos'
 import EditarUsuarioModal from '@/components/EditarUsuarioModal'
+import InputPresupuesto from '@/components/InputPresupuesto'
 import type { Proyecto, Etapa, Partida, Usuario, Cuenta, Invitacion, PermissionOverride } from '@/lib/types'
 
 type Tab = 'proyectos' | 'cuenta'
@@ -324,12 +325,10 @@ function ConfigContenido() {
                 placeholder="Nombre del proyecto"
                 className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
               />
-              <input
-                type="number"
-                inputMode="decimal"
+              <InputPresupuesto
                 value={nuevoProyectoPresupuesto}
-                onChange={(e) => setNuevoProyectoPresupuesto(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && crearProyecto()}
+                onChange={setNuevoProyectoPresupuesto}
+                onEnter={crearProyecto}
                 placeholder="Presupuesto (opcional)"
                 className="w-36 border border-gray-200 rounded-lg px-3 py-2 text-sm"
               />
@@ -363,13 +362,10 @@ function ConfigContenido() {
             <div className="rounded-xl border border-gray-100 p-4">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Presupuesto total</p>
-                <input
+                <InputPresupuesto
                   key={proyectoSeleccionado.id}
-                  type="number"
-                  inputMode="decimal"
-                  defaultValue={proyectoSeleccionado.presupuesto ?? ''}
-                  onBlur={(e) => actualizarPresupuestoProyecto(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                  defaultValue={proyectoSeleccionado.presupuesto}
+                  onCommit={actualizarPresupuestoProyecto}
                   placeholder="Presupuesto (opcional)"
                   className="w-40 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right"
                 />
@@ -384,12 +380,9 @@ function ConfigContenido() {
                 {etapasFiltradas.map((etapa) => (
                   <div key={etapa.id} className="flex items-center justify-between gap-2 py-1 border-b border-gray-50 last:border-0">
                     <p className="text-sm text-gray-700">{etapa.nombre}</p>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      defaultValue={etapa.presupuesto ?? ''}
-                      onBlur={(e) => actualizarPresupuestoEtapa(etapa.id, e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                    <InputPresupuesto
+                      defaultValue={etapa.presupuesto}
+                      onCommit={(valor) => actualizarPresupuestoEtapa(etapa.id, valor)}
                       placeholder="Presupuesto"
                       className="w-28 border border-gray-200 rounded-lg px-2 py-1 text-xs text-right"
                     />
@@ -405,12 +398,10 @@ function ConfigContenido() {
                   placeholder="Nueva etapa..."
                   className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
                 />
-                <input
-                  type="number"
-                  inputMode="decimal"
+                <InputPresupuesto
                   value={nuevaEtapaPresupuesto}
-                  onChange={(e) => setNuevaEtapaPresupuesto(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && agregarEtapa()}
+                  onChange={setNuevaEtapaPresupuesto}
+                  onEnter={agregarEtapa}
                   placeholder="Presupuesto"
                   className="w-28 border border-gray-200 rounded-lg px-2 py-2 text-sm"
                 />
@@ -434,12 +425,9 @@ function ConfigContenido() {
                         <p className="text-sm text-gray-700 truncate">{p.nombre}</p>
                         <span className="text-xs text-gray-400">{etapa?.nombre ?? '—'}</span>
                       </div>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        defaultValue={p.presupuesto ?? ''}
-                        onBlur={(e) => actualizarPresupuestoPartida(p.id, e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                      <InputPresupuesto
+                        defaultValue={p.presupuesto}
+                        onCommit={(valor) => actualizarPresupuestoPartida(p.id, valor)}
                         placeholder="Presupuesto"
                         className="w-28 shrink-0 border border-gray-200 rounded-lg px-2 py-1 text-xs text-right"
                       />
@@ -467,12 +455,10 @@ function ConfigContenido() {
                     placeholder="Nueva partida..."
                     className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
                   />
-                  <input
-                    type="number"
-                    inputMode="decimal"
+                  <InputPresupuesto
                     value={nuevaPartidaPresupuesto}
-                    onChange={(e) => setNuevaPartidaPresupuesto(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && agregarPartida()}
+                    onChange={setNuevaPartidaPresupuesto}
+                    onEnter={agregarPartida}
                     placeholder="Presupuesto"
                     className="w-28 border border-gray-200 rounded-lg px-2 py-2 text-sm"
                   />
