@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildContextoAprendizaje, aplicarAprendizajeDeterministico } from '@/lib/aprendizaje'
 import { debeActivarFallback, reconciliarYDeterminarInterpretacion, descripcionCanonicaCargo, type CargoImpreso, type DescuentoImpreso, type InterpretacionPrecio, type FuenteInterpretacion } from '@/lib/confianzaDocumento'
+import { parsearMontoCLP, parsearNumero } from '@/lib/montos'
 import { createClient as createServerSupabaseClient } from '@/lib/supabase/server'
 import type { ClasificacionAprendida, ItemAnalizado } from '@/lib/types'
 
@@ -39,12 +40,18 @@ export async function POST(req: NextRequest) {
     const systemPrompt = `Eres un asistente experto en análisis de boletas y facturas de construcción en Chile.
 Tu tarea es TRANSCRIBIR lo que la boleta imprime — copia cifras, no las calcules ni las corrijas. Toda la aritmética la hace el sistema después.
 
+REGLA DE MONTOS (aplica a TODOS los montos y cantidades de este JSON):
+Devuélvelos como TEXTO entre comillas, copiados exactamente como aparecen impresos, con sus puntos y sus comas: "$66.791,73", "58.708", "49,21", "$4.318".
+- NUNCA los conviertas a número, NUNCA les quites los puntos o las comas, NUNCA los redondees. El sistema interpreta los separadores.
+- Si un monto no está impreso, devuelve null. Nunca una cifra inventada ni calculada.
+
 Para cada ítem debes devolver:
 - descripcion: texto exacto del producto/servicio
-- cantidad: número (usa 1 si no se especifica)
+- cantidad: la cantidad impresa (ver REGLA DE MONTOS; usa "1" si no se especifica)
 - unidad: "un", "m2", "ml", "kg", "gl", "lt", "hr" u otra unidad apropiada
-- precio_unitario: precio unitario tal como aparece impreso, en pesos chilenos (sin puntos ni símbolos)
-- subtotal: el monto de esa línea TAL CUAL está impreso en la boleta. Cópialo — NUNCA lo calcules tú, NUNCA le apliques descuentos. Si la línea muestra un precio original tachado y un precio final, usa el precio final impreso. Las líneas de descuento NO son ítems: van en el array "descuentos" del objeto "documento" (ver abajo), nunca acá — ni como ítem negativo ni restadas a un subtotal
+- precio_unitario: precio unitario tal como aparece impreso (ver REGLA DE MONTOS)
+- subtotal: el monto de esa línea TAL CUAL está impreso en la boleta (ver REGLA DE MONTOS). Cópialo — NUNCA lo calcules tú, NUNCA le apliques descuentos. Si la línea muestra un precio original tachado y un precio final, usa el precio final impreso. Las líneas de descuento NO son ítems: van en el array "descuentos" del objeto "documento" (ver abajo), nunca acá — ni como ítem negativo ni restadas a un subtotal.
+  Si la boleta NO imprime el monto de esa línea (solo muestra precio unitario y cantidad, como en muchos detalles de pedido) → subtotal: null. El sistema lo calcula como cantidad × precio unitario. No lo multipliques tú.
 - categoria: categoría del ítem (ej: "Materiales", "Herramientas", "Pinturas", "Electricidad", "Gasfitería", etc.)
 - etiquetas: array de 1 a 2 etiquetas en minúsculas para agrupar el gasto.
   Reglas:
@@ -65,14 +72,14 @@ Además extrae del documento:
 - rut: RUT del proveedor, mismo criterio que proveedor — si no se lee con confianza razonable, "" (nunca inventes dígitos).
 - fecha: fecha en formato YYYY-MM-DD, mismo criterio — si no se lee con confianza razonable, "" (nunca inventes una fecha).
 - moneda: "CLP" (default)
-- total: el monto FINAL efectivamente pagado/a pagar, tal como figura impreso como "TOTAL" o "TOTAL A PAGAR" en la boleta. Cópialo tal cual — nunca lo calcules sumando ítems
+- total: el monto FINAL efectivamente pagado/a pagar, tal como figura impreso como "TOTAL", "TOTAL A PAGAR" o "Pagaste en total" (ver REGLA DE MONTOS). Cópialo tal cual — nunca lo calcules sumando ítems. Ojo con los totales que traen centavos ("$66.791,73"): cópialos completos con su coma
 
 Además, evalúa la calidad del documento completo y devuelve un objeto adicional "documento":
 {
   "documento": {
     "confianza_documento": número entre 0 y 1 (confianza global en la extracción completa, no solo un ítem),
     "calidad_imagen_percibida": número entre 0 y 1 (qué tan legible percibes la imagen),
-    "iva_impreso": monto de IVA (impuesto) tal como aparece IMPRESO en la boleta, en pesos chilenos (sin puntos ni símbolos) — número, o null si la boleta no imprime un monto de IVA explícito.
+    "iva_impreso": monto de IVA (impuesto) tal como aparece IMPRESO en la boleta (ver REGLA DE MONTOS), o null si la boleta no imprime un monto de IVA explícito.
       Las boletas de construcción en Chile varían mucho en formato; busca cualquiera de estos patrones u otros equivalentes:
       - "IVA 19%: $XX.XXX", "I.V.A.: $XX.XXX", "IVA 19% - Impto. Incluido: $XX.XXX"
       - Boletas electrónicas SII con desglose de tres líneas: "Monto Neto" / "IVA" / "Monto Total"
@@ -88,7 +95,7 @@ Además, evalúa la calidad del documento completo y devuelve un objeto adiciona
     "descuentos": array con las líneas de descuento IMPRESAS en la boleta. Cada entrada:
       {
         "descripcion": texto impreso del descuento (ej. "Descuento cupón $50/lt", "10% dcto pronto pago"),
-        "monto": la cifra POSITIVA del descuento tal como está impresa (ej. si la boleta imprime "-$2.461" → 2461), o null si el descuento se menciona SIN un monto impreso (ej. "2x1" sin cifra),
+        "monto": la cifra POSITIVA del descuento tal como está impresa (ver REGLA DE MONTOS; si la boleta imprime "-$2.461" → "2.461"), o null si el descuento se menciona SIN un monto impreso (ej. "2x1" sin cifra),
         "aplica_a": la descripción del ítem al que pertenece el descuento si la boleta lo deja claro (ej. la línea de descuento aparece inmediatamente bajo ese ítem, o lo menciona por nombre), o null si es un descuento general a toda la compra
       }
       Reglas estrictas:
@@ -98,7 +105,7 @@ Además, evalúa la calidad del documento completo y devuelve un objeto adiciona
     "cargos": array con las líneas IMPRESAS que SUMAN al total y no son un producto: envío, despacho, flete, servicio, instalación, recargo. Cada entrada:
       {
         "descripcion": texto impreso del cargo (ej. "Envío a domicilio", "Despacho", "Costo de servicio"),
-        "monto": la cifra impresa del cargo (número positivo), o null si se menciona sin monto impreso
+        "monto": la cifra impresa del cargo, positiva (ver REGLA DE MONTOS), o null si se menciona sin monto impreso
       }
       Reglas estrictas:
       - Copia la cifra impresa — NUNCA la calcules ni la deduzcas de la diferencia entre el total y los productos.
@@ -195,6 +202,40 @@ async function extraerConModelo(
   return JSON.parse(raw)
 }
 
+// Los montos llegan como texto impreso ("$66.791,73") y acá se convierten a
+// número con reglas fijas. Que la IA hiciera esta conversión fue la causa de
+// que un total de $66.792 entrara como $6.679.173: el prompt le pedía el
+// número "sin puntos" y JSON no admite la coma decimal.
+//
+// Además deriva el subtotal de las líneas que no lo imprimen (detalles de
+// pedido que solo muestran precio unitario y cantidad): la multiplicación la
+// hace el servidor, no el modelo.
+function normalizarMontos(resultado: ResultadoExtraccion): void {
+  const crudo = resultado as Record<string, unknown>
+  crudo.total = parsearMontoCLP(crudo.total) ?? 0
+
+  const doc = resultado.documento as Record<string, unknown> | undefined
+  if (doc) {
+    doc.iva_impreso = parsearMontoCLP(doc.iva_impreso)
+    doc.otros_impuestos_impreso = parsearMontoCLP(doc.otros_impuestos_impreso)
+    for (const lista of [doc.descuentos, doc.cargos]) {
+      if (!Array.isArray(lista)) continue
+      for (const entrada of lista as Record<string, unknown>[]) {
+        entrada.monto = parsearMontoCLP(entrada.monto)
+      }
+    }
+  }
+
+  if (!Array.isArray(resultado.items)) return
+  for (const item of resultado.items as unknown as Record<string, unknown>[]) {
+    const cantidad = parsearNumero(item.cantidad)
+    item.cantidad = cantidad ?? 1
+    item.precio_unitario = parsearMontoCLP(item.precio_unitario) ?? 0
+    const subtotal = parsearMontoCLP(item.subtotal)
+    item.subtotal = subtotal ?? Math.round((item.cantidad as number) * (item.precio_unitario as number))
+  }
+}
+
 // Aunque el prompt lo prohíbe, la IA a veces igual emite descuentos como
 // ítems negativos — se rescatan hacia el array de descuentos (sin duplicar
 // si ya existe uno con el mismo monto).
@@ -240,6 +281,7 @@ function materializarCargo(cargo: CargoImpreso, exento: boolean): ItemAnalizado 
 // sobre el resultado crudo de la IA, mutándolo con los campos finales que
 // consume el cliente. Devuelve la validez del cuadre para decidir escalada.
 function procesarExtraccion(resultado: ResultadoExtraccion): { cruce_valido: boolean; diferencia: number } {
+  normalizarMontos(resultado)
   normalizarItemsNegativos(resultado)
 
   const ivaImpreso = resultado.documento?.iva_impreso ?? null
