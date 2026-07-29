@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildContextoAprendizaje, aplicarAprendizajeDeterministico } from '@/lib/aprendizaje'
-import { debeActivarFallback, reconciliarYDeterminarInterpretacion, type DescuentoImpreso, type InterpretacionPrecio, type FuenteInterpretacion } from '@/lib/confianzaDocumento'
+import { debeActivarFallback, reconciliarYDeterminarInterpretacion, descripcionCanonicaCargo, type CargoImpreso, type DescuentoImpreso, type InterpretacionPrecio, type FuenteInterpretacion } from '@/lib/confianzaDocumento'
 import { createClient as createServerSupabaseClient } from '@/lib/supabase/server'
 import type { ClasificacionAprendida, ItemAnalizado } from '@/lib/types'
 
@@ -95,6 +95,15 @@ Además, evalúa la calidad del documento completo y devuelve un objeto adiciona
       - NUNCA calcules un monto de descuento (ni porcentajes, ni "por litro", ni nada) — solo copia la cifra impresa. Sin cifra impresa → monto: null.
       - NUNCA pongas descuentos dentro de "items" (ni como ítem negativo ni restándolos a un subtotal).
       - Si la boleta no imprime ningún descuento → [] (array vacío). NUNCA inventes descuentos que no están impresos.
+    "cargos": array con las líneas IMPRESAS que SUMAN al total y no son un producto: envío, despacho, flete, servicio, instalación, recargo. Cada entrada:
+      {
+        "descripcion": texto impreso del cargo (ej. "Envío a domicilio", "Despacho", "Costo de servicio"),
+        "monto": la cifra impresa del cargo (número positivo), o null si se menciona sin monto impreso
+      }
+      Reglas estrictas:
+      - Copia la cifra impresa — NUNCA la calcules ni la deduzcas de la diferencia entre el total y los productos.
+      - NUNCA pongas los cargos dentro de "items": el sistema los agrega después como línea propia.
+      - Si la boleta no imprime ningún cargo → [] (array vacío). El despacho gratis o no mencionado no es un cargo.
   }
 }
 Este objeto "documento" es adicional a proveedor, rut, fecha, moneda y total — no los reemplaces ni los anides ahí.
@@ -154,6 +163,7 @@ interface ResultadoExtraccion {
     iva_impreso?: number | null
     otros_impuestos_impreso?: number | null
     descuentos?: DescuentoImpreso[]
+    cargos?: CargoImpreso[]
   }
   confianza_documento?: number
   verificado_por_reescritura?: boolean
@@ -204,6 +214,28 @@ function normalizarItemsNegativos(resultado: ResultadoExtraccion): void {
   resultado.documento = { ...(resultado.documento ?? {}), descuentos }
 }
 
+// Convierte un cargo impreso (flete, despacho, servicio) en un ítem normal de
+// la boleta. La descripción se acorta a una etiqueta canónica para que el
+// aprendizaje del proyecto la reconozca en las próximas boletas — el texto
+// impreso suele ser irrepetible (un caso real listaba 13 comunas de reparto).
+function materializarCargo(cargo: CargoImpreso, exento: boolean): ItemAnalizado {
+  const descripcion = descripcionCanonicaCargo(cargo.descripcion)
+  const esDespacho = descripcion === 'Envío' || descripcion === 'Despacho' || descripcion === 'Flete'
+  const esServicio = descripcion === 'Servicio' || descripcion === 'Instalación'
+  const monto = cargo.monto ?? 0
+  return {
+    descripcion,
+    cantidad: 1,
+    unidad: 'un',
+    precio_unitario: monto,
+    subtotal: monto,
+    categoria: esDespacho ? 'Despacho' : esServicio ? 'Servicios' : 'Otros',
+    etiquetas: esDespacho ? ['envío'] : esServicio ? ['servicio'] : ['cargo'],
+    confianza: 1,
+    exento,
+  }
+}
+
 // Aplica la reconciliación determinística (descuentos + escala bruto/neto)
 // sobre el resultado crudo de la IA, mutándolo con los campos finales que
 // consume el cliente. Devuelve la validez del cuadre para decidir escalada.
@@ -218,10 +250,14 @@ function procesarExtraccion(resultado: ResultadoExtraccion): { cruce_valido: boo
     resultado.total ?? 0,
     ivaImpreso,
     otrosImpuestos,
-    resultado.documento?.interpretacion_precios
+    resultado.documento?.interpretacion_precios,
+    resultado.documento?.cargos ?? []
   )
 
-  resultado.items = rec.items
+  // Los cargos confirmados por la aritmética entran como ítems propios: así el
+  // flete se etiqueta y se asigna a una partida como cualquier material, en vez
+  // de quedar escondido dentro del total.
+  resultado.items = [...rec.items, ...rec.cargosAplicados.map((c) => materializarCargo(c, rec.cargosExentos))]
   resultado.interpretacion_precios = rec.interpretacion
   resultado.fuente_interpretacion = rec.fuente
   resultado.iva_impreso = ivaImpreso

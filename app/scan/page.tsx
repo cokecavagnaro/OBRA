@@ -6,7 +6,7 @@ import { formatCLP } from '@/lib/mock'
 import { getProyectos, getEtapas, getPartidas, getEtiquetas, getGastoPorId, saveGasto, reescanearGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { normalizarImagenParaSubida } from '@/lib/imagen'
 import { tienePermiso } from '@/lib/permisos'
-import { calcularNetoBruto, calcularCruce, type InterpretacionPrecio, type FuenteInterpretacion } from '@/lib/confianzaDocumento'
+import { calcularNetoBruto, calcularCruce, decidirExencionCargos, FACTOR_IVA, type InterpretacionPrecio, type FuenteInterpretacion } from '@/lib/confianzaDocumento'
 import CruceItemsTotal from '@/components/CruceItemsTotal'
 import type { Proyecto, Etapa, Partida, ItemAnalizado, Usuario, PermissionOverride } from '@/lib/types'
 
@@ -61,6 +61,7 @@ function ScanContenido() {
   const [ivaImpreso, setIvaImpreso] = useState<number | null>(null)
   const [otrosImpuestos, setOtrosImpuestos] = useState<number | null>(null)
   const [confirmandoDescuadre, setConfirmandoDescuadre] = useState(false)
+  const [tipoCargoManual, setTipoCargoManual] = useState<'Envío' | 'Flete' | 'Servicio'>('Envío')
   const [fuenteInterpretacion, setFuenteInterpretacion] = useState<FuenteInterpretacion | null>(null)
   const [descuentoGeneralMonto, setDescuentoGeneralMonto] = useState<number | undefined>(undefined)
   const [descuentoGeneralDescripcion, setDescuentoGeneralDescripcion] = useState<string | null>(null)
@@ -471,6 +472,37 @@ function ScanContenido() {
     setItemActual((i) => Math.max(0, i - 1))
   }
 
+  // Salida para el descuadre que en realidad es un flete que la IA no alcanzó
+  // a leer (caso real: "Envío $10.000" listado aparte del subtotal). Agrega el
+  // monto faltante como ítem propio y etiquetable en vez de dejar la boleta
+  // marcada con un descuadre para siempre.
+  function agregarCargoManual(faltante: number) {
+    const interpretacion = interpretacionPrecios ?? 'bruto'
+    const sumaItems = items.reduce((s, i) => s + (i.subtotal ?? 0), 0)
+    const exento = decidirExencionCargos(sumaItems, faltante, interpretacion, ivaImpreso)
+    // El descuadre se mide en bruto. Un ítem gravado dentro de una boleta neta
+    // aporta subtotal × 1.19, así que hay que guardarlo en la escala correcta
+    // o el cuadre se vuelve a romper.
+    const subtotal = exento || interpretacion === 'bruto'
+      ? Math.round(faltante)
+      : Math.round(faltante / FACTOR_IVA)
+    const esServicio = tipoCargoManual === 'Servicio'
+    setItems((prev) => [
+      ...prev,
+      {
+        descripcion: tipoCargoManual,
+        cantidad: 1,
+        unidad: 'un',
+        precio_unitario: subtotal,
+        subtotal,
+        categoria: esServicio ? 'Servicios' : 'Despacho',
+        etiquetas: esServicio ? ['servicio'] : ['envío'],
+        confianza: 1,
+        exento,
+      },
+    ])
+  }
+
   async function handleGuardar(tagPendiente?: string) {
     if (guardandoRef.current) return
     guardandoRef.current = true
@@ -555,6 +587,7 @@ function ScanContenido() {
             estado: i.etiquetas.length > 0 ? 'confirmado' : 'pendiente',
             descuento_monto: modoManual ? null : i.descuento_monto ?? null,
             descuento_descripcion: modoManual ? null : i.descuento_descripcion ?? null,
+            exento: modoManual ? false : i.exento ?? false,
           })),
         })
 
@@ -892,6 +925,35 @@ function ScanContenido() {
                 Continuar a clasificar ítems
               </button>
 
+              {/* Falta plata en los ítems: lo más común es un despacho cobrado
+                  aparte que la IA no listó. Se ofrece agregarlo como ítem en
+                  vez de arrastrar el descuadre. */}
+              {totalBoleta - cruceRevision.suma_bruto > 0 && (
+                <div className="space-y-2 bg-blue-50 border border-blue-100 rounded-xl p-3">
+                  <p className="text-xs font-semibold text-blue-700">¿La diferencia es un envío o cargo extra?</p>
+                  <p className="text-[11px] text-blue-500">
+                    Si la boleta cobra despacho aparte y no quedó en la lista, agrégalo como ítem: la boleta cuadra y el flete queda etiquetable como cualquier material.
+                  </p>
+                  <div className="flex gap-2">
+                    <select
+                      value={tipoCargoManual}
+                      onChange={(e) => setTipoCargoManual(e.target.value as 'Envío' | 'Flete' | 'Servicio')}
+                      className="border border-blue-200 rounded-lg px-2 py-2 text-xs bg-white text-gray-700"
+                    >
+                      <option value="Envío">Envío</option>
+                      <option value="Flete">Flete</option>
+                      <option value="Servicio">Servicio</option>
+                    </select>
+                    <button
+                      onClick={() => agregarCargoManual(totalBoleta - cruceRevision.suma_bruto)}
+                      className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-xs font-semibold"
+                    >
+                      ➕ Agregar {formatCLP(Math.round(totalBoleta - cruceRevision.suma_bruto))}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {!gastoIdReescaneo && (
                 <div className="space-y-1.5">
                   <button
@@ -1158,7 +1220,7 @@ function ScanContenido() {
                 />
               </div>
               {(() => {
-                const { bruto } = calcularNetoBruto(item.subtotal, interpretacionPrecios ?? 'bruto')
+                const { bruto } = calcularNetoBruto(item.subtotal, interpretacionPrecios ?? 'bruto', item.exento)
                 return (
                   <div className="bg-white rounded-xl p-2 text-center border border-blue-100 bg-blue-50">
                     <p className="text-[10px] text-blue-400">Subtotal</p>
@@ -1169,10 +1231,12 @@ function ScanContenido() {
             </div>
 
             {(() => {
-              const { neto, bruto, iva } = calcularNetoBruto(item.subtotal, interpretacionPrecios ?? 'bruto')
+              const { neto, bruto, iva } = calcularNetoBruto(item.subtotal, interpretacionPrecios ?? 'bruto', item.exento)
               return (
                 <p className="text-[10px] text-gray-400 text-center mb-3">
-                  Bruto {formatCLP(bruto)} (Neto {formatCLP(neto)} + IVA {formatCLP(iva)})
+                  {item.exento
+                    ? <>Exento de IVA · {formatCLP(bruto)}</>
+                    : <>Bruto {formatCLP(bruto)} (Neto {formatCLP(neto)} + IVA {formatCLP(iva)})</>}
                   {/* Solo descuentos IMPRESOS en la boleta — nunca inferidos por aritmética */}
                   {!!item.descuento_monto && <> · Desc {formatCLP(item.descuento_monto)}{item.descuento_descripcion ? ` (${item.descuento_descripcion})` : ''}</>}
                 </p>

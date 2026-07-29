@@ -411,7 +411,7 @@ export default function ProyectoDetalle() {
                   const { neto, iva } = netoBrutoDeItem(item, item.gasto)
                   return (
                     <p className="text-[10px] text-gray-400 mt-0.5">
-                      IVA {formatCLP(iva)} · Neto {formatCLP(neto)}
+                      {item.exento ? <>Exento de IVA · {formatCLP(neto)}</> : <>IVA {formatCLP(iva)} · Neto {formatCLP(neto)}</>}
                       {/* Solo descuentos IMPRESOS en la boleta — nunca inferidos por aritmética */}
                       {!!item.descuento_monto && <> · Desc {formatCLP(item.descuento_monto)}</>}
                     </p>
@@ -690,7 +690,7 @@ function netoBrutoDeItem(item: ItemGasto, gasto: Gasto) {
     const sumaExtraida = items.reduce((s, i) => s + i.subtotal, 0)
     interpretacion = determinarInterpretacionConIva(sumaExtraida, gasto.total, gasto.iva_impreso ?? null).interpretacion
   }
-  return calcularNetoBruto(item.subtotal, interpretacion)
+  return calcularNetoBruto(item.subtotal, interpretacion, item.exento)
 }
 
 function BarraPresupuesto({ label, gastado, presupuesto }: { label: string; gastado: number; presupuesto: number }) {

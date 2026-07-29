@@ -314,8 +314,8 @@ export async function getGastoPorId(id: string): Promise<Gasto | null> {
 async function recalcularTotalGasto(gastoId: string): Promise<number> {
   const supabase = createClient()
   const { data: gasto } = await supabase.from('gastos').select('interpretacion_precios, total').eq('id', gastoId).single()
-  const { data: items } = await supabase.from('items_gasto').select('subtotal').eq('gasto_id', gastoId)
-  const itemsList = (items ?? []) as { subtotal: number }[]
+  const { data: items } = await supabase.from('items_gasto').select('subtotal, exento').eq('gasto_id', gastoId)
+  const itemsList = (items ?? []) as { subtotal: number; exento?: boolean | null }[]
 
   let interpretacion = gasto?.interpretacion_precios as InterpretacionPrecio | null | undefined
   if (!interpretacion) {
@@ -327,7 +327,7 @@ async function recalcularTotalGasto(gastoId: string): Promise<number> {
   }
 
   const nuevoTotal = Math.round(
-    itemsList.reduce((s, i) => s + calcularNetoBruto(i.subtotal, interpretacion as InterpretacionPrecio).bruto, 0)
+    itemsList.reduce((s, i) => s + calcularNetoBruto(i.subtotal, interpretacion as InterpretacionPrecio, i.exento).bruto, 0)
   )
 
   await supabase.from('gastos').update({ total: nuevoTotal, interpretacion_precios: interpretacion }).eq('id', gastoId)
@@ -707,6 +707,7 @@ export async function saveGasto(params: {
     estado: string
     descuento_monto?: number | null
     descuento_descripcion?: string | null
+    exento?: boolean | null
   }>
 }): Promise<string | null> {
   const supabase = createClient()
@@ -789,6 +790,7 @@ export async function saveGasto(params: {
         estado: item.estado,
         descuento_monto: item.descuento_monto ?? null,
         descuento_descripcion: item.descuento_descripcion ?? null,
+        exento: item.exento ?? false,
       }))
     )
   }
@@ -862,6 +864,7 @@ export async function reescanearGasto(gastoId: string, datos: RespuestaAnalisis)
         estado: 'pendiente',
         descuento_monto: item.descuento_monto ?? null,
         descuento_descripcion: item.descuento_descripcion ?? null,
+        exento: item.exento ?? false,
       }))
     )
   }

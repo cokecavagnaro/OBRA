@@ -4,7 +4,7 @@ import { calcularCruce, calcularNetoBruto, type InterpretacionPrecio } from '@/l
 import { formatCLP } from '@/lib/mock'
 
 interface Props {
-  items: { subtotal: number }[]
+  items: { subtotal: number; exento?: boolean | null }[]
   total: number
   interpretacion?: InterpretacionPrecio
   ivaImpreso?: number | null
@@ -14,6 +14,13 @@ interface Props {
 
 export default function CruceItemsTotal({ items, total, interpretacion, ivaImpreso, otrosImpuestos, variante = 'compacta' }: Props) {
   const { suma_bruto, diferencia, cruce_valido } = calcularCruce(items, total, interpretacion)
+  // Se suma ítem a ítem (no sobre el total bruto) porque un flete exento no
+  // lleva IVA y dividirlo por 1.19 junto al resto daría un neto falso.
+  const sumaNeta = items.reduce(
+    (acc, i) => acc + calcularNetoBruto(i.subtotal ?? 0, interpretacion ?? 'bruto', i.exento).neto,
+    0
+  )
+  const totalExento = items.reduce((acc, i) => acc + (i.exento ? (i.subtotal ?? 0) : 0), 0)
 
   return (
     <div className={`rounded-xl p-3 border ${cruce_valido ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-200'}`}>
@@ -29,7 +36,8 @@ export default function CruceItemsTotal({ items, total, interpretacion, ivaImpre
               <FilaMonto label="Neto implícito" valor={total - ivaImpreso - (otrosImpuestos ?? 0)} />
             </>
           )}
-          <FilaMonto label="Suma de ítems (neto)" valor={calcularNetoBruto(suma_bruto, interpretacion ?? 'bruto').neto} />
+          {totalExento > 0 && <FilaMonto label="Exento de IVA (fletes/servicios)" valor={totalExento} />}
+          <FilaMonto label="Suma de ítems (neto)" valor={sumaNeta} />
         </div>
       )}
       <div className="flex items-center justify-between text-sm">

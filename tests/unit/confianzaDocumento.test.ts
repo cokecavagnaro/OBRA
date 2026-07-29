@@ -11,6 +11,8 @@ import {
   esRazonablementeSimilar,
   reconciliarBoleta,
   reconciliarYDeterminarInterpretacion,
+  decidirExencionCargos,
+  descripcionCanonicaCargo,
   TOLERANCIA_CRUCE,
   UMBRAL_BAJA,
   FACTOR_IVA,
@@ -392,5 +394,195 @@ describe('reconciliarYDeterminarInterpretacion', () => {
     expect(r.cruce_valido).toBe(false)
     expect(r.interpretacion).toBe('bruto')
     expect(r.fuente).toBe('default_bruto')
+  })
+})
+
+describe('descripcionCanonicaCargo', () => {
+  it('acorta el texto larguísimo del envío a una etiqueta estable', () => {
+    // Caso real del pedido #42953: la boleta lista 13 comunas de reparto.
+    // Sin acortarlo, el aprendizaje del proyecto jamás lo reconocería de nuevo.
+    const impreso = 'Envío: Lo Barnechea, Puente Alto, La Pintana, El Bosque, Lo Espejo, La Cisterna, Pedro Aguirre Cerda, Conchalí, Recoleta, Lo Prado, Estación Central, Quinta Normal, Renca.'
+    expect(descripcionCanonicaCargo(impreso)).toBe('Envío')
+  })
+
+  it('distingue despacho, flete, servicio e instalación', () => {
+    expect(descripcionCanonicaCargo('Despacho a domicilio')).toBe('Despacho')
+    expect(descripcionCanonicaCargo('FLETE POR CAMION')).toBe('Flete')
+    expect(descripcionCanonicaCargo('Costo de servicio')).toBe('Servicio')
+    expect(descripcionCanonicaCargo('Instalación en obra')).toBe('Instalación')
+    expect(descripcionCanonicaCargo('Recargo varios')).toBe('Cargo adicional')
+  })
+})
+
+describe('decidirExencionCargos', () => {
+  it('boleta A: el IVA impreso demuestra que el envío no pagó IVA', () => {
+    // Productos $49.900 + envío $10.000 = $59.900, "incluye $7.967 IVA".
+    // Gravado el IVA daría $9.564; exento da $7.967 exacto.
+    expect(decidirExencionCargos(49900, 10000, 'bruto', 7967)).toBe(true)
+  })
+
+  it('cargo gravado: el IVA impreso cubre productos + flete', () => {
+    // $59.900 completos con IVA → 59900 − 59900/1.19 = 9564.
+    expect(decidirExencionCargos(49900, 10000, 'bruto', 9564)).toBe(false)
+  })
+
+  it('sin IVA impreso el default es gravado, no exento', () => {
+    expect(decidirExencionCargos(49900, 10000, 'bruto', null)).toBe(false)
+  })
+
+  it('sin cargos no hay nada que eximir', () => {
+    expect(decidirExencionCargos(49900, 0, 'bruto', 7967)).toBe(false)
+  })
+
+  it('boleta neta: exime el flete cuando el IVA solo cubre los productos', () => {
+    // Items netos 10.000 → IVA 1.900; flete 5.000 exento; total 16.900.
+    expect(decidirExencionCargos(10000, 5000, 'neto', 1900)).toBe(true)
+    // Si el IVA impreso cubriera ambos (15.000 × 0.19 = 2.850) → gravado.
+    expect(decidirExencionCargos(10000, 5000, 'neto', 2850)).toBe(false)
+  })
+})
+
+describe('calcularNetoBruto con exento', () => {
+  it('un ítem exento no aporta IVA y su neto es igual a su bruto', () => {
+    expect(calcularNetoBruto(10000, 'bruto', true)).toEqual({ neto: 10000, bruto: 10000, iva: 0 })
+    expect(calcularNetoBruto(10000, 'neto', true)).toEqual({ neto: 10000, bruto: 10000, iva: 0 })
+  })
+
+  it('sin el flag se comporta igual que antes', () => {
+    expect(calcularNetoBruto(10000, 'bruto').iva).toBeCloseTo(10000 - 10000 / FACTOR_IVA, 5)
+  })
+})
+
+describe('calcularCruce con ítems exentos', () => {
+  it('no multiplica por 1.19 el flete exento de una boleta neta', () => {
+    // Items netos 10.000 (bruto 11.900) + flete exento 5.000 = 16.900.
+    const r = calcularCruce(
+      [{ subtotal: 10000 }, { subtotal: 5000, exento: true }],
+      16900,
+      'neto'
+    )
+    expect(Math.round(r.suma_bruto)).toBe(16900)
+    expect(r.cruce_valido).toBe(true)
+  })
+
+  it('sin exentos el resultado no cambia', () => {
+    const r = calcularCruce([{ subtotal: 10000 }], 11900, 'neto')
+    expect(Math.round(r.suma_bruto)).toBe(11900)
+    expect(r.cruce_valido).toBe(true)
+  })
+})
+
+describe('reconciliarBoleta con cargos', () => {
+  it('boleta A: suma + envío cuadra con el total y el cargo queda registrado', () => {
+    const r = reconciliarBoleta(
+      [{ descripcion: 'Foco Embutido GU10 IP65 Negro', subtotal: 49900 }],
+      [],
+      59900,
+      [{ descripcion: 'Envío a domicilio', monto: 10000 }]
+    )
+    expect(r.cruce_valido).toBe(true)
+    expect(r.cargosAplicados).toHaveLength(1)
+    expect(r.cargosAplicados[0].monto).toBe(10000)
+    // Los ítems no se tocan: el cargo se materializa aparte como línea propia.
+    expect(r.items[0].subtotal).toBe(49900)
+  })
+
+  it('no suma el cargo dos veces si los ítems ya cuadran con el total', () => {
+    // H2 va primero: el flete ya venía dentro de los ítems.
+    const r = reconciliarBoleta(
+      [{ descripcion: 'Producto', subtotal: 49900 }, { descripcion: 'Envío', subtotal: 10000 }],
+      [],
+      59900,
+      [{ descripcion: 'Envío a domicilio', monto: 10000 }]
+    )
+    expect(r.cruce_valido).toBe(true)
+    expect(r.cargosAplicados).toHaveLength(0)
+  })
+
+  it('cargos y descuentos conviven en la misma ecuación', () => {
+    // 50.000 items + 10.000 flete − 2.000 dcto = 58.000
+    const items: ItemTest[] = [{ descripcion: 'Producto', subtotal: 50000 }]
+    const r = reconciliarBoleta(
+      items,
+      [{ descripcion: 'Dcto', monto: 2000, aplica_a: 'Producto' }],
+      58000,
+      [{ descripcion: 'Despacho', monto: 10000 }]
+    )
+    expect(r.cruce_valido).toBe(true)
+    expect(r.items[0].subtotal).toBe(48000)
+    expect(r.items[0].descuento_monto).toBe(2000)
+    expect(r.cargosAplicados).toHaveLength(1)
+  })
+
+  it('si el cargo no hace cuadrar la boleta, no se aplica', () => {
+    const r = reconciliarBoleta(
+      [{ descripcion: 'Producto', subtotal: 40000 }],
+      [],
+      59900,
+      [{ descripcion: 'Envío', monto: 10000 }]
+    )
+    expect(r.cruce_valido).toBe(false)
+    expect(r.cargosAplicados).toHaveLength(0)
+  })
+
+  it('sin cargos se comporta exactamente como antes', () => {
+    const r = reconciliarBoleta([{ descripcion: 'X', subtotal: 56247 }], [], 56247)
+    expect(r.cruce_valido).toBe(true)
+    expect(r.cargosAplicados).toEqual([])
+  })
+})
+
+describe('reconciliarYDeterminarInterpretacion con cargos (regresión boleta A)', () => {
+  it('pedido #42953 completo: cuadra en bruto y marca el envío como exento', () => {
+    const r = reconciliarYDeterminarInterpretacion(
+      [{ descripcion: 'Foco Embutido GU10 IP65 Negro', subtotal: 49900 }],
+      [],
+      59900,
+      7967,
+      null,
+      undefined,
+      [{ descripcion: 'Envío: Lo Barnechea, Puente Alto, La Pintana', monto: 10000 }]
+    )
+    expect(r.cruce_valido).toBe(true)
+    expect(r.interpretacion).toBe('bruto')
+    expect(r.cargosAplicados).toHaveLength(1)
+    expect(r.cargosExentos).toBe(true)
+  })
+
+  it('el IVA del proyecto queda en lo impreso, no inflado por el flete', () => {
+    // Con el envío gravado el IVA daría 9.564 — 1.597 de crédito fiscal falso.
+    const itemProducto = calcularNetoBruto(49900, 'bruto', false)
+    const itemEnvio = calcularNetoBruto(10000, 'bruto', true)
+    expect(Math.round(itemProducto.iva + itemEnvio.iva)).toBe(7967)
+  })
+
+  it('boleta neta con flete exento cuadra por la escala neta', () => {
+    // Items netos 10.000 + IVA 1.900 + flete exento 5.000 = 16.900.
+    const r = reconciliarYDeterminarInterpretacion(
+      [{ descripcion: 'Material', subtotal: 10000 }],
+      [],
+      16900,
+      1900,
+      null,
+      undefined,
+      [{ descripcion: 'Flete', monto: 5000 }]
+    )
+    expect(r.cruce_valido).toBe(true)
+    expect(r.interpretacion).toBe('neto')
+    expect(r.cargosExentos).toBe(true)
+  })
+
+  it('sin cargos los resultados previos no cambian', () => {
+    // Regresión COPEC: combustible con IVA y impuesto específico impresos.
+    const r = reconciliarYDeterminarInterpretacion(
+      [{ descripcion: 'Diesel', subtotal: 58708 }],
+      [{ descripcion: 'Descuento cupón', monto: 2461, aplica_a: 'Diesel' }],
+      56247,
+      8056,
+      5791
+    )
+    expect(r.cruce_valido).toBe(true)
+    expect(r.items[0].subtotal).toBe(56247)
+    expect(r.cargosExentos).toBe(false)
   })
 })

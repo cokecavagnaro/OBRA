@@ -291,7 +291,7 @@ export default function FichaBoleta({
               <div className="space-y-1.5">
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Ítems</p>
                 {(gasto.items ?? []).map((item) => {
-                  const { bruto } = calcularNetoBruto(item.subtotal, gasto.interpretacion_precios ?? 'bruto')
+                  const { bruto } = calcularNetoBruto(item.subtotal, gasto.interpretacion_precios ?? 'bruto', item.exento)
                   return confirmandoEliminarItem === item.id ? (
                     <div key={item.id} className="bg-red-50 border border-red-100 rounded-lg px-2 py-1.5 flex items-center justify-between">
                       <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>

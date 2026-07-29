@@ -1,4 +1,4 @@
-import type { InterpretacionPrecio, FuenteInterpretacion, DescuentoImpreso } from './confianzaDocumento'
+import type { InterpretacionPrecio, FuenteInterpretacion, DescuentoImpreso, CargoImpreso } from './confianzaDocumento'
 
 export type Moneda = 'CLP' | 'UF'
 export type RolUsuario = 'super_admin' | 'admin' | 'usuario'
@@ -164,6 +164,9 @@ export interface ItemGasto {
   // nunca inferido por aritmética ni calculado por la IA.
   descuento_monto?: number | null
   descuento_descripcion?: string | null
+  // Ítem sin IVA (típicamente el flete/despacho que la boleta cobra exento):
+  // su neto y su bruto son el mismo monto y no aporta crédito fiscal.
+  exento?: boolean | null
   created_at: string
 }
 
@@ -174,6 +177,7 @@ export interface DocumentoConfianza {
   iva_impreso?: number | null
   otros_impuestos_impreso?: number | null
   descuentos?: DescuentoImpreso[]
+  cargos?: CargoImpreso[]
 }
 
 // Respuesta de la API de análisis
@@ -209,6 +213,7 @@ export interface ItemAnalizado {
   partida_id?: string
   descuento_monto?: number | null
   descuento_descripcion?: string | null
+  exento?: boolean | null
 }
 
 // Estado del formulario de escaneo

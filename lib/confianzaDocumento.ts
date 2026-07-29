@@ -87,13 +87,18 @@ export function determinarInterpretacionConIva(
 }
 
 export function calcularCruce(
-  items: { subtotal: number }[],
+  items: { subtotal: number; exento?: boolean | null }[],
   total: number,
   interpretacionForzada?: InterpretacionPrecio
 ): ResultadoCruce {
   const sumaExtraida = items.reduce((acc, item) => acc + (item.subtotal ?? 0), 0)
   const interpretacion = interpretacionForzada ?? determinarInterpretacion(sumaExtraida, total)
-  const suma_bruto = interpretacion === 'neto' ? sumaExtraida * FACTOR_IVA : sumaExtraida
+  // Los ítems exentos (fletes sin IVA) pasan a bruto tal cual: llevarlos a
+  // ×1.19 junto con el resto haría que una boleta correcta nunca cuadre.
+  const suma_bruto = items.reduce((acc, item) => {
+    const sub = item.subtotal ?? 0
+    return acc + (interpretacion === 'neto' && !item.exento ? sub * FACTOR_IVA : sub)
+  }, 0)
   const diferencia = Math.abs(total - suma_bruto)
   // Tolerancia proporcional (no el piso fijo): un descuadre de pocos pesos por
   // redondeo acumulado no le importa a nadie y no debe frenar el flujo.
@@ -101,11 +106,17 @@ export function calcularCruce(
 }
 
 // Dado el subtotal tal como se extrajo y la interpretación ya decidida para
-// ESA boleta (misma para todos sus ítems), devuelve neto/bruto/iva del ítem.
+// ESA boleta, devuelve neto/bruto/iva del ítem. Un ítem exento (flete que la
+// boleta cobra sin IVA) ignora la interpretación: su neto y su bruto son el
+// mismo monto y no aporta IVA — cobrarle 19% inventaría crédito fiscal.
 export function calcularNetoBruto(
   subtotalExtraido: number,
-  interpretacion: InterpretacionPrecio
+  interpretacion: InterpretacionPrecio,
+  exento?: boolean | null
 ): { neto: number; bruto: number; iva: number } {
+  if (exento) {
+    return { neto: subtotalExtraido, bruto: subtotalExtraido, iva: 0 }
+  }
   if (interpretacion === 'bruto') {
     const neto = subtotalExtraido / FACTOR_IVA
     return { neto, bruto: subtotalExtraido, iva: subtotalExtraido - neto }
@@ -152,10 +163,40 @@ export interface DescuentoImpreso {
   aplica_a: string | null
 }
 
+// Línea que SUMA al total y no es un producto: envío, despacho, flete,
+// servicio, instalación, recargo. Espejo de DescuentoImpreso — la IA copia la
+// cifra impresa, nunca la calcula. Sin esta casilla en el esquema la IA no
+// tenía dónde poner el flete: lo omitía (dejando la boleta imposible de
+// cuadrar) o lo colaba como si fuera un material.
+export interface CargoImpreso {
+  descripcion: string
+  monto: number | null
+}
+
+// Las boletas imprimen el flete con textos larguísimos e irrepetibles (un caso
+// real: "Envío: Lo Barnechea, Puente Alto, La Pintana, El Bosque, ..." con 13
+// comunas). Como ítem del carrusel es ilegible, y como llave de aprendizaje es
+// inservible: ninguna otra boleta repite esa lista, así que el sistema nunca
+// aprendería a clasificar envíos solo. Se guarda una etiqueta corta y estable
+// para que aplicarAprendizajeDeterministico la reconozca boleta tras boleta.
+export function descripcionCanonicaCargo(texto: string): string {
+  const t = normalizarTexto(texto)
+  if (t.includes('despacho')) return 'Despacho'
+  if (t.includes('flete')) return 'Flete'
+  if (t.includes('envio') || t.includes('envío')) return 'Envío'
+  if (t.includes('instalacion') || t.includes('instalación')) return 'Instalación'
+  if (t.includes('servicio')) return 'Servicio'
+  return 'Cargo adicional'
+}
+
 export interface ResultadoReconciliacion<T> {
   items: T[]
   descuentoGeneralMonto: number
   descuentoGeneralDescripcion: string | null
+  // Cargos que la aritmética confirmó como parte del total. El llamador los
+  // materializa como ítems (acá no se puede: T es genérico y construir uno
+  // requeriría conocer su forma concreta).
+  cargosAplicados: CargoImpreso[]
   cruce_valido: boolean
   diferencia: number
 }
@@ -176,10 +217,13 @@ function normalizarTexto(s: string | null | undefined): string {
 //     venían dentro de los subtotales — aplicarlos de nuevo sería doble
 //     conteo, así que no se toca nada. Va antes que H1 a propósito: ante la
 //     duda, nunca restar dos veces.
-//  H1 (suma − descuentos impresos cuadra): los descuentos son reales y NO
-//     están en los subtotales — se aplican: al ítem que calza con aplica_a
-//     (queda registrado en descuento_monto/descuento_descripcion del ítem),
-//     o proporcionalmente como descuento general si no es atribuible.
+//  H1 (suma + cargos − descuentos impresos cuadra): los descuentos son reales
+//     y NO están en los subtotales — se aplican: al ítem que calza con
+//     aplica_a (queda registrado en descuento_monto/descuento_descripcion del
+//     ítem), o proporcionalmente como descuento general si no es atribuible.
+//     Los cargos impresos (flete/despacho) se confirman en la misma ecuación y
+//     se devuelven en cargosAplicados para que el llamador los materialice
+//     como ítems etiquetables.
 //  H3 (hay descuento declarado SIN monto impreso y la suma excede el total):
 //     el monto se DERIVA como suma − total y se reparte proporcional — misma
 //     aritmética de servidor que ya usaba aplicarDescuentoGeneral.
@@ -194,20 +238,24 @@ export function reconciliarBoleta<T extends {
 }>(
   items: T[],
   descuentos: DescuentoImpreso[],
-  total: number
+  total: number,
+  cargos: CargoImpreso[] = []
 ): ResultadoReconciliacion<T> {
   const tol = tolerancia(total)
   const suma = items.reduce((acc, i) => acc + (i.subtotal ?? 0), 0)
   const conMonto = descuentos.filter((d) => typeof d.monto === 'number' && d.monto > 0)
   const sumaDescuentos = conMonto.reduce((acc, d) => acc + (d.monto as number), 0)
+  const cargosConMonto = cargos.filter((c) => typeof c.monto === 'number' && c.monto > 0)
+  const sumaCargos = cargosConMonto.reduce((acc, c) => acc + (c.monto as number), 0)
 
-  // H2
+  // H2 — va primero a propósito: si la suma ya cuadra, un cargo listado ya
+  // venía dentro de los ítems y sumarlo otra vez sería doble conteo.
   if (Math.abs(suma - total) <= tol) {
-    return { items, descuentoGeneralMonto: 0, descuentoGeneralDescripcion: null, cruce_valido: true, diferencia: Math.abs(suma - total) }
+    return { items, descuentoGeneralMonto: 0, descuentoGeneralDescripcion: null, cargosAplicados: [], cruce_valido: true, diferencia: Math.abs(suma - total) }
   }
 
-  // H1
-  if (sumaDescuentos > 0 && Math.abs(suma - sumaDescuentos - total) <= tol) {
+  // H1 — con sumaCargos en 0 se comporta igual que antes de existir los cargos.
+  if ((sumaDescuentos > 0 || sumaCargos > 0) && Math.abs(suma + sumaCargos - sumaDescuentos - total) <= tol) {
     let ajustados = items.map((i) => ({ ...i }))
     let generalMonto = 0
     const generalDescripciones: string[] = []
@@ -235,12 +283,13 @@ export function reconciliarBoleta<T extends {
       ajustados = aplicarDescuentoGeneral(ajustados, sumaActual - generalMonto, true).items
     }
 
-    const sumaFinal = ajustados.reduce((acc, i) => acc + i.subtotal, 0)
+    const sumaFinal = ajustados.reduce((acc, i) => acc + i.subtotal, 0) + sumaCargos
     const diferencia = Math.abs(sumaFinal - total)
     return {
       items: ajustados,
       descuentoGeneralMonto: generalMonto,
       descuentoGeneralDescripcion: generalDescripciones.length > 0 ? generalDescripciones.join('; ') : null,
+      cargosAplicados: cargosConMonto,
       cruce_valido: diferencia <= tol,
       diferencia,
     }
@@ -255,18 +304,47 @@ export function reconciliarBoleta<T extends {
       items: ajustados,
       descuentoGeneralMonto: descuentoMonto,
       descuentoGeneralDescripcion: descripciones.length > 0 ? descripciones.join('; ') : null,
+      cargosAplicados: [],
       cruce_valido: true,
       diferencia: 0,
     }
   }
 
   // H4
-  return { items, descuentoGeneralMonto: 0, descuentoGeneralDescripcion: null, cruce_valido: false, diferencia: Math.abs(suma - total) }
+  return { items, descuentoGeneralMonto: 0, descuentoGeneralDescripcion: null, cargosAplicados: [], cruce_valido: false, diferencia: Math.abs(suma - total) }
 }
 
 export interface ResultadoReconciliacionCompleta<T> extends ResultadoReconciliacion<T> {
   interpretacion: InterpretacionPrecio
   fuente: FuenteInterpretacion
+  cargosExentos: boolean
+}
+
+// ¿El flete viene sin IVA? No se adivina: se prueban las dos hipótesis contra
+// el IVA IMPRESO y gana la que calce. Caso real (pedido #42953): productos
+// $49.900 + envío $10.000 = $59.900, con "$7.967 IVA" impreso. Tratando el
+// envío como gravado el IVA daría $9.564; tratándolo exento da $7.967 exacto
+// — o sea el envío no pagó IVA, y cobrárselo inflaría el crédito fiscal del
+// proyecto en un 20%.
+//
+// Sin IVA impreso no hay evidencia y el default es GRAVADO: en Chile el flete
+// que cobra el propio vendedor normalmente es afecto, así que suponerlo exento
+// subdeclararía IVA realmente recuperable.
+export function decidirExencionCargos(
+  sumaItems: number,
+  sumaCargos: number,
+  interpretacion: InterpretacionPrecio,
+  ivaImpreso: number | null | undefined
+): boolean {
+  if (sumaCargos <= 0) return false
+  if (typeof ivaImpreso !== 'number' || ivaImpreso <= 0) return false
+
+  const tol = tolerancia(ivaImpreso)
+  const ivaSiGravado = calcularNetoBruto(sumaItems + sumaCargos, interpretacion).iva
+  if (Math.abs(ivaSiGravado - ivaImpreso) <= tol) return false
+
+  const ivaSiExento = calcularNetoBruto(sumaItems, interpretacion).iva
+  return Math.abs(ivaSiExento - ivaImpreso) <= tol
 }
 
 // Orquestador: reconcilia descuentos Y decide bruto/neto en un solo paso,
@@ -291,36 +369,55 @@ export function reconciliarYDeterminarInterpretacion<T extends {
   total: number,
   ivaImpreso: number | null | undefined,
   otrosImpuestos: number | null | undefined,
-  interpretacionTextoIA?: InterpretacionPrecio
+  interpretacionTextoIA?: InterpretacionPrecio,
+  cargos: CargoImpreso[] = []
 ): ResultadoReconciliacionCompleta<T> {
-  const recBruto = reconciliarBoleta(items, descuentos, total)
+  // La escala se detecta igual con o sin cargos: si el flete es exento, su
+  // monto aparece idéntico en el total y en el neto objetivo (total − IVA), así
+  // que se cancela solo y no distorsiona la comparación.
+  const finalizar = (
+    rec: ResultadoReconciliacion<T>,
+    interpretacion: InterpretacionPrecio,
+    fuente: FuenteInterpretacion
+  ): ResultadoReconciliacionCompleta<T> => {
+    const sumaItems = rec.items.reduce((acc, i) => acc + (i.subtotal ?? 0), 0)
+    const sumaCargos = rec.cargosAplicados.reduce((acc, c) => acc + (c.monto ?? 0), 0)
+    return {
+      ...rec,
+      interpretacion,
+      fuente,
+      cargosExentos: decidirExencionCargos(sumaItems, sumaCargos, interpretacion, ivaImpreso),
+    }
+  }
+
+  const recBruto = reconciliarBoleta(items, descuentos, total, cargos)
   const netoObjetivo = typeof ivaImpreso === 'number' && ivaImpreso > 0
     ? total - ivaImpreso - (otrosImpuestos ?? 0)
     : null
-  const recNeto = netoObjetivo != null ? reconciliarBoleta(items, descuentos, netoObjetivo) : null
+  const recNeto = netoObjetivo != null ? reconciliarBoleta(items, descuentos, netoObjetivo, cargos) : null
 
   if (recBruto.cruce_valido && recNeto?.cruce_valido) {
     // Ambigüedad rara (IVA chico, totales casi iguales): menor diferencia
     // gana; empate → bruto (el default conservador de todo el sistema).
-    if (recNeto.diferencia < recBruto.diferencia) return { ...recNeto, interpretacion: 'neto', fuente: 'iva_impreso' }
-    return { ...recBruto, interpretacion: 'bruto', fuente: 'iva_impreso' }
+    if (recNeto.diferencia < recBruto.diferencia) return finalizar(recNeto, 'neto', 'iva_impreso')
+    return finalizar(recBruto, 'bruto', 'iva_impreso')
   }
-  if (recNeto?.cruce_valido) return { ...recNeto, interpretacion: 'neto', fuente: 'iva_impreso' }
+  if (recNeto?.cruce_valido) return finalizar(recNeto, 'neto', 'iva_impreso')
   if (recBruto.cruce_valido) {
-    return { ...recBruto, interpretacion: 'bruto', fuente: netoObjetivo != null ? 'iva_impreso' : 'cuadre_total' }
+    return finalizar(recBruto, 'bruto', netoObjetivo != null ? 'iva_impreso' : 'cuadre_total')
   }
 
   // Nada cuadró con cifras impresas — juicio textual de la IA como respaldo.
   if (interpretacionTextoIA === 'neto') {
     // Sin IVA impreso el neto objetivo solo puede aproximarse con el 19%.
-    const recNetoAprox = reconciliarBoleta(items, descuentos, Math.round(total / FACTOR_IVA))
-    return { ...recNetoAprox, interpretacion: 'neto', fuente: 'texto_ia' }
+    const recNetoAprox = reconciliarBoleta(items, descuentos, Math.round(total / FACTOR_IVA), cargos)
+    return finalizar(recNetoAprox, 'neto', 'texto_ia')
   }
   if (interpretacionTextoIA === 'bruto') {
-    return { ...recBruto, interpretacion: 'bruto', fuente: 'texto_ia' }
+    return finalizar(recBruto, 'bruto', 'texto_ia')
   }
 
-  return { ...recBruto, interpretacion: 'bruto', fuente: 'default_bruto' }
+  return finalizar(recBruto, 'bruto', 'default_bruto')
 }
 
 // Descuento contenido en un ítem específico (no toca el total de la
