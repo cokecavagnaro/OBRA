@@ -72,7 +72,10 @@ async function insertarGasto(
       fuente_interpretacion: 'iva_impreso',
       descuento_general_monto: null,
       descuento_general_descripcion: null,
-      estado: 'pendiente',
+      // 'confirmado', no 'pendiente': el ítem ya trae su etiqueta final
+      // (Task 5) — falta solo etapa/partida, que es opcional a propósito,
+      // no una "pendiente" a mostrar en /pendientes.
+      estado: 'confirmado',
       estado_aprobacion: 'aprobado',
       solicitante_id: solicitanteId,
       fecha_solicitud: null,
@@ -94,7 +97,7 @@ async function insertarGasto(
       confianza_ia: 1,
       etapa_id: null,
       partida_id: null,
-      estado: 'pendiente',
+      estado: 'confirmado',
       descuento_monto: null,
       descuento_descripcion: null,
       exento: false,
