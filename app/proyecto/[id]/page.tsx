@@ -11,6 +11,16 @@ import ClasificacionModal from '@/components/ClasificacionModal'
 import FichaBoleta from '@/components/FichaBoleta'
 import type { Proyecto, Etapa, Partida, Gasto, ItemGasto, Usuario, PermissionOverride } from '@/lib/types'
 
+// Los montos van hasta 9 dígitos ("$999.999.999"), que no entra en
+// text-3xl a ningún ancho de tarjeta mobile razonable. En vez de adivinar
+// el tamaño por cantidad de caracteres (frágil: depende del ancho real de
+// la tarjeta, no solo del texto), la tarjeta es un contenedor de query CSS
+// y el monto usa clamp() en unidades cqw: se ajusta al ancho real de su
+// propia tarjeta, con piso y techo para que montos cortos no queden
+// enanos ni los largos gigantes.
+const CLASE_CONTENEDOR_MONTO = 'min-w-0 [container-type:inline-size]'
+const CLASE_TEXTO_MONTO = 'font-bold text-gray-900 mt-1 truncate text-[clamp(0.8125rem,13.5cqw,1.875rem)] leading-tight'
+
 export default function ProyectoDetalle() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
@@ -31,6 +41,7 @@ export default function ProyectoDetalle() {
   const [confirmandoEliminarItem, setConfirmandoEliminarItem] = useState<string | null>(null)
   const [comentarioEliminacionItem, setComentarioEliminacionItem] = useState('')
   const [historialAbierto, setHistorialAbierto] = useState<Set<string>>(new Set())
+  const [galeriaAbierta, setGaleriaAbierta] = useState(false)
 
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
   const [overrides, setOverrides] = useState<PermissionOverride[]>([])
@@ -215,13 +226,13 @@ export default function ProyectoDetalle() {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+          <div className={`bg-gray-50 rounded-xl p-4 border border-gray-100 ${CLASE_CONTENEDOR_MONTO}`}>
             <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Total gastado</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">{formatCLP(totalProyecto)}</p>
+            <p className={CLASE_TEXTO_MONTO}>{formatCLP(totalProyecto)}</p>
           </div>
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+          <div className={`bg-gray-50 rounded-xl p-4 border border-gray-100 ${CLASE_CONTENEDOR_MONTO}`}>
             <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">IVA pagado</p>
-            <p className="text-3xl font-bold text-gray-900 mt-1">{formatCLP(ivaProyecto)}</p>
+            <p className={CLASE_TEXTO_MONTO}>{formatCLP(ivaProyecto)}</p>
           </div>
         </div>
       </div>
@@ -244,24 +255,40 @@ export default function ProyectoDetalle() {
       {/* Galería de boletas */}
       {gastos.length > 0 && (
         <div className="px-4 pt-4 pb-2 border-b border-gray-100">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-            Boletas escaneadas ({gastos.length})
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            {gastos.map((g) => (
-              <GaleriaThumbnail
-                key={g.id}
-                gasto={g}
-                usuarioActual={usuarioActual}
-                overrides={overrides}
-                etapas={etapas}
-                partidas={partidas}
-                etiquetasSugeridas={etiquetasUnicas}
-                onActualizado={handleGastoActualizadoDesdeFicha}
-                onEliminado={handleGastoEliminadoDesdeFicha}
-              />
-            ))}
-          </div>
+          <button
+            onClick={() => setGaleriaAbierta((prev) => !prev)}
+            className="flex items-center gap-1 mb-2"
+          >
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              Boletas escaneadas ({gastos.length})
+            </p>
+            <svg
+              className={`w-3.5 h-3.5 text-gray-400 transition-transform ${galeriaAbierta ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {galeriaAbierta && (
+            <div className="grid grid-cols-3 gap-2">
+              {gastos.map((g) => (
+                <GaleriaThumbnail
+                  key={g.id}
+                  gasto={g}
+                  usuarioActual={usuarioActual}
+                  overrides={overrides}
+                  etapas={etapas}
+                  partidas={partidas}
+                  etiquetasSugeridas={etiquetasUnicas}
+                  onActualizado={handleGastoActualizadoDesdeFicha}
+                  onEliminado={handleGastoEliminadoDesdeFicha}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
