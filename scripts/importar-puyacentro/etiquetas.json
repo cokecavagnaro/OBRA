@@ -1,0 +1,7 @@
+{
+  "MADIM-9512": { "categoria": "Materiales", "etiquetas": ["impregnado"] },
+  "CYCTDC-05318": { "categoria": "Materiales", "etiquetas": ["tierra"] },
+  "HMELC-0106": { "categoria": "Herramientas", "etiquetas": ["lapiz"] },
+  "EYFEAT-0043": { "categoria": "Materiales", "etiquetas": ["estanque"] },
+  "TRADES-003": { "categoria": "Despacho", "etiquetas": ["despacho"] }
+}
