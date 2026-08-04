@@ -1,7 +1,1460 @@
 {
-  "MADIM-9512": { "categoria": "Materiales", "etiquetas": ["impregnado"] },
-  "CYCTDC-05318": { "categoria": "Materiales", "etiquetas": ["tierra"] },
-  "HMELC-0106": { "categoria": "Herramientas", "etiquetas": ["lapiz"] },
-  "EYFEAT-0043": { "categoria": "Materiales", "etiquetas": ["estanque"] },
-  "TRADES-003": { "categoria": "Despacho", "etiquetas": ["despacho"] }
+  "MADIM-9512": {
+    "categoria": "Materiales",
+    "etiquetas": [
+      "impregnado"
+    ]
+  },
+  "CYCTDC-05318": {
+    "categoria": "Materiales",
+    "etiquetas": [
+      "tierra"
+    ]
+  },
+  "HMELC-0106": {
+    "categoria": "Herramientas",
+    "etiquetas": [
+      "lapiz"
+    ]
+  },
+  "EYFEAT-0043": {
+    "categoria": "Materiales",
+    "etiquetas": [
+      "estanque"
+    ]
+  },
+  "TRADES-003": {
+    "categoria": "Despacho",
+    "etiquetas": [
+      "despacho"
+    ]
+  },
+  "CYMCBB-003": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Cemento"
+    ]
+  },
+  "FIJCC-9840": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Clavos"
+    ]
+  },
+  "ADHAP-807": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Pegamento"
+    ]
+  },
+  "FEFITD-5196": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "FPMFEA-00002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Fierro"
+    ]
+  },
+  "IMPMAP-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Membrana Asfaltica"
+    ]
+  },
+  "TMBTP-2051": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Terciado"
+    ]
+  },
+  "PYCCA-4132": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Carbonileo"
+    ]
+  },
+  "PYFCP-4136": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "MADDI-8845": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Madera"
+    ]
+  },
+  "MADDI-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Madera"
+    ]
+  },
+  "MADTTA-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Madera"
+    ]
+  },
+  "IMPMAP-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Membrana Asfaltica"
+    ]
+  },
+  "MADIM-9517": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Impregnado"
+    ]
+  },
+  "DISDSP-788": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "HMETUB-00278": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMECOD-00246": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "CECECK-5478": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Cemento"
+    ]
+  },
+  "PYFCP-0003": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "PYFCP-1027": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "TMBOS-6436": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "OSB"
+    ]
+  },
+  "FPMPCU-00001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Fierro"
+    ]
+  },
+  "ADHSA-0010": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Soldadura"
+    ]
+  },
+  "FPYMA-7238": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Acma"
+    ]
+  },
+  "AYJMPP-0004": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Manga"
+    ]
+  },
+  "REVMHP-0004": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Membrana hidrofuga"
+    ]
+  },
+  "PYFLPP-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "PYFTP-1633": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "PYFTP-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "PYFCP-8815": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "PYFCP-8919": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "PYFTP-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "GYJAPS-0003": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "FEFITD-2590": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "PYFTP-7186": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "TMBTE-694": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Terciado"
+    ]
+  },
+  "PYFCP-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "FIJCC-9841": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Clavo"
+    ]
+  },
+  "ADHSA-0011": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Soldadura"
+    ]
+  },
+  "METACN-204": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Anticorrosivo"
+    ]
+  },
+  "PYCRPT-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Rodillo"
+    ]
+  },
+  "FPMPEL-00001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Fierro"
+    ]
+  },
+  "FEHEPP-9181": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "TECPR-8770": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Pintura"
+    ]
+  },
+  "FEHEMP-3686": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "FIJCC-19840": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Clavo"
+    ]
+  },
+  "FPMFEA-00001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Fierro"
+    ]
+  },
+  "HMEBRO-00006": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "DISDD-1399": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "AISPEX-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Espuma"
+    ]
+  },
+  "HMEBRO-00007": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "MADIM-7168": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Impregnado"
+    ]
+  },
+  "FEFITD-1662": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "GYJTPR-00387": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMETEE-00004": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMETER-00254": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMECOD-00001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMETUB-00277": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "PYFTP-2047": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "HMELIJ-00239": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Fierro"
+    ]
+  },
+  "METGS1-244": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "FEHEPP-9191": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "ADHAME-0003": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "HMECOD-00017": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMECOP-00001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "PYFTGP-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "CYMMPO-00001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Cemento"
+    ]
+  },
+  "PYFTP-2433": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "PYFTGP-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "HMELIJ-00242": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Fierro"
+    ]
+  },
+  "ACCDIS-0299": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herraimenta"
+    ]
+  },
+  "FPYZA0-358": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "ZINC"
+    ]
+  },
+  "FITOAH-0114": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "FIJTTT-0006": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "MELESO-0002": {
+    "categoria": "Electricidad",
+    "etiquetas": [
+      "Enchufe"
+    ]
+  },
+  "MELISO-0004": {
+    "categoria": "Electricidad",
+    "etiquetas": [
+      "Interruptor"
+    ]
+  },
+  "FEMAAL-8738": {
+    "categoria": "Electricidad",
+    "etiquetas": [
+      "Ampolleta"
+    ]
+  },
+  "METCE-6135": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Cable"
+    ]
+  },
+  "METCE-1497": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Cable"
+    ]
+  },
+  "METCE-3378": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Cable"
+    ]
+  },
+  "METBC-155": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Electricidad"
+    ]
+  },
+  "METAUL-00007": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Electricidad"
+    ]
+  },
+  "METAUL-00005": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Electricidad"
+    ]
+  },
+  "MELESO-0004": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Electricidad"
+    ]
+  },
+  "HMECAN-00288": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Electricidad"
+    ]
+  },
+  "CUELN-00002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "TCPS-001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "METEV-3484": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Electricidad"
+    ]
+  },
+  "METEV-3485": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Electricidad"
+    ]
+  },
+  "PYFCP-9314": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "EYFEAT-0042": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Estanque"
+    ]
+  },
+  "MADDI-5038": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Madera"
+    ]
+  },
+  "MADDI-0003": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Madera"
+    ]
+  },
+  "PYFTP-3021": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "CYABZ_0004": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Bisagra"
+    ]
+  },
+  "GYAKA-4604": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "WC"
+    ]
+  },
+  "SEGALC-425": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "HMEGUA-00238": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "PYCRPT-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "HETRTR-5256": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "CUELN-00001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "TYCJLG-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "AYJSAC-002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Saco"
+    ]
+  },
+  "FPYZA0-361": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Zinc"
+    ]
+  },
+  "PYFSEP-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "METCT1-245": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Teflon"
+    ]
+  },
+  "PYFBRC-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "PYFTPH-26004": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "PYFTP-6374": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "PYFTP-5823": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "HMETER-00227": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Plansa"
+    ]
+  },
+  "HMETEE-00244": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Plansa"
+    ]
+  },
+  "AYJALD-764": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "ADHSA-0009": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Soldadura"
+    ]
+  },
+  "ADHGPS-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "SEGPAP-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "AYJMRA-015": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "FPMPCA-00014": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Fierro"
+    ]
+  },
+  "HMEBRO-00014": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "QYSHUA-0003": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "FPYMAN-00002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Alambre"
+    ]
+  },
+  "PERFIL FIERRO CUADR. 50x2.0x6000 mm": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Fierro"
+    ]
+  },
+  "TRADES-000": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Despacho"
+    ]
+  },
+  "FEHEAT-0035": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "QYSAMU-08079": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "FEFITD-767": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "SEGALC-424": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "MADIM-9519": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Impregnado"
+    ]
+  },
+  "PYFTP-6541": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "METPLM-970": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "AYJMRA-005": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "FERTFE-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Desague"
+    ]
+  },
+  "GYADL-564": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Desague"
+    ]
+  },
+  "PRSSFM-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "PICORC-7406": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "FPMPCA-00007": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Fierro"
+    ]
+  },
+  "MADIM-9510": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Impregnado"
+    ]
+  },
+  "FPMPCA-00026": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Fierro"
+    ]
+  },
+  "FITOAH-3946": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "AYJMPP-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Manga"
+    ]
+  },
+  "FEFITD-3776": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "FIJTTT-0005": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "FIJCC-9025": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Clavo"
+    ]
+  },
+  "TMBOS-6435": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "OSB"
+    ]
+  },
+  "METGS1-251": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "HMETUB-0281": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMERED-00250": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "PYFTPR-00113": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "PYFTPR-00103": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMETEE-00003": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMERED-00251": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMERED-00249": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMECOD-00008": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMETEE-00001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "PYFTPR-00102": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMETER-00255": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMETER-00257": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "PYFLPP-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "PYFAPP-0003": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "PYFAPP-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "PYFAPP-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "PYFCP-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "PYFCP-8305": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "PYFVSG-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "HMEHOJ-00268": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "GYJAPS-0004": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "GYJAPS-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "METSBP-727": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Silicona"
+    ]
+  },
+  "FEFITD-40": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "TABFL-149": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Fibrocemento"
+    ]
+  },
+  "MADSC-0020": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Madera"
+    ]
+  },
+  "AUTOPERFORANTE HEX. C/GOL + EPDM ZN 1/4-14 2 1/2 [100] | Mamut": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "TUBO PPR [PN20] 32x6000 mm": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "REDUCCION PPR SO SO 40-32 mm": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "REDUCCION PPR SO SO 32-25 mm": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "CODO PPR SO SO 32 mm": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "GAS BUTANO BALONCITO 190 gr": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Gas"
+    ]
+  },
+  "DISCO CORTE METAL 115x1.0 mm STANLEY": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "PUNTA PHILLIPS 5PCS PH2 [DWAF2PH2-5H]": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "TUBO PVC SANITARIO 110 mm": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "CURVA PVC SANITARIO 110 mm 45°": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "TUBO PVC SANITARIO 75 mm": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "METGS1-248": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "METCE1-886": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Fierro"
+    ]
+  },
+  "FEACBM-2128": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "FEFITD-1823": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "METCE-8433": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Electricidad"
+    ]
+  },
+  "METSD-9003": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Conduit"
+    ]
+  },
+  "METAP-4350": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Conduit"
+    ]
+  },
+  "DISDSP-789": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "HEMPTO-0004": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "HMECOP-00002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMECOD-00013": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "FERCPE-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "HMETER-00259": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMETEE-0006": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "HMETER-00260": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "ADHBPL-0007": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "HMEESP-00238": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "QYSHUA-0004": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "ADHBPL-0006": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "PYFRED-0003": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "HMETAP-00233": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "METCT1-246": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Teflon"
+    ]
+  },
+  "GASFG-945": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "GAS"
+    ]
+  },
+  "HMETAP-00251": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "IMPPSP-610": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Pintura"
+    ]
+  },
+  "QYSAMU-09385": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Pintura"
+    ]
+  },
+  "HEALPT-1123": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "IMPPSP-620": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Pintura"
+    ]
+  },
+  "TCATCR-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Sanitario"
+    ]
+  },
+  "TCATCR-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Sanitario"
+    ]
+  },
+  "HMECOD-00004": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "HMEBRO-00264": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "FIJTPL-00003": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "ADHAME-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Sanitario"
+    ]
+  },
+  "LYVLB-346": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Sanitario"
+    ]
+  },
+  "QYSHUA-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "ADHALV-00002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "HMECOD-00010": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "PYFVBS-00003": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Sanitario"
+    ]
+  },
+  "FEFITD-996": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "HMEVAL-00272": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PPR"
+    ]
+  },
+  "FEFITD-8589": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "FITOTD-7241": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "SYCCE-6106": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "ADHAP-905": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "PVC"
+    ]
+  },
+  "METGS1-253": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "FERPIO-0001": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "FERAGP-0002": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "FERTZC-0007": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Zinc"
+    ]
+  },
+  "HMEESC-00283": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Otro"
+    ]
+  },
+  "FIJTTT-0004": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Tornillo"
+    ]
+  },
+  "METSBP-705": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Silicona"
+    ]
+  },
+  "REX-0047": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Silicona"
+    ]
+  },
+  "MADDI-0072": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Madera"
+    ]
+  },
+  "DISDSP-777": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  },
+  "DISDSP-782": {
+    "categoria": "Otros",
+    "etiquetas": [
+      "Herramienta"
+    ]
+  }
 }
