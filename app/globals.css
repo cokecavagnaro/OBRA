@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 body {
-  background-color: #f0f0f0;
-  font-family: 'Inter', sans-serif;
+  background-color: #F0EEE9;
+  font-family: var(--font-fragment-mono), monospace;
   color: #111111;
 }
 

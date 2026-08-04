@@ -1,9 +1,13 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import { Fragment_Mono } from 'next/font/google'
 import './globals.css'
 import BottomNav from '@/components/BottomNav'
 
-const inter = Inter({ subsets: ['latin'] })
+const fragmentMono = Fragment_Mono({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-fragment-mono',
+})
 
 export const metadata: Metadata = {
   title: 'Hormigasto',
@@ -20,7 +24,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className={inter.className}>
+      <body className={fragmentMono.variable}>
         <div className="app-container">
           <main className="pb-16">{children}</main>
           <BottomNav />
