@@ -1,0 +1,36 @@
+--- TEXTO CRUDO ---
+Fecha: 01/08/2026
+Cliente: Santiago Leon
+RUT: 78051069-2
+Dirección: BAJO EL AZUL 801 Navidad PUPUYA 06
+3230000 Chile
+Fecha de vencimiento: 01/08/2026
+Condiciones de Pago: Paga después
+Dirección de Entrega: Condominio La Quila
+Giro: constructora
+Descripción 	Cantidad 	Precio IVA Inc. 	Subtotal IVA Inc.
+[EYFEAT-0043] ESTANQUE VERTICAL 3400 LTS | MATRIPLAST 	1,00 	$ 268.600 	$ 268.600
+[TRADES-003] DESPACHO N°3 **No incluye descarga 	1,00 	$ 10.000 	$ 10.000
+Total Neto 	$ 234.117
+IVA 19% 	$ 44.483
+Total 	$ 278.600
+Pagado el 01/08/2026 	$ 278.600
+Importe adeudado 	$ 0
+Timbre Electrónico SII
+Resolución Nº: 80 de Fecha: 22/08/2014
+Verifique documento en www.sii.cl
+No se aceptan devoluciones de maderas, cementicios o adhesivos en polvo, cortes a medida y productos a pedido.
+COMERCIAL COSTA SUR SPA
+Venta de materiales de construcción
+Camino a Pupuya S/N, Navidad - Navidad - del Libertador Gral. Bernardo
+O'Higgins - Chile
+RUT: 77.482.149-K
+FACTURA ELECTRÓNICA
+Nº: 57242
+San Antonio
+Página: 1/1
+
+-- 1 of 1 --
+
+
+--- FIN ---

@@ -1,0 +1,4 @@
+pdfs/
+muestras/*.pdf
+facturas-parseadas.json
+productos-unicos.json
