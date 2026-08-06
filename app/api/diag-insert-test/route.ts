@@ -4,6 +4,21 @@ import { NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const badChars = Array.from(key).map((c, i) => ({ i, code: c.codePointAt(0) })).filter((x) => x.code! > 255)
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const badUrlChars = Array.from(url).map((c, i) => ({ i, code: c.codePointAt(0) })).filter((x) => x.code! > 255)
+
+  if (badChars.length > 0 || badUrlChars.length > 0) {
+    return NextResponse.json({
+      diag: 'env var tiene caracteres invalidos',
+      keyLength: key.length,
+      badChars,
+      urlLength: url.length,
+      badUrlChars,
+    })
+  }
+
   const admin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
