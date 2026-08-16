@@ -33,6 +33,7 @@ export default function ProyectoDetalle() {
 
   const [filtroEtapa, setFiltroEtapa] = useState<string | null>(null)
   const [filtroPartida, setFiltroPartida] = useState<string | null>(null)
+  const [filtroPersona, setFiltroPersona] = useState<string | null>(null)
   const [filtrosEtiqueta, setFiltrosEtiqueta] = useState<string[]>([])
   const [filtroFechaDesde, setFiltroFechaDesde] = useState('')
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
@@ -42,6 +43,7 @@ export default function ProyectoDetalle() {
   const [comentarioEliminacionItem, setComentarioEliminacionItem] = useState('')
   const [historialAbierto, setHistorialAbierto] = useState<Set<string>>(new Set())
   const [galeriaAbierta, setGaleriaAbierta] = useState(false)
+  const [manoDeObraAbierta, setManoDeObraAbierta] = useState(false)
 
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
   const [overrides, setOverrides] = useState<PermissionOverride[]>([])
@@ -89,6 +91,39 @@ export default function ProyectoDetalle() {
     return gastosAprobados.reduce((s, g) => s + (g.items ?? []).filter(filtro).reduce((si, i) => si + netoBrutoDeItem(i, g).bruto, 0), 0)
   }
 
+  const totalManoDeObra = gastoDeItems((i) => !!i.persona_id)
+  const totalMateriales = totalProyecto - totalManoDeObra
+
+  const totalesPorPersona = Array.from(
+    gastosAprobados
+      .flatMap((g) => (g.items ?? []).filter((i) => i.persona_id).map((i) => ({ item: i, gasto: g })))
+      .reduce((map, { item, gasto }) => {
+        const actual = map.get(item.persona_id!) ?? { nombre: item.persona?.nombre ?? '?', total: 0 }
+        actual.total += netoBrutoDeItem(item, gasto).bruto
+        map.set(item.persona_id!, actual)
+        return map
+      }, new Map<string, { nombre: string; total: number }>())
+  )
+    .map(([id, v]) => ({ id, ...v }))
+    .sort((a, b) => b.total - a.total)
+
+  // A diferencia de totalesPorPersona (agregado, para el Excel), esta es la
+  // lista que se muestra en pantalla: un pago = un gasto, para poder mostrar
+  // la fecha de cada uno (una persona puede tener varios pagos en fechas
+  // distintas, así que agregado por persona no alcanza para eso).
+  const pagosManoDeObra = gastosAprobados
+    .filter((g) => (g.items ?? []).some((i) => i.persona_id))
+    .map((g) => {
+      const itemPersona = (g.items ?? []).find((i) => i.persona_id)
+      return {
+        id: g.id,
+        nombre: itemPersona?.persona?.nombre ?? g.proveedor,
+        fecha: g.fecha_boleta,
+        total: g.total,
+      }
+    })
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))
+
   const partidasDisponibles = filtroEtapa
     ? partidas.filter((p) => p.etapa_id === filtroEtapa)
     : partidas
@@ -97,7 +132,13 @@ export default function ProyectoDetalle() {
     new Set(gastos.flatMap((g) => (g.items ?? []).flatMap((i) => i.etiquetas)))
   ).sort()
 
-  const hayFiltros = !!(filtroEtapa || filtroPartida || filtrosEtiqueta.length > 0 || filtroFechaDesde || filtroFechaHasta)
+  const personasUnicas = Array.from(
+    new Map(
+      gastos.flatMap((g) => (g.items ?? []).filter((i) => i.persona_id).map((i) => [i.persona_id as string, i.persona?.nombre ?? '']))
+    ).entries()
+  ).sort((a, b) => a[1].localeCompare(b[1]))
+
+  const hayFiltros = !!(filtroEtapa || filtroPartida || filtroPersona || filtrosEtiqueta.length > 0 || filtroFechaDesde || filtroFechaHasta)
 
   const itemsFiltrados = hayFiltros
     ? gastos
@@ -105,6 +146,7 @@ export default function ProyectoDetalle() {
         .filter((i) => {
           if (filtroEtapa && i.etapa_id !== filtroEtapa) return false
           if (filtroPartida && i.partida_id !== filtroPartida) return false
+          if (filtroPersona && i.persona_id !== filtroPersona) return false
           if (filtrosEtiqueta.length > 0 && !filtrosEtiqueta.some((tag) => i.etiquetas.includes(tag))) return false
           if (filtroFechaDesde && i.gasto.fecha_boleta < filtroFechaDesde) return false
           if (filtroFechaHasta && i.gasto.fecha_boleta > filtroFechaHasta) return false
@@ -120,6 +162,7 @@ export default function ProyectoDetalle() {
   function limpiarFiltros() {
     setFiltroEtapa(null)
     setFiltroPartida(null)
+    setFiltroPersona(null)
     setFiltrosEtiqueta([])
     setFiltroFechaDesde('')
     setFiltroFechaHasta('')
@@ -183,6 +226,7 @@ export default function ProyectoDetalle() {
       Neto: Math.round(neto),
       Etapa: etapas.find((e) => e.id === i.etapa_id)?.nombre ?? '',
       Partida: partidas.find((p) => p.id === i.partida_id)?.nombre ?? '',
+      Persona: i.persona?.nombre ?? '',
       Etiquetas: i.etiquetas.join(', '),
       Estado: i.estado || '',
     }
@@ -195,6 +239,12 @@ export default function ProyectoDetalle() {
     const ws = XLSX.utils.json_to_sheet(filas)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, (proyecto?.nombre ?? 'Proyecto').slice(0, 31))
+    if (totalesPorPersona.length > 0) {
+      const wsPersonas = XLSX.utils.json_to_sheet(
+        totalesPorPersona.map((p) => ({ Persona: p.nombre, Total: Math.round(p.total) }))
+      )
+      XLSX.utils.book_append_sheet(wb, wsPersonas, 'Totales por persona')
+    }
     XLSX.writeFile(wb, `${proyecto?.nombre ?? 'Proyecto'}${hayFiltros ? ' (filtrado)' : ''}.xlsx`)
   }
 
@@ -227,12 +277,20 @@ export default function ProyectoDetalle() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className={`bg-gray-50 rounded-xl p-4 border border-gray-100 ${CLASE_CONTENEDOR_MONTO}`}>
-            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Total gastado</p>
-            <p className={CLASE_TEXTO_MONTO}>{formatCLP(totalProyecto)}</p>
+            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Mano de obra</p>
+            <p className={CLASE_TEXTO_MONTO}>{formatCLP(totalManoDeObra)}</p>
+          </div>
+          <div className={`bg-gray-50 rounded-xl p-4 border border-gray-100 ${CLASE_CONTENEDOR_MONTO}`}>
+            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Materiales</p>
+            <p className={CLASE_TEXTO_MONTO}>{formatCLP(totalMateriales)}</p>
           </div>
           <div className={`bg-gray-50 rounded-xl p-4 border border-gray-100 ${CLASE_CONTENEDOR_MONTO}`}>
             <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">IVA pagado</p>
             <p className={CLASE_TEXTO_MONTO}>{formatCLP(ivaProyecto)}</p>
+          </div>
+          <div className={`bg-gray-50 rounded-xl p-4 border border-gray-100 ${CLASE_CONTENEDOR_MONTO}`}>
+            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Total proyecto</p>
+            <p className={CLASE_TEXTO_MONTO}>{formatCLP(totalProyecto)}</p>
           </div>
         </div>
       </div>
@@ -251,6 +309,50 @@ export default function ProyectoDetalle() {
           ))}
         </div>
       )}
+
+      {/* Mano de obra */}
+      <div className="px-4 pt-4 pb-2 border-b border-gray-100">
+        <div className="flex items-center justify-between mb-2">
+          <button onClick={() => setManoDeObraAbierta((prev) => !prev)} className="flex items-center gap-1">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              Mano de obra ({pagosManoDeObra.length})
+            </p>
+            <svg
+              className={`w-3.5 h-3.5 text-gray-400 transition-transform ${manoDeObraAbierta ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <button
+            onClick={() => router.push(`/mano-obra?proyecto=${id}`)}
+            className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-blue-600 shrink-0"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+        {manoDeObraAbierta && (
+          pagosManoDeObra.length === 0 ? (
+            <p className="text-xs text-gray-400">Sin pagos de mano de obra registrados.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {pagosManoDeObra.map((p) => (
+                <div key={p.id} className="flex items-center justify-between text-xs">
+                  <span className="text-gray-700">
+                    {p.nombre} <span className="text-gray-400">· {formatFecha(p.fecha)}</span>
+                  </span>
+                  <span className="font-semibold text-gray-900">{formatCLP(p.total)}</span>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+      </div>
 
       {/* Galería de boletas */}
       {gastos.length > 0 && (
@@ -329,6 +431,26 @@ export default function ProyectoDetalle() {
                   onClick={() => setFiltroPartida((prev) => p.id === prev ? null : p.id)}
                   className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${filtroPartida === p.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
                 >{p.nombre}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Filtro Persona */}
+        {personasUnicas.length > 0 && (
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Persona</p>
+            <div className="flex gap-2 overflow-x-auto scrollbar-none">
+              <button
+                onClick={() => setFiltroPersona(null)}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${!filtroPersona ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
+              >Todas</button>
+              {personasUnicas.map(([personaId, nombre]) => (
+                <button
+                  key={personaId}
+                  onClick={() => setFiltroPersona((prev) => personaId === prev ? null : personaId)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${filtroPersona === personaId ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
+                >{nombre}</button>
               ))}
             </div>
           </div>

@@ -37,6 +37,15 @@ export interface Partida {
   presupuesto?: number | null
 }
 
+export interface Persona {
+  id: string
+  cuenta_id: string
+  nombre: string
+  rut?: string | null
+  activo: boolean
+  created_at: string
+}
+
 export interface Usuario {
   id: string
   cuenta_id: string
@@ -167,6 +176,8 @@ export interface ItemGasto {
   // Ítem sin IVA (típicamente el flete/despacho que la boleta cobra exento):
   // su neto y su bruto son el mismo monto y no aporta crédito fiscal.
   exento?: boolean | null
+  persona_id?: string | null
+  persona?: Persona
   created_at: string
 }
 

@@ -266,7 +266,7 @@ export async function getGastos(proyecto_id: string): Promise<Gasto[]> {
   const [{ data, error }, { data: eventosData }] = await Promise.all([
     supabase
       .from('gastos')
-      .select('*, proyectos(nombre), items_gasto(*), item_gasto_eventos(*)')
+      .select('*, proyectos(nombre), items_gasto(*, persona:personas(id, nombre)), item_gasto_eventos(*)')
       .eq('proyecto_id', proyecto_id)
       .order('created_at', { ascending: false }),
     supabase.from('gasto_eventos').select('*').eq('proyecto_id', proyecto_id),
@@ -298,7 +298,7 @@ export async function getGastoPorId(id: string): Promise<Gasto | null> {
   const [{ data }, { data: eventosData }] = await Promise.all([
     supabase
       .from('gastos')
-      .select('*, proyectos(nombre), items_gasto(*), item_gasto_eventos(*)')
+      .select('*, proyectos(nombre), items_gasto(*, persona:personas(id, nombre)), item_gasto_eventos(*)')
       .eq('id', id)
       .single(),
     supabase.from('gasto_eventos').select('*').eq('gasto_id', id),
@@ -430,6 +430,23 @@ export async function subirImagenBoleta(cuentaId: string, proyectoId: string, bl
   const { error } = await supabase.storage.from('boletas').upload(path, blob, { contentType: 'image/jpeg' })
   if (error) {
     console.error('subirImagenBoleta:', error)
+    return null
+  }
+  const { data } = supabase.storage.from('boletas').getPublicUrl(path)
+  return data.publicUrl
+}
+
+// Comprobante de un pago de mano de obra: a diferencia de subirImagenBoleta
+// (siempre normalizado a .jpg por la cámara del flujo de escaneo), acá el
+// archivo puede ser una foto o un PDF (comprobante de transferencia), así
+// que se sube con su tipo/extensión real en vez de forzar image/jpeg.
+export async function subirComprobanteManoDeObra(cuentaId: string, proyectoId: string, file: File): Promise<string | null> {
+  const supabase = createClient()
+  const ext = file.type === 'application/pdf' ? 'pdf' : (file.type.split('/')[1]?.split('+')[0] || 'jpg')
+  const path = `${cuentaId}/${proyectoId}/${generarUUID()}.${ext}`
+  const { error } = await supabase.storage.from('boletas').upload(path, file, { contentType: file.type || 'application/octet-stream' })
+  if (error) {
+    console.error('subirComprobanteManoDeObra:', error)
     return null
   }
   const { data } = supabase.storage.from('boletas').getPublicUrl(path)
@@ -793,6 +810,107 @@ export async function saveGasto(params: {
         exento: item.exento ?? false,
       }))
     )
+  }
+
+  return gasto.id
+}
+
+// ---- Mano de obra ----
+// Gasto de mano de obra: genera el mismo par gastos+items_gasto que
+// saveGasto, para que aprobaciones/exportación/filtros de proyecto lo traten
+// igual que cualquier otra boleta sin casos especiales. `proveedor` guarda
+// el nombre de la persona (así se ve bien en listados que solo muestran
+// gasto.proveedor, ej. app/aprobaciones/page.tsx). El ítem es siempre
+// exento (no hay documento formal con IVA impreso) y va con categoria fija
+// 'Mano de obra' y estado 'confirmado' (no hay clasificación IA que esperar).
+export async function guardarGastoManoDeObra(params: {
+  proyecto_id: string
+  persona_id: string
+  persona_nombre: string
+  fecha: string
+  cantidad: number
+  unidad: string
+  precio_unitario: number
+  concepto?: string | null
+  etapa_id?: string | null
+  partida_id?: string | null
+  imagen_url?: string
+  creado_por_email: string | null
+  solicitante_id: string
+  solicitante_rol: RolUsuario
+}): Promise<string | null> {
+  const supabase = createClient()
+
+  const hoy = new Date().toISOString().split('T')[0]
+  const fechaValida = /^\d{4}-\d{2}-\d{2}$/.test(params.fecha) ? params.fecha : hoy
+  const subtotal = params.cantidad * params.precio_unitario
+  const requiereAprobacion = params.solicitante_rol === 'usuario'
+  const ahora = new Date().toISOString()
+
+  const { data: gasto, error } = await supabase
+    .from('gastos')
+    .insert({
+      proyecto_id: params.proyecto_id,
+      proveedor: params.persona_nombre,
+      rut_proveedor: '',
+      fecha_boleta: fechaValida,
+      total: subtotal,
+      imagen_url: params.imagen_url || '',
+      contexto_boleta: '',
+      creado_por_email: params.creado_por_email,
+      comentario: null,
+      interpretacion_precios: 'bruto',
+      iva_impreso: null,
+      otros_impuestos: null,
+      fuente_interpretacion: null,
+      descuento_general_monto: null,
+      descuento_general_descripcion: null,
+      estado: 'confirmado',
+      estado_aprobacion: requiereAprobacion ? 'pendiente' : 'aprobado',
+      solicitante_id: params.solicitante_id,
+      fecha_solicitud: requiereAprobacion ? ahora : null,
+    })
+    .select()
+    .single()
+
+  if (error || !gasto) {
+    console.error('Error saving gasto de mano de obra:', error)
+    return null
+  }
+
+  if (requiereAprobacion) {
+    await logGastoEvento({
+      gasto_id: gasto.id,
+      proyecto_id: params.proyecto_id,
+      gasto_proveedor: gasto.proveedor,
+      gasto_total: gasto.total,
+      accion: 'solicitada',
+      estado_nuevo: 'pendiente',
+    })
+    await notificarAprobadores(gasto.id, gasto.proveedor, gasto.total)
+  }
+
+  const { error: errorItem } = await supabase.from('items_gasto').insert({
+    gasto_id: gasto.id,
+    descripcion: params.concepto?.trim() || `Mano de obra — ${params.persona_nombre}`,
+    cantidad: params.cantidad,
+    unidad: params.unidad,
+    precio_unitario: params.precio_unitario,
+    subtotal,
+    categoria: 'Mano de obra',
+    etiquetas: [],
+    confianza_ia: 1,
+    etapa_id: params.etapa_id || null,
+    partida_id: params.partida_id || null,
+    estado: 'confirmado',
+    persona_id: params.persona_id,
+    exento: true,
+  })
+
+  if (errorItem) {
+    console.error('Error saving item de mano de obra:', errorItem)
+    await supabase.from('gastos').delete().eq('id', gasto.id)
+    return null
   }
 
   return gasto.id
