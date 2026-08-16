@@ -34,3 +34,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# lotes de importación masiva de boletas (datos reales de clientes, no van al repo)
+scripts/importar-fotos/lotes/
