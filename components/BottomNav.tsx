@@ -50,8 +50,8 @@ export default function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] bg-white border-t border-gray-200 z-50">
-      <div className="flex items-center justify-around h-16 px-1">
+    <nav aria-label="Navegación principal" className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] bg-white border-t border-slate-300 shadow-[0_-4px_16px_rgba(15,23,42,0.10)] pb-[env(safe-area-inset-bottom)] z-50">
+      <div className="flex items-center justify-around h-20 gap-1 px-1">
         {tabs.map(({ href, label, icon: Icon }) => {
           const active = pathname === href
           const badge = badges[href] ?? 0
@@ -59,19 +59,20 @@ export default function BottomNav() {
             <Link
               key={href}
               href={href}
-              className={`flex flex-col items-center gap-0.5 flex-1 py-2 relative ${
-                active ? 'text-blue-600' : 'text-gray-400'
+              aria-current={active ? 'page' : undefined}
+              className={`flex min-w-0 flex-col items-center justify-center gap-1 flex-1 min-h-[64px] py-2 rounded-xl relative transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-inset ${
+                active ? 'bg-blue-100 text-blue-800' : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               <div className="relative">
-                <Icon className="w-5 h-5" />
+                <Icon className="w-6 h-6" />
                 {badge > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-amber-400 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-amber-400 text-slate-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                     {badge > 9 ? '9+' : badge}
                   </span>
                 )}
               </div>
-              <span className="text-[9px] font-medium">{label}</span>
+              <span className="text-[11px] min-[360px]:text-xs font-bold leading-4">{label}</span>
             </Link>
           )
         })}
