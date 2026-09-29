@@ -13,6 +13,7 @@ const menuItems = [
   { href: '/pendientes', label: 'Pendientes', icon: ClockIcon },
   { href: '/aprobaciones', label: 'Aprobaciones', icon: CheckIcon },
   { href: '/notificaciones', label: 'Avisos', icon: BellIcon },
+  { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
 ]
 
 type SideDrawerProps = {
@@ -164,6 +165,10 @@ function CheckIcon({ className }: IconProps) {
 
 function BellIcon({ className }: IconProps) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M14.86 17.08a23.9 23.9 0 005.45-1.31A8.97 8.97 0 0118 9.75V9A6 6 0 006 9v.75a8.97 8.97 0 01-2.31 6.02 23.9 23.9 0 005.45 1.31m5.72 0a3 3 0 11-5.72 0" /></svg>
+}
+
+function DashboardIcon({ className }: IconProps) {
+  return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M4 13h5V4H4v9zM15 20h5V11h-5v9zM4 20h5v-3H4v3zM15 7h5V4h-5v3z" /></svg>
 }
 
 function SettingsIcon({ className }: IconProps) {
