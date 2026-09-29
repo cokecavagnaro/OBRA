@@ -459,11 +459,22 @@ function generarUUID(): string {
 }
 
 export async function subirImagenBoleta(cuentaId: string, proyectoId: string, blob: Blob): Promise<string | null> {
+  const file = new File([blob], 'boleta.jpg', { type: 'image/jpeg' })
+  return subirDocumentoBoleta(cuentaId, proyectoId, file)
+}
+
+// La carga masiva acepta tanto fotografías como PDF. Las fotografías pasan
+// normalizadas a JPEG desde el cliente; los PDF conservan su formato para que
+// el comprobante original siga disponible en el detalle del documento.
+export async function subirDocumentoBoleta(cuentaId: string, proyectoId: string, file: File): Promise<string | null> {
   const supabase = createClient()
-  const path = `${cuentaId}/${proyectoId}/${generarUUID()}.jpg`
-  const { error } = await supabase.storage.from('boletas').upload(path, blob, { contentType: 'image/jpeg' })
+  const esPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
+  const extension = esPdf ? 'pdf' : 'jpg'
+  const contentType = esPdf ? 'application/pdf' : 'image/jpeg'
+  const path = `${cuentaId}/${proyectoId}/${generarUUID()}.${extension}`
+  const { error } = await supabase.storage.from('boletas').upload(path, file, { contentType })
   if (error) {
-    console.error('subirImagenBoleta:', error)
+    console.error('subirDocumentoBoleta:', error)
     return null
   }
   const { data } = supabase.storage.from('boletas').getPublicUrl(path)

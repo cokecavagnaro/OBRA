@@ -219,7 +219,11 @@ export default function FichaBoleta({
           <div className="flex flex-col gap-2 items-end shrink-0 ml-3">
             {gasto.imagen_url && (
               <button
-                onClick={(e) => { e.stopPropagation(); descargarImagen(gasto.imagen_url!, `boleta-${gasto.proveedor}.jpg`) }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const extension = /\.pdf(?:$|\?)/i.test(gasto.imagen_url!) ? 'pdf' : 'jpg'
+                  descargarImagen(gasto.imagen_url!, `boleta-${gasto.proveedor}.${extension}`)
+                }}
                 className="flex items-center gap-1 bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -237,7 +241,11 @@ export default function FichaBoleta({
           style={!puedoEditar ? { paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px) + 64px)' } : undefined}
         >
           {gasto.imagen_url ? (
-            <img src={gasto.imagen_url} alt={gasto.proveedor} className="w-full" />
+            /\.pdf(?:$|\?)/i.test(gasto.imagen_url) ? (
+              <iframe src={gasto.imagen_url} title={`Documento de ${gasto.proveedor}`} className="h-[60vh] w-full border-0" />
+            ) : (
+              <img src={gasto.imagen_url} alt={gasto.proveedor} className="w-full" />
+            )
           ) : (
             <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-5xl">🧾</div>
           )}

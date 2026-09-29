@@ -6,6 +6,7 @@ import { formatCLP } from '@/lib/mock'
 import { getDocumentosCabeceras } from '@/lib/supabase/db'
 import type { DocumentoCabecera } from '@/lib/types'
 import BackButton from '@/components/BackButton'
+import CargaMasivaDocumentos from '@/components/CargaMasivaDocumentos'
 
 const BADGE_ESTADO: Record<string, string> = {
   pendiente: 'bg-amber-100 text-amber-700',
@@ -23,11 +24,14 @@ export default function DocumentosPage() {
   const [documentos, setDocumentos] = useState<DocumentoCabecera[]>([])
   const [loading, setLoading] = useState(true)
 
+  async function cargarDocumentos() {
+    const resultado = await getDocumentosCabeceras()
+    setDocumentos(resultado)
+    setLoading(false)
+  }
+
   useEffect(() => {
-    getDocumentosCabeceras().then((resultado) => {
-      setDocumentos(resultado)
-      setLoading(false)
-    })
+    cargarDocumentos()
   }, [])
 
   if (loading) {
@@ -54,6 +58,9 @@ export default function DocumentosPage() {
       </header>
 
       <main className="px-4 py-4">
+        <div className="mb-5">
+          <CargaMasivaDocumentos onCargaCompleta={cargarDocumentos} />
+        </div>
         <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-gray-400">Más recientes primero</p>
 
         {documentos.length === 0 ? (
