@@ -2,7 +2,7 @@ import { createClient } from './client'
 import { formatCLP } from '../mock'
 import { normalizarDescripcion } from '../aprendizaje'
 import { determinarInterpretacionConIva, calcularNetoBruto, type InterpretacionPrecio, type FuenteInterpretacion } from '../confianzaDocumento'
-import type { Proyecto, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta, EstadoItem, RolUsuario, GastoEvento, Notificacion, RespuestaAnalisis } from '../types'
+import type { Proyecto, Etapa, Partida, Gasto, DocumentoCabecera, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta, EstadoItem, RolUsuario, GastoEvento, Notificacion, RespuestaAnalisis } from '../types'
 import type { PermisoKey } from '../permisos'
 
 // ---- Usuarios / cuenta ----
@@ -307,6 +307,24 @@ export async function getTotalDocumentosCuenta(): Promise<number> {
   }
 
   return count ?? 0
+}
+
+export async function getDocumentosCabeceras(): Promise<DocumentoCabecera[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('gastos')
+    .select('id, proyecto_id, proveedor, rut_proveedor, fecha_boleta, moneda, total, imagen_url, estado_aprobacion, created_at, proyectos(nombre)')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('getDocumentosCabeceras:', error)
+    return []
+  }
+
+  return ((data ?? []).map((documento) => ({
+    ...documento,
+    proyecto: Array.isArray(documento.proyectos) ? documento.proyectos[0] : documento.proyectos,
+  })) as unknown) as DocumentoCabecera[]
 }
 
 export async function getGastoPorId(id: string): Promise<Gasto | null> {

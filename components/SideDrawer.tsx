@@ -7,6 +7,7 @@ import AntLogo from '@/components/AntLogo'
 
 const menuItems = [
   { href: '/', label: 'Inicio', icon: HomeIcon },
+  { href: '/documentos', label: 'Documentos', icon: DocumentIcon },
   { href: '/scan', label: 'Escanear boleta', icon: CameraIcon },
   { href: '/mano-obra', label: 'Mano de obra', icon: WorkersIcon },
   { href: '/pendientes', label: 'Pendientes', icon: ClockIcon },
@@ -90,7 +91,7 @@ export default function SideDrawer({ abierto, cerrar, cuenta, usuario, pendiente
           <p className="px-3 pb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">Secciones</p>
           <div className="space-y-1">
             {menuItems.map(({ href, label, icon: Icon }) => {
-              const activo = pathname === href
+              const activo = pathname === href || (href !== '/' && pathname.startsWith(`${href}/`))
               const mostrarPendientes = href === '/pendientes' && pendientes > 0
 
               return (
@@ -139,6 +140,10 @@ type IconProps = { className?: string }
 
 function HomeIcon({ className }: IconProps) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10" /></svg>
+}
+
+function DocumentIcon({ className }: IconProps) {
+  return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M7 3h7l4 4v14H7a2 2 0 01-2-2V5a2 2 0 012-2z" /><path strokeLinecap="round" strokeLinejoin="round" d="M14 3v5h5M9 13h6M9 17h6" /></svg>
 }
 
 function CameraIcon({ className }: IconProps) {

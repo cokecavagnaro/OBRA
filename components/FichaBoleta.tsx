@@ -20,6 +20,7 @@ interface Props {
   onActualizado: (gasto: Gasto) => void
   onEliminado: (gastoId: string) => void
   onCerrar: () => void
+  modoPagina?: boolean
 }
 
 const BADGE_ESTADO: Record<string, string> = {
@@ -62,6 +63,7 @@ export default function FichaBoleta({
   onActualizado,
   onEliminado,
   onCerrar,
+  modoPagina = false,
 }: Props) {
   const router = useRouter()
   const [gasto, setGasto] = useState(gastoInicial)
@@ -172,11 +174,14 @@ export default function FichaBoleta({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onCerrar}>
+    <div
+      className={modoPagina ? 'min-h-screen bg-white pb-24' : 'fixed inset-0 bg-black/60 z-50 flex items-end justify-center'}
+      onClick={modoPagina ? undefined : onCerrar}
+    >
       <div
-        className="bg-white rounded-t-2xl w-full max-w-[390px] flex flex-col"
-        style={{ maxHeight: '92vh' }}
-        onClick={(e) => e.stopPropagation()}
+        className={modoPagina ? 'bg-white min-h-screen w-full flex flex-col' : 'bg-white rounded-t-2xl w-full max-w-[390px] flex flex-col'}
+        style={modoPagina ? undefined : { maxHeight: '92vh' }}
+        onClick={modoPagina ? undefined : (e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between px-4 pt-4 pb-3 border-b border-gray-100 shrink-0">
           <div className="flex-1 min-w-0">
@@ -221,7 +226,9 @@ export default function FichaBoleta({
                 Descargar
               </button>
             )}
-            <button onClick={onCerrar} className="text-xs text-gray-400 px-3 py-1.5 border border-gray-200 rounded-lg">Cerrar</button>
+            <button onClick={onCerrar} className="text-xs text-gray-500 px-3 py-1.5 border border-gray-200 rounded-lg">
+              {modoPagina ? 'Volver' : 'Cerrar'}
+            </button>
           </div>
         </div>
 

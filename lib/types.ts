@@ -116,6 +116,22 @@ export interface Gasto {
   historial_aprobacion?: GastoEvento[]
 }
 
+export type DocumentoCabecera = Pick<
+  Gasto,
+  | 'id'
+  | 'proyecto_id'
+  | 'proveedor'
+  | 'rut_proveedor'
+  | 'fecha_boleta'
+  | 'moneda'
+  | 'total'
+  | 'imagen_url'
+  | 'estado_aprobacion'
+  | 'created_at'
+> & {
+  proyecto?: Pick<Proyecto, 'nombre'>
+}
+
 export interface GastoEvento {
   id: string
   gasto_id: string | null
