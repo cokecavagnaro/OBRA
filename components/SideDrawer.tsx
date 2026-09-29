@@ -80,7 +80,7 @@ export default function SideDrawer({ abierto, cerrar, cuenta, usuario, pendiente
               type="button"
               aria-label="Cerrar menú"
               onClick={cerrar}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
             >
               <CloseIcon className="h-6 w-6" />
             </button>
