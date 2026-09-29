@@ -6,6 +6,7 @@ import { formatCLP } from '@/lib/mock'
 import { getProyectos, getAllGastos, getUsuarioActual, getCuenta } from '@/lib/supabase/db'
 import type { Proyecto, Gasto, Usuario, Cuenta } from '@/lib/types'
 import AntLogo from '@/components/AntLogo'
+import SideDrawer from '@/components/SideDrawer'
 
 export default function Inicio() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
@@ -13,6 +14,7 @@ export default function Inicio() {
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [cuenta, setCuenta] = useState<Cuenta | null>(null)
   const [loading, setLoading] = useState(true)
+  const [menuAbierto, setMenuAbierto] = useState(false)
 
   useEffect(() => {
     Promise.all([getProyectos(), getAllGastos()]).then(([o, g]) => {
@@ -50,8 +52,28 @@ export default function Inicio() {
 
   return (
     <div className="min-h-screen bg-white">
+      <SideDrawer
+        abierto={menuAbierto}
+        cerrar={() => setMenuAbierto(false)}
+        cuenta={cuenta?.nombre}
+        usuario={nombreUsuario}
+        pendientes={pendientesCount}
+      />
+
       {/* Header */}
-      <div className="px-4 pt-12 pb-4 border-b border-gray-100">
+      <div className="px-4 pt-8 pb-4 border-b border-gray-100">
+        <button
+          type="button"
+          aria-label="Abrir menú"
+          aria-expanded={menuAbierto}
+          aria-controls="menu-lateral"
+          onClick={() => setMenuAbierto(true)}
+          className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+        >
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
         {cuenta?.nombre && (
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{cuenta.nombre}</p>
         )}
