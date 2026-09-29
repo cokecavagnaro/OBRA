@@ -832,7 +832,7 @@ function ScanContenido() {
 
           <button
             onClick={handleIngresoManual}
-            className="w-full text-sm text-gray-500 font-medium py-1"
+            className="w-full border border-gray-200 rounded-xl py-2.5 text-sm text-gray-500 font-medium"
           >
             + Ingresar ítem manualmente
           </button>
