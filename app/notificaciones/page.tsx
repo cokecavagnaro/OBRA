@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { getUsuarioActual, getNotificaciones, marcarNotificacionLeida, marcarTodasNotificacionesLeidas } from '@/lib/supabase/db'
 import type { Notificacion } from '@/lib/types'
+import BackButton from '@/components/BackButton'
 
 const ICONO_TIPO: Record<string, string> = {
   solicitud_aprobacion: '📤',
@@ -47,13 +48,16 @@ export default function Notificaciones() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="px-4 pt-12 pb-4 border-b border-gray-100 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Avisos</h1>
-          <p className="text-xs text-gray-400 mt-0.5">{noLeidas} sin leer</p>
+      <div className="px-4 pt-12 pb-4 border-b border-gray-100 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <BackButton href="/" ariaLabel="Volver al inicio" />
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Avisos</h1>
+            <p className="text-xs text-gray-400 mt-0.5">{noLeidas} sin leer</p>
+          </div>
         </div>
         {noLeidas > 0 && (
-          <button onClick={marcarTodas} className="text-xs text-blue-600 font-medium">Marcar todas como leídas</button>
+          <button onClick={marcarTodas} className="max-w-[112px] shrink-0 text-right text-xs font-medium leading-tight text-blue-600">Marcar todas como leídas</button>
         )}
       </div>
 

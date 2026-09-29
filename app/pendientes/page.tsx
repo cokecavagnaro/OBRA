@@ -6,6 +6,7 @@ import { formatCLP } from '@/lib/mock'
 import { getProyectos, getAllGastos, updateItemGasto, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { tienePermiso } from '@/lib/permisos'
 import type { Proyecto, ItemGasto, Usuario, PermissionOverride } from '@/lib/types'
+import BackButton from '@/components/BackButton'
 
 interface ItemConGasto extends ItemGasto {
   proyecto_id: string
@@ -136,10 +137,15 @@ function PendientesContenido() {
   return (
     <div className="min-h-screen bg-white">
       <div className="px-4 pt-12 pb-3 border-b border-gray-100">
-        <h1 className="text-xl font-bold text-gray-900">Ítems pendientes</h1>
-        <p className="text-xs text-gray-400 mt-0.5">
-          {activos.length} ítem{activos.length !== 1 ? 's' : ''} por revisar
-        </p>
+        <div className="flex items-center gap-3">
+          <BackButton href="/" ariaLabel="Volver al inicio" />
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Ítems pendientes</h1>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {activos.length} ítem{activos.length !== 1 ? 's' : ''} por revisar
+            </p>
+          </div>
+        </div>
 
         <select
           value={proyectoFiltro}

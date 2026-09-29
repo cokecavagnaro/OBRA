@@ -6,6 +6,7 @@ import { formatCLP } from '@/lib/mock'
 import { getAllGastos, getUsuarioActual, getPermisosOverrides, getEtapas, getPartidas, getEtiquetas } from '@/lib/supabase/db'
 import { tienePermiso } from '@/lib/permisos'
 import FichaBoleta from '@/components/FichaBoleta'
+import BackButton from '@/components/BackButton'
 import type { Gasto, Etapa, Partida, Usuario, PermissionOverride } from '@/lib/types'
 
 type Tab = 'pendientes' | 'aprobadas'
@@ -87,10 +88,15 @@ function AprobacionesContenido() {
   return (
     <div className="min-h-screen bg-white">
       <div className="px-4 pt-12 pb-4 border-b border-gray-100">
-        <h1 className="text-xl font-bold text-gray-900">Aprobaciones</h1>
-        <p className="text-xs text-gray-400 mt-0.5">
-          {esAprobador ? 'Boletas de toda la cuenta que esperan tu resolución' : 'Tus solicitudes de aprobación'}
-        </p>
+        <div className="flex items-center gap-3">
+          <BackButton href="/" ariaLabel="Volver al inicio" />
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-gray-900">Aprobaciones</h1>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {esAprobador ? 'Boletas de toda la cuenta que esperan tu resolución' : 'Tus solicitudes de aprobación'}
+            </p>
+          </div>
+        </div>
 
         <div className="flex gap-2 mt-4 bg-gray-100 rounded-xl p-1">
           <button
