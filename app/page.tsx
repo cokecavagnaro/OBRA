@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { formatCLP } from '@/lib/mock'
-import { getProyectos, getAllGastos, getUsuarioActual, getCuenta } from '@/lib/supabase/db'
+import { getProyectos, getAllGastos, getUsuarioActual, getCuenta, getTotalDocumentosCuenta } from '@/lib/supabase/db'
 import type { Proyecto, Gasto, Usuario, Cuenta } from '@/lib/types'
 import AntLogo from '@/components/AntLogo'
 import SideDrawer from '@/components/SideDrawer'
@@ -13,13 +13,15 @@ export default function Inicio() {
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [cuenta, setCuenta] = useState<Cuenta | null>(null)
+  const [totalDocumentos, setTotalDocumentos] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [menuAbierto, setMenuAbierto] = useState(false)
 
   useEffect(() => {
-    Promise.all([getProyectos(), getAllGastos()]).then(([o, g]) => {
+    Promise.all([getProyectos(), getAllGastos(), getTotalDocumentosCuenta()]).then(([o, g, documentos]) => {
       setProyectos(o)
       setGastos(g)
+      setTotalDocumentos(documentos)
       setLoading(false)
     })
     getUsuarioActual().then((u) => {
@@ -32,7 +34,7 @@ export default function Inicio() {
 
   const pendientesCount = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
   const totalGlobal = gastos.filter((g) => g.estado_aprobacion === 'aprobado').reduce((s, g) => s + g.total, 0)
-  const totalBoletas = gastos.length
+  const totalBoletas = totalDocumentos ?? gastos.length
 
   const proyectosConTotales = proyectos.map((proyecto) => {
     const gastosProyecto = gastos.filter((g) => g.proyecto_id === proyecto.id)
@@ -58,6 +60,7 @@ export default function Inicio() {
         cuenta={cuenta?.nombre}
         usuario={nombreUsuario}
         pendientes={pendientesCount}
+        totalDocumentos={totalBoletas}
       />
 
       {/* Header */}

@@ -293,6 +293,22 @@ export async function getAllGastos(): Promise<Gasto[]> {
   return data.map((g) => mapGastoRow(g, eventosPorGasto.get(g.id as string) ?? []))
 }
 
+// Conteo comercial por cuenta: RLS limita `gastos` a todos los proyectos de
+// la empresa del usuario activo. No depende del proyecto ni del estado.
+export async function getTotalDocumentosCuenta(): Promise<number> {
+  const supabase = createClient()
+  const { count, error } = await supabase
+    .from('gastos')
+    .select('id', { count: 'exact', head: true })
+
+  if (error) {
+    console.error('getTotalDocumentosCuenta:', error)
+    return 0
+  }
+
+  return count ?? 0
+}
+
 export async function getGastoPorId(id: string): Promise<Gasto | null> {
   const supabase = createClient()
   const [{ data }, { data: eventosData }] = await Promise.all([

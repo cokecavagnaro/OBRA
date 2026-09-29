@@ -20,9 +20,10 @@ type SideDrawerProps = {
   cuenta?: string
   usuario?: string
   pendientes?: number
+  totalDocumentos: number
 }
 
-export default function SideDrawer({ abierto, cerrar, cuenta, usuario, pendientes = 0 }: SideDrawerProps) {
+export default function SideDrawer({ abierto, cerrar, cuenta, usuario, pendientes = 0, totalDocumentos }: SideDrawerProps) {
   const pathname = usePathname()
 
   useEffect(() => {
@@ -56,6 +57,19 @@ export default function SideDrawer({ abierto, cerrar, cuenta, usuario, pendiente
         onClick={cerrar}
         className={`absolute inset-0 bg-slate-950/45 transition-opacity duration-300 ${abierto ? 'opacity-100' : 'opacity-0'}`}
       />
+
+      <div
+        aria-label={`${totalDocumentos.toLocaleString('es-CL')} documentos registrados en esta empresa`}
+        className={`pointer-events-none absolute right-2 top-[max(2rem,env(safe-area-inset-top))] z-10 flex w-11 flex-col items-center rounded-xl border border-white/20 bg-slate-950/75 px-1 py-2 text-white shadow-lg transition-all duration-300 ${
+          abierto ? 'translate-x-0 opacity-100 delay-150' : 'translate-x-3 opacity-0 delay-0'
+        }`}
+      >
+        <DocumentIcon className="h-5 w-5" />
+        <span className="mt-1 max-w-full truncate text-sm font-bold leading-none">
+          {totalDocumentos > 9999 ? '9k+' : totalDocumentos.toLocaleString('es-CL')}
+        </span>
+        <span className="mt-1 text-[8px] font-bold uppercase tracking-tight text-white/75">Docs</span>
+      </div>
 
       <aside
         id="menu-lateral"
@@ -167,4 +181,8 @@ function SettingsIcon({ className }: IconProps) {
 
 function CloseIcon({ className }: IconProps) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+}
+
+function DocumentIcon({ className }: IconProps) {
+  return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M7 3h7l4 4v14H7a2 2 0 01-2-2V5a2 2 0 012-2z" /><path strokeLinecap="round" strokeLinejoin="round" d="M14 3v5h5M9 13h6M9 17h6" /></svg>
 }
