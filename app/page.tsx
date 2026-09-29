@@ -60,23 +60,40 @@ export default function Inicio() {
         cuenta={cuenta?.nombre}
         usuario={nombreUsuario}
         pendientes={pendientesCount}
-        totalDocumentos={totalBoletas}
       />
 
       {/* Header */}
       <div className="px-4 pt-8 pb-4 border-b border-gray-100">
-        <button
-          type="button"
-          aria-label="Abrir menú"
-          aria-expanded={menuAbierto}
-          aria-controls="menu-lateral"
-          onClick={() => setMenuAbierto(true)}
-          className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
-        >
-          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <button
+            type="button"
+            aria-label="Abrir menú"
+            aria-expanded={menuAbierto}
+            aria-controls="menu-lateral"
+            onClick={() => setMenuAbierto(true)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          <div
+            aria-label={`${totalBoletas.toLocaleString('es-CL')} documentos registrados en esta empresa`}
+            className="flex min-w-[132px] items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 shadow-sm"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 3h7l4 4v14H7a2 2 0 01-2-2V5a2 2 0 012-2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14 3v5h5M9 13h6M9 17h6" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold uppercase leading-none tracking-wide text-gray-400">Documentos</p>
+              <p className="mt-1 text-xl font-bold leading-none text-gray-900">{totalBoletas.toLocaleString('es-CL')}</p>
+            </div>
+          </div>
+        </div>
         {cuenta?.nombre && (
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{cuenta.nombre}</p>
         )}
