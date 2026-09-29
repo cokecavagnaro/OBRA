@@ -8,6 +8,7 @@ import { normalizarImagenParaSubida } from '@/lib/imagen'
 import { tienePermiso } from '@/lib/permisos'
 import { calcularNetoBruto, calcularCruce, decidirExencionCargos, FACTOR_IVA, type InterpretacionPrecio, type FuenteInterpretacion } from '@/lib/confianzaDocumento'
 import CruceItemsTotal from '@/components/CruceItemsTotal'
+import BackButton from '@/components/BackButton'
 import type { Proyecto, Etapa, Partida, ItemAnalizado, Usuario, PermissionOverride } from '@/lib/types'
 
 type Paso = 1 | 2 | 3
@@ -626,7 +627,7 @@ function ScanContenido() {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center gap-3">
         <p className="text-sm font-medium text-gray-600">{errorCargaReescaneo}</p>
-        <button onClick={() => router.back()} className="text-xs text-blue-600 font-medium">Volver</button>
+        <BackButton onClick={() => router.back()} ariaLabel="Volver" />
       </div>
     )
   }
@@ -648,19 +649,15 @@ function ScanContenido() {
       {/* Header */}
       <div className="px-4 pt-12 pb-4 border-b border-gray-100">
         <div className="flex items-center justify-between mb-4">
-          <button
+          <BackButton
             onClick={() => {
               if (paso === 3 && !revisionTotales && !modoManual) { setRevisionTotales(true); return }
               if (gastoIdReescaneo) { router.back(); return }
               if (paso > 1) setPaso((paso - 1) as Paso)
               else router.push('/')
             }}
-            className="text-gray-400"
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
+            ariaLabel="Volver"
+          />
           <h2 className="text-sm font-semibold text-gray-900">
             {paso === 1 ? 'Contexto de la boleta' : paso === 2 ? 'Fotografiar boleta' : revisionTotales ? 'Revisar totales' : 'Clasificar ítems'}
           </h2>

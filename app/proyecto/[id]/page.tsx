@@ -9,6 +9,7 @@ import { determinarInterpretacionConIva, calcularNetoBruto } from '@/lib/confian
 import * as XLSX from 'xlsx'
 import ClasificacionModal from '@/components/ClasificacionModal'
 import FichaBoleta from '@/components/FichaBoleta'
+import BackButton from '@/components/BackButton'
 import type { Proyecto, Etapa, Partida, Gasto, ItemGasto, Usuario, PermissionOverride } from '@/lib/types'
 
 // Los montos van hasta 9 dígitos ("$999.999.999"), que no entra en
@@ -253,11 +254,7 @@ export default function ProyectoDetalle() {
       {/* Header */}
       <div className="px-4 pt-12 pb-4 border-b border-gray-100">
         <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => router.back()} className="text-gray-400">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
+          <BackButton onClick={() => router.back()} ariaLabel="Volver" />
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-gray-900 truncate">{proyecto.nombre}</h1>
             <p className="text-xs text-gray-400">{gastos.length} boleta{gastos.length !== 1 ? 's' : ''}</p>

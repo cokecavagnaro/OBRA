@@ -7,6 +7,7 @@ import { getProyectos, getEtapas, getPartidas, getUsuarioActual, getPermisosOver
 import { listarPersonas, crearPersona } from '@/lib/supabase/personas'
 import { tienePermiso } from '@/lib/permisos'
 import type { Proyecto, Etapa, Partida, Persona, Usuario, PermissionOverride } from '@/lib/types'
+import BackButton from '@/components/BackButton'
 
 type Modo = 'porDia' | 'montoTotal'
 
@@ -159,11 +160,7 @@ function ManoDeObraContenido() {
   return (
     <div className="min-h-screen bg-white">
       <div className="px-4 pt-12 pb-4 border-b border-gray-100 flex items-center gap-3">
-        <button onClick={() => router.back()} className="text-gray-400">
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
+        <BackButton onClick={() => router.back()} ariaLabel="Volver" />
         <h2 className="text-sm font-semibold text-gray-900">Mano de obra</h2>
       </div>
 

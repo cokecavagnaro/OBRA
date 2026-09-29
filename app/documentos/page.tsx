@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { formatCLP } from '@/lib/mock'
 import { getDocumentosCabeceras } from '@/lib/supabase/db'
 import type { DocumentoCabecera } from '@/lib/types'
+import BackButton from '@/components/BackButton'
 
 const BADGE_ESTADO: Record<string, string> = {
   pendiente: 'bg-amber-100 text-amber-700',
@@ -37,13 +38,10 @@ export default function DocumentosPage() {
     <div className="min-h-screen bg-white pb-28">
       <header className="border-b border-gray-100 px-4 pb-4 pt-10">
         <div className="flex items-center gap-3">
-          <Link
+          <BackButton
             href="/"
-            aria-label="Volver al inicio"
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-600"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-          </Link>
+            ariaLabel="Volver al inicio"
+          />
           <div className="min-w-0 flex-1">
             <h1 className="text-xl font-bold text-gray-900">Documentos</h1>
             <p className="mt-0.5 text-xs text-gray-400">Registro completo de la empresa</p>

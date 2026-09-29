@@ -8,6 +8,7 @@ import { aprobarBoleta, rechazarBoleta, reenviarBoleta, updateGastoDatos, delete
 import { calcularNetoBruto } from '@/lib/confianzaDocumento'
 import ClasificacionModal from './ClasificacionModal'
 import CruceItemsTotal from './CruceItemsTotal'
+import BackButton from './BackButton'
 import type { Gasto, ItemGasto, Etapa, Partida, Usuario, PermissionOverride } from '@/lib/types'
 
 interface Props {
@@ -184,6 +185,7 @@ export default function FichaBoleta({
         onClick={modoPagina ? undefined : (e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between px-4 pt-4 pb-3 border-b border-gray-100 shrink-0">
+          {modoPagina && <BackButton onClick={onCerrar} ariaLabel="Volver al registro" className="mr-3" />}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-sm font-semibold text-gray-900 truncate">{gasto.proveedor}</p>
@@ -226,9 +228,7 @@ export default function FichaBoleta({
                 Descargar
               </button>
             )}
-            <button onClick={onCerrar} className="text-xs text-gray-500 px-3 py-1.5 border border-gray-200 rounded-lg">
-              {modoPagina ? 'Volver' : 'Cerrar'}
-            </button>
+            {!modoPagina && <button onClick={onCerrar} className="text-xs text-gray-500 px-3 py-1.5 border border-gray-200 rounded-lg">Cerrar</button>}
           </div>
         </div>
 

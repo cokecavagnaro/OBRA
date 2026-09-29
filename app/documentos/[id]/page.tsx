@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import FichaBoleta from '@/components/FichaBoleta'
+import BackButton from '@/components/BackButton'
 import { getEtiquetas, getEtapas, getGastoPorId, getPartidas, getPermisosOverrides, getUsuarioActual } from '@/lib/supabase/db'
 import type { Etapa, Gasto, Partida, PermissionOverride, Usuario } from '@/lib/types'
 
@@ -56,7 +57,7 @@ export default function DocumentoDetallePage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6 text-center">
         <p className="text-sm font-semibold text-gray-700">Documento no encontrado</p>
-        <button onClick={() => router.push('/documentos')} className="mt-3 text-sm font-medium text-blue-600">Volver al registro</button>
+        <BackButton onClick={() => router.push('/documentos')} ariaLabel="Volver al registro" className="mt-3" />
       </div>
     )
   }

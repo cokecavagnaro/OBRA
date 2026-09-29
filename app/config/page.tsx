@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -14,6 +13,7 @@ import {
 import { tienePermiso, PERMISOS, type PermisoKey } from '@/lib/permisos'
 import EditarUsuarioModal from '@/components/EditarUsuarioModal'
 import InputPresupuesto from '@/components/InputPresupuesto'
+import BackButton from '@/components/BackButton'
 import type { Proyecto, Etapa, Partida, Usuario, Cuenta, Invitacion, PermissionOverride } from '@/lib/types'
 
 type Tab = 'proyectos' | 'cuenta'
@@ -276,15 +276,10 @@ function ConfigContenido() {
       <div className="px-4 pt-12 pb-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <Link
+            <BackButton
               href="/"
-              aria-label="Volver al inicio"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 text-gray-600"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </Link>
+              ariaLabel="Volver al inicio"
+            />
             <div className="min-w-0">
               <h1 className="text-xl font-bold text-gray-900">Configuración</h1>
               <p className="text-xs text-gray-400 mt-0.5">Proyectos, etapas y partidas</p>
