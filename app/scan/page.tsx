@@ -736,7 +736,9 @@ function ScanContenido() {
 
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
             <p className="text-xs text-blue-700">
-              📸 La foto debe mostrar la boleta completa: los montos de cada ítem, los descuentos si hay, el IVA, los impuestos y el TOTAL. Sin esos datos el sistema no puede validar los cálculos.
+              📸 La fotografía debe mostrar la boleta completa: los montos de cada ítem, los descuentos (si es que hay), el IVA, los impuestos y el TOTAL.
+              <br />
+              Sin esos datos el sistema no puede validar los cálculos.
             </p>
           </div>
 
