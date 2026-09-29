@@ -96,7 +96,7 @@ export default function Inicio() {
           </Link>
         </div>
         {cuenta?.nombre && (
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{cuenta.nombre}</p>
+          <p className="text-[13px] font-semibold text-gray-400 uppercase tracking-wide mb-1">{cuenta.nombre}</p>
         )}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -137,7 +137,7 @@ export default function Inicio() {
 
       {/* Lista de proyectos */}
       <div className="px-4 py-4 space-y-3">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Proyectos</p>
+        <p className="text-[13px] font-semibold text-gray-400 uppercase tracking-wide">Proyectos</p>
 
         {proyectosConTotales.map((proyecto) => (
           <Link key={proyecto.id} href={`/proyecto/${proyecto.id}`}>
