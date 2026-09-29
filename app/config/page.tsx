@@ -285,7 +285,7 @@ function ConfigContenido() {
               <p className="text-xs text-gray-400 mt-0.5">Proyectos, etapas y partidas</p>
             </div>
           </div>
-          <button onClick={handleCerrarSesion} className="text-xs text-gray-400 border border-gray-200 rounded-lg px-3 py-1.5">
+          <button onClick={handleCerrarSesion} className="rounded-lg border border-gray-900 bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-black">
             Cerrar sesión
           </button>
         </div>
@@ -351,7 +351,7 @@ function ConfigContenido() {
                     setNuevoProyecto('')
                     setNuevoProyectoPresupuesto('')
                   }}
-                  className="flex-1 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                  className="flex-1 rounded-lg border border-red-600 bg-red-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
                 >
                   Cancelar
                 </button>
