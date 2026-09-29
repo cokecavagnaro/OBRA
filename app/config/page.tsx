@@ -322,25 +322,40 @@ function ConfigContenido() {
           </div>
 
           {creandoProyecto && (
-            <div className="flex gap-2 mb-2">
-              <input
-                autoFocus
-                type="text"
-                value={nuevoProyecto}
-                onChange={(e) => setNuevoProyecto(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && crearProyecto()}
-                placeholder="Nombre del proyecto"
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              />
-              <InputPresupuesto
-                value={nuevoProyectoPresupuesto}
-                onChange={setNuevoProyectoPresupuesto}
-                onEnter={crearProyecto}
-                placeholder="Presupuesto (opcional)"
-                className="w-36 border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              />
-              <button onClick={crearProyecto} disabled={guardando} className="bg-blue-600 text-white px-3 rounded-lg text-sm font-medium disabled:opacity-40">Crear</button>
-              <button onClick={() => setCreandoProyecto(false)} className="text-gray-400 px-2 text-sm">✕</button>
+            <div className="mb-3 space-y-2">
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  type="text"
+                  value={nuevoProyecto}
+                  onChange={(e) => setNuevoProyecto(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && crearProyecto()}
+                  placeholder="Nombre del proyecto"
+                  className="min-w-0 flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                />
+                <InputPresupuesto
+                  value={nuevoProyectoPresupuesto}
+                  onChange={setNuevoProyectoPresupuesto}
+                  onEnter={crearProyecto}
+                  placeholder="Presupuesto (opcional)"
+                  className="w-36 shrink-0 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={crearProyecto} disabled={guardando} className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40">
+                  {guardando ? 'Creando...' : 'Crear'}
+                </button>
+                <button
+                  onClick={() => {
+                    setCreandoProyecto(false)
+                    setNuevoProyecto('')
+                    setNuevoProyectoPresupuesto('')
+                  }}
+                  className="flex-1 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
           )}
 
