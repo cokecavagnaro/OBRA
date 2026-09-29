@@ -337,7 +337,7 @@ function ConfigContenido() {
                   value={nuevoProyectoPresupuesto}
                   onChange={setNuevoProyectoPresupuesto}
                   onEnter={crearProyecto}
-                  placeholder="Presupuesto (opcional)"
+                  placeholder="Presupuesto"
                   className="w-36 shrink-0 border border-gray-200 rounded-lg px-3 py-2 text-sm"
                 />
               </div>
