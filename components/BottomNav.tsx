@@ -9,8 +9,8 @@ import type { PermissionOverride } from '@/lib/types'
 
 const tabs = [
   { href: '/', label: 'Inicio', icon: HomeIcon },
-  { href: '/scan', label: 'Escanear', icon: CameraIcon },
   { href: '/pendientes', label: 'Pendientes', icon: ClockIcon },
+  { href: '/scan', label: 'Escanear', icon: CameraIcon },
   { href: '/aprobaciones', label: 'Aprobar', icon: CheckIcon },
   { href: '/notificaciones', label: 'Avisos', icon: BellIcon },
 ]
@@ -50,28 +50,39 @@ export default function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] bg-white border-t border-gray-200 z-50">
-      <div className="flex items-center justify-around h-16 px-1">
+    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] bg-crema-header border-t-2 border-tinta z-50">
+      <div className="grid grid-cols-[1fr_1fr_1.7fr_1fr_1fr] items-end h-16 px-1">
         {tabs.map(({ href, label, icon: Icon }) => {
           const active = pathname === href
           const badge = badges[href] ?? 0
+          if (href === '/scan') {
+            return (
+              <Link
+                key={href}
+                href={href}
+                className="justify-self-center -mt-9 w-[98px] h-[78px] bg-dorado border-[3px] border-tinta shadow-hard-lg flex flex-col items-center justify-center gap-0.5 text-tinta font-bold text-xs tracking-wide active:translate-x-[3px] active:translate-y-[3px] active:shadow-hard-sm"
+              >
+                <Icon className="w-9 h-9" />
+                <span>ESCANEAR</span>
+              </Link>
+            )
+          }
           return (
             <Link
               key={href}
               href={href}
-              className={`flex flex-col items-center gap-0.5 flex-1 py-2 relative ${
-                active ? 'text-blue-600' : 'text-gray-400'
-              }`}
+              className={`flex flex-col items-center gap-0.5 py-2 relative ${active ? 'text-tinta' : 'text-gris-texto'}`}
             >
               <div className="relative">
                 <Icon className="w-5 h-5" />
                 {badge > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-amber-400 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-2 bg-dorado border-2 border-tinta text-tinta text-[9px] font-bold rounded-full min-w-4 h-4 px-0.5 flex items-center justify-center">
                     {badge > 9 ? '9+' : badge}
                   </span>
                 )}
               </div>
-              <span className="text-[9px] font-medium">{label}</span>
+              <span className="text-[9px] font-bold">{label}</span>
+              {active && <span className="absolute bottom-0.5 w-5 h-[3px] bg-tinta" />}
             </Link>
           )
         })}

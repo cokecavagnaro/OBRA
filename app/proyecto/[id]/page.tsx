@@ -19,7 +19,7 @@ import type { Proyecto, Etapa, Partida, Gasto, ItemGasto, Usuario, PermissionOve
 // propia tarjeta, con piso y techo para que montos cortos no queden
 // enanos ni los largos gigantes.
 const CLASE_CONTENEDOR_MONTO = 'min-w-0 [container-type:inline-size]'
-const CLASE_TEXTO_MONTO = 'font-bold text-gray-900 mt-1 truncate text-[clamp(0.8125rem,13.5cqw,1.875rem)] leading-tight'
+const CLASE_TEXTO_MONTO = 'font-bold text-tinta mt-1 truncate text-[clamp(0.8125rem,13.5cqw,1.875rem)] leading-tight'
 
 export default function ProyectoDetalle() {
   const { id } = useParams<{ id: string }>()
@@ -70,14 +70,14 @@ export default function ProyectoDetalle() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-400 text-sm">Cargando...</p>
+        <p className="text-gris-texto text-sm">Cargando...</p>
       </div>
     )
   }
 
   if (!proyecto) return (
     <div className="flex items-center justify-center min-h-screen">
-      <p className="text-gray-400">Proyecto no encontrado</p>
+      <p className="text-gris-texto">Proyecto no encontrado</p>
     </div>
   )
 
@@ -249,55 +249,55 @@ export default function ProyectoDetalle() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-crema">
       {/* Header */}
-      <div className="px-4 pt-12 pb-4 border-b border-gray-100">
+      <div className="px-4 pt-12 pb-4 border-b-2 border-tinta bg-crema-header">
         <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => router.back()} className="text-gray-400">
+          <button onClick={() => router.back()} className="text-gris-texto">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-gray-900 truncate">{proyecto.nombre}</h1>
-            <p className="text-xs text-gray-400">{gastos.length} boleta{gastos.length !== 1 ? 's' : ''}</p>
+            <h1 className="text-lg font-bold text-tinta truncate">{proyecto.nombre}</h1>
+            <p className="text-xs text-gris-texto">{gastos.length} boleta{gastos.length !== 1 ? 's' : ''}</p>
           </div>
           <div className="flex flex-col gap-1 items-end shrink-0">
             {pendientesCount > 0 && (
-              <span className="bg-amber-100 text-amber-700 text-[10px] font-medium px-2 py-1 rounded-full">
+              <span className="bg-dorado/40 text-tinta text-[10px] font-medium px-2 py-1 rounded-full">
                 ⚠ {pendientesCount} sin etiquetar
               </span>
             )}
             {porAprobarCount > 0 && (
-              <span className="bg-amber-100 text-amber-700 text-[10px] font-medium px-2 py-1 rounded-full">
+              <span className="bg-dorado/40 text-tinta text-[10px] font-medium px-2 py-1 rounded-full">
                 🕓 {porAprobarCount} por aprobar
               </span>
             )}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className={`bg-gray-50 rounded-xl p-4 border border-gray-100 ${CLASE_CONTENEDOR_MONTO}`}>
-            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Mano de obra</p>
+          <div className={`bg-panel p-4 border-2 border-tinta  shadow-hard-sm${CLASE_CONTENEDOR_MONTO}`}>
+            <p className="text-[11px] text-gris-texto font-medium uppercase tracking-wide">Mano de obra</p>
             <p className={CLASE_TEXTO_MONTO}>{formatCLP(totalManoDeObra)}</p>
           </div>
-          <div className={`bg-gray-50 rounded-xl p-4 border border-gray-100 ${CLASE_CONTENEDOR_MONTO}`}>
-            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Materiales</p>
+          <div className={`bg-panel p-4 border-2 border-tinta  shadow-hard-sm${CLASE_CONTENEDOR_MONTO}`}>
+            <p className="text-[11px] text-gris-texto font-medium uppercase tracking-wide">Materiales</p>
             <p className={CLASE_TEXTO_MONTO}>{formatCLP(totalMateriales)}</p>
           </div>
-          <div className={`bg-gray-50 rounded-xl p-4 border border-gray-100 ${CLASE_CONTENEDOR_MONTO}`}>
-            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">IVA pagado</p>
+          <div className={`bg-panel p-4 border-2 border-tinta  shadow-hard-sm${CLASE_CONTENEDOR_MONTO}`}>
+            <p className="text-[11px] text-gris-texto font-medium uppercase tracking-wide">IVA pagado</p>
             <p className={CLASE_TEXTO_MONTO}>{formatCLP(ivaProyecto)}</p>
           </div>
-          <div className={`bg-gray-50 rounded-xl p-4 border border-gray-100 ${CLASE_CONTENEDOR_MONTO}`}>
-            <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Total proyecto</p>
+          <div className={`bg-panel p-4 border-2 border-tinta  shadow-hard-sm${CLASE_CONTENEDOR_MONTO}`}>
+            <p className="text-[11px] text-gris-texto font-medium uppercase tracking-wide">Total proyecto</p>
             <p className={CLASE_TEXTO_MONTO}>{formatCLP(totalProyecto)}</p>
           </div>
         </div>
       </div>
 
       {(proyecto.presupuesto || etapas.some((e) => e.presupuesto) || partidas.some((p) => p.presupuesto)) && (
-        <div className="mx-4 mt-3 rounded-xl border border-gray-100 p-4 space-y-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Presupuesto</p>
+        <div className="mx-4 mt-3 border-2 border-tinta p-4 space-y-3 bg-white shadow-hard-sm">
+          <p className="text-xs font-semibold text-gris-texto uppercase tracking-wide">Presupuesto</p>
           {proyecto.presupuesto && (
             <BarraPresupuesto label="Proyecto completo" gastado={totalProyecto} presupuesto={proyecto.presupuesto} />
           )}
@@ -311,14 +311,14 @@ export default function ProyectoDetalle() {
       )}
 
       {/* Mano de obra */}
-      <div className="px-4 pt-4 pb-2 border-b border-gray-100">
+      <div className="px-4 pt-4 pb-2 border-b-2 border-tinta">
         <div className="flex items-center justify-between mb-2">
           <button onClick={() => setManoDeObraAbierta((prev) => !prev)} className="flex items-center gap-1">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            <p className="text-xs font-semibold text-gris-texto uppercase tracking-wide">
               Mano de obra ({pagosManoDeObra.length})
             </p>
             <svg
-              className={`w-3.5 h-3.5 text-gray-400 transition-transform ${manoDeObraAbierta ? 'rotate-180' : ''}`}
+              className={`w-3.5 h-3.5 text-gris-texto transition-transform ${manoDeObraAbierta ? 'rotate-180' : ''}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -329,7 +329,7 @@ export default function ProyectoDetalle() {
           </button>
           <button
             onClick={() => router.push(`/mano-obra?proyecto=${id}`)}
-            className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-blue-600 shrink-0"
+            className="w-6 h-6 rounded-full border-2 border-tinta flex items-center justify-center text-dorado-link shrink-0"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -338,15 +338,15 @@ export default function ProyectoDetalle() {
         </div>
         {manoDeObraAbierta && (
           pagosManoDeObra.length === 0 ? (
-            <p className="text-xs text-gray-400">Sin pagos de mano de obra registrados.</p>
+            <p className="text-xs text-gris-texto">Sin pagos de mano de obra registrados.</p>
           ) : (
             <div className="space-y-1.5">
               {pagosManoDeObra.map((p) => (
                 <div key={p.id} className="flex items-center justify-between text-xs">
-                  <span className="text-gray-700">
-                    {p.nombre} <span className="text-gray-400">· {formatFecha(p.fecha)}</span>
+                  <span className="text-gris-medio">
+                    {p.nombre} <span className="text-gris-texto">· {formatFecha(p.fecha)}</span>
                   </span>
-                  <span className="font-semibold text-gray-900">{formatCLP(p.total)}</span>
+                  <span className="font-semibold text-tinta">{formatCLP(p.total)}</span>
                 </div>
               ))}
             </div>
@@ -356,16 +356,16 @@ export default function ProyectoDetalle() {
 
       {/* Galería de boletas */}
       {gastos.length > 0 && (
-        <div className="px-4 pt-4 pb-2 border-b border-gray-100">
+        <div className="px-4 pt-4 pb-2 border-b-2 border-tinta">
           <button
             onClick={() => setGaleriaAbierta((prev) => !prev)}
             className="flex items-center gap-1 mb-2"
           >
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            <p className="text-xs font-semibold text-gris-texto uppercase tracking-wide">
               Boletas escaneadas ({gastos.length})
             </p>
             <svg
-              className={`w-3.5 h-3.5 text-gray-400 transition-transform ${galeriaAbierta ? 'rotate-180' : ''}`}
+              className={`w-3.5 h-3.5 text-gris-texto transition-transform ${galeriaAbierta ? 'rotate-180' : ''}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -395,21 +395,21 @@ export default function ProyectoDetalle() {
       )}
 
       {/* Panel de filtros */}
-      <div className="px-4 py-3 border-b border-gray-100 space-y-3">
+      <div className="px-4 py-3 border-b-2 border-tinta space-y-3">
         {/* Filtro Etapa */}
         {etapas.length > 0 && (
           <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Etapa</p>
+            <p className="text-[10px] font-semibold text-gris-texto uppercase tracking-wide mb-1.5">Etapa</p>
             <div className="flex gap-2 overflow-x-auto scrollbar-none">
               <button
                 onClick={() => { setFiltroEtapa(null); setFiltroPartida(null) }}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${!filtroEtapa ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-colors ${!filtroEtapa ? 'bg-tinta text-dorado border-tinta' : 'bg-white text-gris-medio border-tinta'}`}
               >Todas</button>
               {etapas.map((e) => (
                 <button
                   key={e.id}
                   onClick={() => { setFiltroEtapa((prev) => e.id === prev ? null : e.id); setFiltroPartida(null) }}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${filtroEtapa === e.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-colors ${filtroEtapa === e.id ? 'bg-tinta text-dorado border-tinta' : 'bg-white text-gris-medio border-tinta'}`}
                 >{e.nombre}</button>
               ))}
             </div>
@@ -419,17 +419,17 @@ export default function ProyectoDetalle() {
         {/* Filtro Partida */}
         {partidasDisponibles.length > 0 && (
           <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Partida</p>
+            <p className="text-[10px] font-semibold text-gris-texto uppercase tracking-wide mb-1.5">Partida</p>
             <div className="flex gap-2 overflow-x-auto scrollbar-none">
               <button
                 onClick={() => setFiltroPartida(null)}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${!filtroPartida ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-colors ${!filtroPartida ? 'bg-tinta text-dorado border-tinta' : 'bg-white text-gris-medio border-tinta'}`}
               >Todas</button>
               {partidasDisponibles.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setFiltroPartida((prev) => p.id === prev ? null : p.id)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${filtroPartida === p.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-colors ${filtroPartida === p.id ? 'bg-tinta text-dorado border-tinta' : 'bg-white text-gris-medio border-tinta'}`}
                 >{p.nombre}</button>
               ))}
             </div>
@@ -439,17 +439,17 @@ export default function ProyectoDetalle() {
         {/* Filtro Persona */}
         {personasUnicas.length > 0 && (
           <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Persona</p>
+            <p className="text-[10px] font-semibold text-gris-texto uppercase tracking-wide mb-1.5">Persona</p>
             <div className="flex gap-2 overflow-x-auto scrollbar-none">
               <button
                 onClick={() => setFiltroPersona(null)}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${!filtroPersona ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-colors ${!filtroPersona ? 'bg-tinta text-dorado border-tinta' : 'bg-white text-gris-medio border-tinta'}`}
               >Todas</button>
               {personasUnicas.map(([personaId, nombre]) => (
                 <button
                   key={personaId}
                   onClick={() => setFiltroPersona((prev) => personaId === prev ? null : personaId)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${filtroPersona === personaId ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-colors ${filtroPersona === personaId ? 'bg-tinta text-dorado border-tinta' : 'bg-white text-gris-medio border-tinta'}`}
                 >{nombre}</button>
               ))}
             </div>
@@ -459,13 +459,13 @@ export default function ProyectoDetalle() {
         {/* Filtro Etiquetas */}
         {etiquetasUnicas.length > 0 && (
           <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Etiquetas</p>
+            <p className="text-[10px] font-semibold text-gris-texto uppercase tracking-wide mb-1.5">Etiquetas</p>
             <div className="flex gap-2 overflow-x-auto scrollbar-none flex-wrap">
               {etiquetasUnicas.map((tag) => (
                 <button
                   key={tag}
                   onClick={() => toggleEtiqueta(tag)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${filtrosEtiqueta.includes(tag) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}`}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-colors ${filtrosEtiqueta.includes(tag) ? 'bg-dorado border-2 border-tinta shadow-hard-sm font-bold text-tinta border-tinta' : 'bg-white text-gris-medio border-tinta'}`}
                 >{tag}</button>
               ))}
             </div>
@@ -474,25 +474,25 @@ export default function ProyectoDetalle() {
 
         {/* Filtro Fecha */}
         <div>
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Fecha</p>
+          <p className="text-[10px] font-semibold text-gris-texto uppercase tracking-wide mb-1.5">Fecha</p>
           <div className="flex gap-2">
             <input
               type="date"
               value={filtroFechaDesde}
               onChange={(e) => setFiltroFechaDesde(e.target.value)}
-              className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white"
+              className="flex-1 border-2 border-tinta px-2 py-1.5 text-xs text-gris-medio bg-white"
             />
             <input
               type="date"
               value={filtroFechaHasta}
               onChange={(e) => setFiltroFechaHasta(e.target.value)}
-              className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-700 bg-white"
+              className="flex-1 border-2 border-tinta px-2 py-1.5 text-xs text-gris-medio bg-white"
             />
           </div>
         </div>
 
         {hayFiltros && (
-          <button onClick={limpiarFiltros} className="text-xs text-blue-600 font-medium">
+          <button onClick={limpiarFiltros} className="text-xs text-dorado-link font-medium">
             Limpiar filtros
           </button>
         )}
@@ -502,22 +502,22 @@ export default function ProyectoDetalle() {
       <div className="px-4 py-4 space-y-3">
         {hayFiltros ? (
           <>
-            <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
-              <p className="text-xs text-gray-500">{itemsFiltrados.length} ítem{itemsFiltrados.length !== 1 ? 's' : ''} encontrado{itemsFiltrados.length !== 1 ? 's' : ''}</p>
+            <div className="flex items-center justify-between bg-panel px-4 py-3 border-2 border-tinta">
+              <p className="text-xs text-gris-medio">{itemsFiltrados.length} ítem{itemsFiltrados.length !== 1 ? 's' : ''} encontrado{itemsFiltrados.length !== 1 ? 's' : ''}</p>
               <div className="text-right">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Subtotal filtrado</p>
-                <p className="text-sm font-bold text-gray-900">{formatCLP(subtotalFiltrado)}</p>
+                <p className="text-[10px] text-gris-texto uppercase tracking-wide">Subtotal filtrado</p>
+                <p className="text-sm font-bold text-tinta">{formatCLP(subtotalFiltrado)}</p>
               </div>
             </div>
             {itemsFiltrados.length === 0 ? <Vacio /> : itemsFiltrados.map((item) => (
-              <div key={item.id} className="rounded-xl border border-gray-100 p-4">
+              <div key={item.id} className=" border-2 border-tinta p-4 bg-white shadow-hard-sm">
                 {confirmandoEliminarItem === item.id && (
-                  <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-2 space-y-1.5">
+                  <div className="bg-red-50 border-2 border-error px-3 py-2 mb-2 space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>
+                      <span className="text-xs text-error font-medium">¿Eliminar ítem?</span>
                       <div className="flex items-center gap-3 shrink-0">
-                        <button onClick={() => handleEliminarItem(item, item.gasto.id)} className="text-xs font-semibold text-red-600">Sí</button>
-                        <button onClick={() => { setConfirmandoEliminarItem(null); setComentarioEliminacionItem('') }} className="text-xs font-medium text-gray-400">No</button>
+                        <button onClick={() => handleEliminarItem(item, item.gasto.id)} className="text-xs font-semibold text-error">Sí</button>
+                        <button onClick={() => { setConfirmandoEliminarItem(null); setComentarioEliminacionItem('') }} className="text-xs font-medium text-gris-texto">No</button>
                       </div>
                     </div>
                     <input
@@ -525,18 +525,18 @@ export default function ProyectoDetalle() {
                       value={comentarioEliminacionItem}
                       onChange={(e) => setComentarioEliminacionItem(e.target.value)}
                       placeholder="Comentario (opcional)"
-                      className="w-full border border-red-200 rounded-md px-2 py-1 text-xs bg-white"
+                      className="w-full border-2 border-error px-2 py-1 text-xs bg-white"
                     />
                   </div>
                 )}
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold text-gray-900 flex-1">{item.descripcion}</p>
+                  <p className="text-sm font-semibold text-tinta flex-1">{item.descripcion}</p>
                   <div className="flex items-center gap-2 shrink-0">
-                    <p className="text-sm font-bold text-gray-900">{formatCLP(netoBrutoDeItem(item, item.gasto).bruto)}</p>
+                    <p className="text-sm font-bold text-tinta">{formatCLP(netoBrutoDeItem(item, item.gasto).bruto)}</p>
                     {puedeEditarItems && (
                       <button
                         onClick={() => setItemEditando(item)}
-                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                        className="text-gris-texto hover:text-dorado-link transition-colors"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -546,7 +546,7 @@ export default function ProyectoDetalle() {
                     {puedeEliminarGasto && (
                       <button
                         onClick={() => setConfirmandoEliminarItem(item.id)}
-                        className="text-gray-300 hover:text-red-500 transition-colors"
+                        className="text-gris-texto hover:text-error transition-colors"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -555,11 +555,11 @@ export default function ProyectoDetalle() {
                     )}
                   </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-0.5">{item.cantidad} {item.unidad}</p>
+                <p className="text-xs text-gris-texto mt-0.5">{item.cantidad} {item.unidad}</p>
                 {(() => {
                   const { neto, iva } = netoBrutoDeItem(item, item.gasto)
                   return (
-                    <p className="text-[10px] text-gray-400 mt-0.5">
+                    <p className="text-[10px] text-gris-texto mt-0.5">
                       {item.exento ? <>Exento de IVA · {formatCLP(neto)}</> : <>IVA {formatCLP(iva)} · Neto {formatCLP(neto)}</>}
                       {/* Solo descuentos IMPRESOS en la boleta — nunca inferidos por aritmética */}
                       {!!item.descuento_monto && <> · Desc {formatCLP(item.descuento_monto)}</>}
@@ -568,42 +568,42 @@ export default function ProyectoDetalle() {
                 })()}
                 <div className="flex flex-wrap gap-1 mt-2">
                   {item.etiquetas.map((tag) => (
-                    <span key={tag} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${filtrosEtiqueta.includes(tag) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>{tag}</span>
+                    <span key={tag} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${filtrosEtiqueta.includes(tag) ? 'bg-crema-header text-dorado-link' : 'bg-panel text-gris-medio'}`}>{tag}</span>
                   ))}
                 </div>
-                <p className="text-[10px] text-gray-300 mt-2">{item.gasto.proveedor} · {formatFecha(item.gasto.fecha_boleta)}</p>
+                <p className="text-[10px] text-gris-texto mt-2">{item.gasto.proveedor} · {formatFecha(item.gasto.fecha_boleta)}</p>
                 {item.gasto.creado_por_email && (
-                  <p className="text-[10px] text-gray-300 mt-0.5">Registrado por {item.gasto.creado_por_email}</p>
+                  <p className="text-[10px] text-gris-texto mt-0.5">Registrado por {item.gasto.creado_por_email}</p>
                 )}
                 {item.gasto.comentario && (
-                  <p className="text-[10px] text-gray-400 italic mt-0.5">💬 {item.gasto.comentario}</p>
+                  <p className="text-[10px] text-gris-texto italic mt-0.5">💬 {item.gasto.comentario}</p>
                 )}
               </div>
             ))}
           </>
         ) : (
           gastos.length === 0 ? <Vacio /> : gastos.map((gasto) => (
-            <div key={gasto.id} className="rounded-xl border border-gray-100 p-4">
+            <div key={gasto.id} className=" border-2 border-tinta p-4 bg-white shadow-hard-sm">
               {confirmandoEliminar === gasto.id ? (
-                <div className="flex items-center justify-between gap-2 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-2">
-                  <span className="text-xs text-red-600 font-medium">¿Eliminar boleta?</span>
+                <div className="flex items-center justify-between gap-2 bg-red-50 border-2 border-error px-3 py-2 mb-2">
+                  <span className="text-xs text-error font-medium">¿Eliminar boleta?</span>
                   <div className="flex items-center gap-3 shrink-0">
-                    <button onClick={() => handleEliminarGasto(gasto.id)} className="text-xs font-semibold text-red-600">Sí</button>
-                    <button onClick={() => setConfirmandoEliminar(null)} className="text-xs font-medium text-gray-400">No</button>
+                    <button onClick={() => handleEliminarGasto(gasto.id)} className="text-xs font-semibold text-error">Sí</button>
+                    <button onClick={() => setConfirmandoEliminar(null)} className="text-xs font-medium text-gris-texto">No</button>
                   </div>
                 </div>
               ) : null}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{gasto.proveedor}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{formatFecha(gasto.fecha_boleta)}</p>
+                  <p className="text-sm font-semibold text-tinta truncate">{gasto.proveedor}</p>
+                  <p className="text-xs text-gris-texto mt-0.5">{formatFecha(gasto.fecha_boleta)}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <p className="text-sm font-bold text-gray-900">{formatCLP(gasto.total)}</p>
+                  <p className="text-sm font-bold text-tinta">{formatCLP(gasto.total)}</p>
                   {puedeEliminarGasto && confirmandoEliminar !== gasto.id && (
                     <button
                       onClick={() => setConfirmandoEliminar(gasto.id)}
-                      className="text-gray-300 hover:text-red-500 transition-colors"
+                      className="text-gris-texto hover:text-error transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -615,10 +615,10 @@ export default function ProyectoDetalle() {
               {(gasto.creado_por_email || gasto.comentario) && (
                 <div className="mt-1.5">
                   {gasto.creado_por_email && (
-                    <p className="text-[10px] text-gray-300">Registrado por {gasto.creado_por_email}</p>
+                    <p className="text-[10px] text-gris-texto">Registrado por {gasto.creado_por_email}</p>
                   )}
                   {gasto.comentario && (
-                    <p className="text-[10px] text-gray-400 italic mt-0.5">💬 {gasto.comentario}</p>
+                    <p className="text-[10px] text-gris-texto italic mt-0.5">💬 {gasto.comentario}</p>
                   )}
                 </div>
               )}
@@ -626,12 +626,12 @@ export default function ProyectoDetalle() {
                 <div className="mt-2 space-y-1">
                   {(gasto.items ?? []).map((item) => (
                     confirmandoEliminarItem === item.id ? (
-                      <div key={item.id} className="bg-red-50 border border-red-100 rounded-lg px-2 py-1 space-y-1">
+                      <div key={item.id} className="bg-red-50 border-2 border-error px-2 py-1 space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>
+                          <span className="text-xs text-error font-medium">¿Eliminar ítem?</span>
                           <div className="flex items-center gap-2 shrink-0">
-                            <button onClick={() => handleEliminarItem(item, gasto.id)} className="text-xs font-semibold text-red-600">Sí</button>
-                            <button onClick={() => { setConfirmandoEliminarItem(null); setComentarioEliminacionItem('') }} className="text-xs font-medium text-gray-400">No</button>
+                            <button onClick={() => handleEliminarItem(item, gasto.id)} className="text-xs font-semibold text-error">Sí</button>
+                            <button onClick={() => { setConfirmandoEliminarItem(null); setComentarioEliminacionItem('') }} className="text-xs font-medium text-gris-texto">No</button>
                           </div>
                         </div>
                         <input
@@ -639,11 +639,11 @@ export default function ProyectoDetalle() {
                           value={comentarioEliminacionItem}
                           onChange={(e) => setComentarioEliminacionItem(e.target.value)}
                           placeholder="Comentario (opcional)"
-                          className="w-full border border-red-200 rounded-md px-2 py-1 text-xs bg-white"
+                          className="w-full border-2 border-error px-2 py-1 text-xs bg-white"
                         />
                       </div>
                     ) : (
-                      <div key={item.id} className="flex items-center justify-between text-xs text-gray-500">
+                      <div key={item.id} className="flex items-center justify-between text-xs text-gris-medio">
                         <span className="truncate flex-1">{item.descripcion}</span>
                         <div className="flex items-center gap-2 shrink-0 ml-2">
                           <span>
@@ -652,7 +652,7 @@ export default function ProyectoDetalle() {
                               return (
                                 <>
                                   {formatCLP(bruto)}
-                                  <span className="text-gray-300"> (neto {formatCLP(neto)}{!!item.descuento_monto && <> · desc {formatCLP(item.descuento_monto)}</>})</span>
+                                  <span className="text-gris-texto"> (neto {formatCLP(neto)}{!!item.descuento_monto && <> · desc {formatCLP(item.descuento_monto)}</>})</span>
                                 </>
                               )
                             })()}
@@ -660,7 +660,7 @@ export default function ProyectoDetalle() {
                           {puedeEditarItems && (
                             <button
                               onClick={() => setItemEditando(item)}
-                              className="text-gray-300 hover:text-blue-500 transition-colors"
+                              className="text-gris-texto hover:text-dorado-link transition-colors"
                             >
                               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -670,7 +670,7 @@ export default function ProyectoDetalle() {
                           {puedeEliminarGasto && (
                             <button
                               onClick={() => setConfirmandoEliminarItem(item.id)}
-                              className="text-gray-300 hover:text-red-500 transition-colors"
+                              className="text-gris-texto hover:text-error transition-colors"
                             >
                               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -685,7 +685,7 @@ export default function ProyectoDetalle() {
               )}
               <div className="flex flex-wrap gap-1 mt-2">
                 {Array.from(new Set((gasto.items ?? []).flatMap((i) => i.etiquetas))).map((tag) => (
-                  <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">{tag}</span>
+                  <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-panel text-gris-medio">{tag}</span>
                 ))}
               </div>
               {(gasto.eventos ?? []).length > 0 && (
@@ -697,25 +697,25 @@ export default function ProyectoDetalle() {
                       else next.add(gasto.id)
                       return next
                     })}
-                    className="text-[10px] text-blue-600 font-medium"
+                    className="text-[10px] text-dorado-link font-medium"
                   >
                     {historialAbierto.has(gasto.id) ? 'Ocultar historial' : `Ver historial (${(gasto.eventos ?? []).length})`}
                   </button>
                   {historialAbierto.has(gasto.id) && (
-                    <div className="mt-1.5 space-y-2 bg-gray-50 rounded-lg p-2">
+                    <div className="mt-1.5 space-y-2 bg-panel p-2">
                       {[...(gasto.eventos ?? [])]
                         .sort((a, b) => b.created_at.localeCompare(a.created_at))
                         .map((ev) => (
-                          <div key={ev.id} className="text-[10px] text-gray-500">
+                          <div key={ev.id} className="text-[10px] text-gris-medio">
                             <p>
                               {ev.accion === 'editado' ? '✏️' : '🗑️'}{' '}
-                              <span className="font-medium text-gray-700">{ev.descripcion_item}</span>
+                              <span className="font-medium text-gris-medio">{ev.descripcion_item}</span>
                               {ev.accion === 'editado'
                                 ? <> — {formatCLP(ev.subtotal_anterior)} → {formatCLP(ev.subtotal_nuevo ?? 0)}</>
                                 : <> — eliminado (era {formatCLP(ev.subtotal_anterior)})</>}
                             </p>
-                            {ev.comentario && <p className="italic text-gray-400 mt-0.5">💬 {ev.comentario}</p>}
-                            <p className="text-gray-300 mt-0.5">{ev.usuario_email} · {formatFecha(ev.created_at.slice(0, 10))}</p>
+                            {ev.comentario && <p className="italic text-gris-texto mt-0.5">💬 {ev.comentario}</p>}
+                            <p className="text-gris-texto mt-0.5">{ev.usuario_email} · {formatFecha(ev.created_at.slice(0, 10))}</p>
                           </div>
                         ))}
                     </div>
@@ -732,7 +732,7 @@ export default function ProyectoDetalle() {
         <div className="px-4 pb-6 pt-2">
           <button
             onClick={handleExportar}
-            className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white rounded-xl py-3.5 text-sm font-semibold"
+            className="w-full flex items-center justify-center gap-2 bg-tinta text-dorado py-3.5 text-sm font-semibold border-2 border-tinta shadow-hard-sm"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -760,7 +760,7 @@ export default function ProyectoDetalle() {
 }
 
 const BADGE_ESTADO_THUMB: Record<string, string> = {
-  pendiente: 'bg-amber-400 text-white',
+  pendiente: 'bg-dorado text-white',
   rechazado: 'bg-red-500 text-white',
 }
 const LABEL_ESTADO_THUMB: Record<string, string> = { pendiente: 'Pendiente', rechazado: 'Rechazada' }
@@ -787,7 +787,7 @@ function GaleriaThumbnail({
   const [expandido, setExpandido] = useState(false)
   return (
     <>
-      <button onClick={() => setExpandido(true)} className="relative rounded-xl overflow-hidden border border-gray-100 text-left w-full">
+      <button onClick={() => setExpandido(true)} className="relative overflow-hidden border-2 border-tinta text-left w-full">
         {gasto.estado_aprobacion !== 'aprobado' && (
           <span className={`absolute top-1 left-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full z-10 ${BADGE_ESTADO_THUMB[gasto.estado_aprobacion]}`}>
             {LABEL_ESTADO_THUMB[gasto.estado_aprobacion]}
@@ -796,11 +796,11 @@ function GaleriaThumbnail({
         {gasto.imagen_url ? (
           <img src={gasto.imagen_url} alt={gasto.proveedor} className="w-full h-16 object-cover" />
         ) : (
-          <div className="w-full h-16 bg-gray-100 flex items-center justify-center text-2xl">🧾</div>
+          <div className="w-full h-16 bg-panel flex items-center justify-center text-2xl">🧾</div>
         )}
         <div className="p-1.5">
-          <p className="text-[10px] font-medium text-gray-700 truncate">{gasto.proveedor}</p>
-          <p className="text-[10px] text-gray-400">{formatCLP(gasto.total)}</p>
+          <p className="text-[10px] font-medium text-gris-medio truncate">{gasto.proveedor}</p>
+          <p className="text-[10px] text-gris-texto">{formatCLP(gasto.total)}</p>
         </div>
       </button>
       {expandido && (
@@ -823,7 +823,7 @@ function GaleriaThumbnail({
 function Vacio() {
   return (
     <div className="text-center py-12">
-      <p className="text-gray-400 text-sm">No hay gastos registrados</p>
+      <p className="text-gris-texto text-sm">No hay gastos registrados</p>
     </div>
   )
 }
@@ -844,18 +844,18 @@ function netoBrutoDeItem(item: ItemGasto, gasto: Gasto) {
 
 function BarraPresupuesto({ label, gastado, presupuesto }: { label: string; gastado: number; presupuesto: number }) {
   const pct = presupuesto > 0 ? (gastado / presupuesto) * 100 : 0
-  const color = pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-blue-500'
+  const color = pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-dorado'
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <p className="text-xs font-medium text-gray-700 truncate">{label}</p>
-        <p className="text-xs text-gray-400 shrink-0 ml-2">{formatCLP(gastado)} / {formatCLP(presupuesto)}</p>
+        <p className="text-xs font-medium text-gris-medio truncate">{label}</p>
+        <p className="text-xs text-gris-texto shrink-0 ml-2">{formatCLP(gastado)} / {formatCLP(presupuesto)}</p>
       </div>
-      <div className="bg-gray-100 rounded-full h-1.5">
+      <div className="bg-panel rounded-full h-1.5">
         <div className={`${color} h-1.5 rounded-full transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
       {pct >= 100 && (
-        <p className="text-[10px] text-red-600 mt-1">⚠ Superó el presupuesto por {formatCLP(gastado - presupuesto)}</p>
+        <p className="text-[10px] text-error mt-1">⚠ Superó el presupuesto por {formatCLP(gastado - presupuesto)}</p>
       )}
     </div>
   )

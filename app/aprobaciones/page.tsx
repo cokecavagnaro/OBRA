@@ -11,9 +11,9 @@ import type { Gasto, Etapa, Partida, Usuario, PermissionOverride } from '@/lib/t
 type Tab = 'pendientes' | 'aprobadas'
 
 const BADGE_ESTADO: Record<string, string> = {
-  pendiente: 'bg-amber-100 text-amber-700',
+  pendiente: 'bg-dorado/40 text-tinta',
   aprobado: 'bg-green-100 text-green-700',
-  rechazado: 'bg-red-100 text-red-700',
+  rechazado: 'bg-red-100 text-error',
 }
 const LABEL_ESTADO: Record<string, string> = { pendiente: 'Pendiente', aprobado: 'Aprobada', rechazado: 'Rechazada' }
 
@@ -63,7 +63,7 @@ function AprobacionesContenido() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-400 text-sm">Cargando...</p>
+        <p className="text-gris-texto text-sm">Cargando...</p>
       </div>
     )
   }
@@ -85,23 +85,23 @@ function AprobacionesContenido() {
   const gruposOrdenados = Array.from(grupos.values()).sort((a, b) => b.total - a.total)
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="px-4 pt-12 pb-4 border-b border-gray-100">
-        <h1 className="text-xl font-bold text-gray-900">Aprobaciones</h1>
-        <p className="text-xs text-gray-400 mt-0.5">
+    <div className="min-h-screen bg-crema">
+      <div className="px-4 pt-12 pb-4 border-b-2 border-tinta bg-crema-header">
+        <h1 className="text-xl font-bold text-tinta">Aprobaciones</h1>
+        <p className="text-xs text-gris-texto mt-0.5">
           {esAprobador ? 'Boletas de toda la cuenta que esperan tu resolución' : 'Tus solicitudes de aprobación'}
         </p>
 
-        <div className="flex gap-2 mt-4 bg-gray-100 rounded-xl p-1">
+        <div className="flex gap-2 mt-4 bg-white border-2 border-tinta p-1">
           <button
             onClick={() => setTab('pendientes')}
-            className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${tab === 'pendientes' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
+            className={`flex-1 py-2 text-sm font-semibold transition-colors ${tab === 'pendientes' ? 'bg-tinta text-dorado' : 'text-gris-texto'}`}
           >
             Pendientes
           </button>
           <button
             onClick={() => setTab('aprobadas')}
-            className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${tab === 'aprobadas' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
+            className={`flex-1 py-2 text-sm font-semibold transition-colors ${tab === 'aprobadas' ? 'bg-tinta text-dorado' : 'text-gris-texto'}`}
           >
             Aprobadas
           </button>
@@ -112,35 +112,35 @@ function AprobacionesContenido() {
         <div className="px-4 py-4 space-y-3">
           {enRevision.length === 0 && (
             <div className="text-center py-16">
-              <p className="text-sm font-medium text-gray-600">Nada por revisar</p>
-              <p className="text-xs text-gray-400 mt-1">No hay boletas pendientes ni rechazadas</p>
+              <p className="text-sm font-medium text-gris-medio">Nada por revisar</p>
+              <p className="text-xs text-gris-texto mt-1">No hay boletas pendientes ni rechazadas</p>
             </div>
           )}
           {enRevision.map((g) => (
             <button
               key={g.id}
               onClick={() => abrirFicha(g)}
-              className="w-full text-left rounded-xl border border-gray-100 p-4"
+              className="w-full text-left border-2 border-tinta p-4 bg-white shadow-hard-sm"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{g.proveedor}</p>
-                  {g.proyecto?.nombre && <p className="text-xs font-medium text-blue-600 mt-0.5">📁 {g.proyecto.nombre}</p>}
-                  <p className="text-xs text-gray-400 mt-0.5">Solicitada por {g.creado_por_email ?? 'desconocido'}</p>
+                  <p className="text-sm font-semibold text-tinta truncate">{g.proveedor}</p>
+                  {g.proyecto?.nombre && <p className="text-xs font-medium text-dorado-link mt-0.5">📁 {g.proyecto.nombre}</p>}
+                  <p className="text-xs text-gris-texto mt-0.5">Solicitada por {g.creado_por_email ?? 'desconocido'}</p>
                 </div>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${BADGE_ESTADO[g.estado_aprobacion]}`}>
                   {LABEL_ESTADO[g.estado_aprobacion]}
                 </span>
               </div>
-              {g.comentario && <p className="text-xs text-gray-500 italic mt-1.5">💬 {g.comentario}</p>}
-              <div className="flex items-center justify-between mt-2 text-xs text-gray-400">
+              {g.comentario && <p className="text-xs text-gris-medio italic mt-1.5">💬 {g.comentario}</p>}
+              <div className="flex items-center justify-between mt-2 text-xs text-gris-texto">
                 <span>Boleta: {formatFecha(g.fecha_boleta)}</span>
-                <span className="font-bold text-gray-900 text-sm">{formatCLP(g.total)}</span>
+                <span className="font-bold text-tinta text-sm">{formatCLP(g.total)}</span>
               </div>
               {g.fecha_solicitud && (
-                <p className="text-[10px] text-gray-300 mt-1">Solicitada: {formatFecha(g.fecha_solicitud.slice(0, 10))}</p>
+                <p className="text-[10px] text-gris-texto mt-1">Solicitada: {formatFecha(g.fecha_solicitud.slice(0, 10))}</p>
               )}
-              {g.motivo_rechazo && <p className="text-[10px] text-red-500 mt-1">Motivo: {g.motivo_rechazo}</p>}
+              {g.motivo_rechazo && <p className="text-[10px] text-error mt-1">Motivo: {g.motivo_rechazo}</p>}
             </button>
           ))}
         </div>
@@ -150,22 +150,22 @@ function AprobacionesContenido() {
         <div className="px-4 py-4 space-y-4">
           {gruposOrdenados.length === 0 && (
             <div className="text-center py-16">
-              <p className="text-sm font-medium text-gray-600">Todavía no hay boletas aprobadas por alguien</p>
-              <p className="text-xs text-gray-400 mt-1">Las boletas que subís vos como admin no aparecen acá</p>
+              <p className="text-sm font-medium text-gris-medio">Todavía no hay boletas aprobadas por alguien</p>
+              <p className="text-xs text-gris-texto mt-1">Las boletas que subís vos como admin no aparecen acá</p>
             </div>
           )}
           {gruposOrdenados.map((grupo) => (
-            <div key={grupo.email} className="rounded-xl border border-gray-100 p-4">
+            <div key={grupo.email} className=" border-2 border-tinta p-4 bg-white shadow-hard-sm">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold text-gray-900">{grupo.email}</p>
+                <p className="text-sm font-semibold text-tinta">{grupo.email}</p>
                 <p className="text-sm font-bold text-green-700">{formatCLP(grupo.total)}</p>
               </div>
               <div className="space-y-1.5">
                 {grupo.boletas.map((g) => (
-                  <button key={g.id} onClick={() => abrirFicha(g)} className="w-full flex items-center justify-between text-xs text-gray-500">
+                  <button key={g.id} onClick={() => abrirFicha(g)} className="w-full flex items-center justify-between text-xs text-gris-medio">
                     <span className="truncate flex-1 text-left">
                       {g.proveedor}
-                      {g.proyecto?.nombre && <span className="text-blue-600 font-medium"> · 📁 {g.proyecto.nombre}</span>}
+                      {g.proyecto?.nombre && <span className="text-dorado-link font-medium"> · 📁 {g.proyecto.nombre}</span>}
                     </span>
                     <span className="shrink-0 ml-2">{formatCLP(g.total)}</span>
                   </button>
@@ -199,7 +199,7 @@ function formatFecha(fecha: string): string {
 
 export default function Aprobaciones() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-gray-400 text-sm">Cargando...</p></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-gris-texto text-sm">Cargando...</p></div>}>
       <AprobacionesContenido />
     </Suspense>
   )

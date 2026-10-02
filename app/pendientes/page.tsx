@@ -128,23 +128,23 @@ function PendientesContenido() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-400 text-sm">Cargando...</p>
+        <p className="text-gris-texto text-sm">Cargando...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="px-4 pt-12 pb-3 border-b border-gray-100">
-        <h1 className="text-xl font-bold text-gray-900">Ítems pendientes</h1>
-        <p className="text-xs text-gray-400 mt-0.5">
+    <div className="min-h-screen bg-crema">
+      <div className="px-4 pt-12 pb-3 border-b-2 border-tinta bg-crema-header">
+        <h1 className="text-xl font-bold text-tinta">Ítems pendientes</h1>
+        <p className="text-xs text-gris-texto mt-0.5">
           {activos.length} ítem{activos.length !== 1 ? 's' : ''} por revisar
         </p>
 
         <select
           value={proyectoFiltro}
           onChange={(e) => setProyectoFiltro(e.target.value)}
-          className="mt-3 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 bg-white"
+          className="mt-3 w-full border-2 border-tinta px-3 py-2.5 text-sm text-gris-medio bg-white"
         >
           <option value="todas">Todos los proyectos</option>
           {proyectos.map((o) => (
@@ -161,24 +161,24 @@ function PendientesContenido() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <p className="text-sm font-medium text-gray-600">Todo al día</p>
-            <p className="text-xs text-gray-400 mt-1">No hay ítems pendientes{proyectoFiltro !== 'todas' ? ' en este proyecto' : ''}</p>
+            <p className="text-sm font-medium text-gris-medio">Todo al día</p>
+            <p className="text-xs text-gris-texto mt-1">No hay ítems pendientes{proyectoFiltro !== 'todas' ? ' en este proyecto' : ''}</p>
           </div>
         )}
 
         {activos.map((item) => (
-          <div key={item.id} className="rounded-xl border border-amber-200 bg-amber-50/20 p-4">
+          <div key={item.id} className=" border-2 border-tinta bg-dorado/40 p-4 shadow-hard-sm">
             <div className="flex items-start justify-between gap-2 mb-1">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900">{item.descripcion}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{item.proveedor} · {item.fecha}</p>
+                <p className="text-sm font-semibold text-tinta">{item.descripcion}</p>
+                <p className="text-xs text-gris-texto mt-0.5">{item.proveedor} · {item.fecha}</p>
               </div>
-              <span className="bg-amber-100 text-amber-700 text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0">
+              <span className="bg-dorado/40 text-tinta text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0">
                 ⚠ {Math.round((item.confianza_ia ?? 0) * 100)}%
               </span>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+            <div className="flex items-center gap-2 text-xs text-gris-medio mb-1">
               <input
                 type="number"
                 inputMode="decimal"
@@ -186,7 +186,7 @@ function PendientesContenido() {
                 disabled={!puedeEditar}
                 onChange={(e) => actualizarMonto(item.id, 'cantidad', Number(e.target.value))}
                 onBlur={() => guardarMonto(items.find((i) => i.id === item.id)!)}
-                className="w-10 text-right outline-none border border-gray-200 rounded px-1 bg-white focus:border-blue-400 disabled:opacity-60"
+                className="w-10 text-right outline-none border-2 border-tinta px-1 bg-white focus:border-tinta disabled:opacity-60"
               />
               <span>{item.unidad}</span>
               <span>·</span>
@@ -197,24 +197,24 @@ function PendientesContenido() {
                 disabled={!puedeEditar}
                 onChange={(e) => actualizarMonto(item.id, 'precio_unitario', Number(e.target.value))}
                 onBlur={() => guardarMonto(items.find((i) => i.id === item.id)!)}
-                className="w-16 outline-none border border-gray-200 rounded px-1 bg-white focus:border-blue-400 disabled:opacity-60"
+                className="w-16 outline-none border-2 border-tinta px-1 bg-white focus:border-tinta disabled:opacity-60"
               />
               <span>c/u</span>
               <span>·</span>
-              <span className="font-semibold text-gray-700">{formatCLP(item.subtotal)}</span>
+              <span className="font-semibold text-gris-medio">{formatCLP(item.subtotal)}</span>
             </div>
 
-            <p className="text-xs text-gray-400 mb-3 truncate">{item.proyecto_nombre}</p>
+            <p className="text-xs text-gris-texto mb-3 truncate">{item.proyecto_nombre}</p>
 
             <div className="mb-3">
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Etiquetas</p>
+              <p className="text-[10px] font-semibold text-gris-texto uppercase tracking-wide mb-1.5">Etiquetas</p>
               <div className="flex flex-wrap gap-1 items-center">
                 {item.etiquetas.map((tag) => (
                   <button
                     key={tag}
                     onClick={() => removeTag(item.id, tag)}
                     disabled={!puedeEtiquetar}
-                    className="flex items-center gap-1 bg-gray-100 text-gray-600 text-[10px] px-2 py-0.5 rounded-full hover:bg-red-50 hover:text-red-400 transition-colors disabled:opacity-60"
+                    className="flex items-center gap-1 bg-panel text-gris-medio text-[10px] px-2 py-0.5 rounded-full hover:bg-red-50 hover:text-red-400 transition-colors disabled:opacity-60"
                   >
                     {tag} ×
                   </button>
@@ -226,7 +226,7 @@ function PendientesContenido() {
                     onChange={(e) => setTagsEdit((prev) => ({ ...prev, [item.id]: e.target.value }))}
                     onKeyDown={(e) => handleTagKey(e, item.id)}
                     placeholder="+ etiqueta"
-                    className="text-[10px] text-gray-500 bg-transparent outline-none border border-dashed border-gray-300 rounded-full px-2 py-0.5 w-20 placeholder-gray-300"
+                    className="text-[10px] text-gris-medio bg-transparent outline-none border-2 border-dashed border-tinta rounded-full px-2 py-0.5 w-20 placeholder-gris-texto"
                   />
                 )}
               </div>
@@ -236,14 +236,14 @@ function PendientesContenido() {
               {puedeEliminar && (
                 <button
                   onClick={() => rechazar(item.id)}
-                  className="flex-1 border border-gray-200 rounded-lg py-2 text-xs font-medium text-gray-500"
+                  className="flex-1 border-2 border-tinta py-2 text-xs font-medium text-gris-medio"
                 >
                   Rechazar
                 </button>
               )}
               <button
                 onClick={() => confirmar(item.id)}
-                className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-xs font-semibold"
+                className="flex-1 bg-dorado border-2 border-tinta shadow-hard-sm font-bold text-tinta py-2 text-xs font-semibold"
               >
                 Confirmar
               </button>
@@ -257,7 +257,7 @@ function PendientesContenido() {
 
 export default function Pendientes() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-gray-400 text-sm">Cargando...</p></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-gris-texto text-sm">Cargando...</p></div>}>
       <PendientesContenido />
     </Suspense>
   )

@@ -40,41 +40,41 @@ export default function Notificaciones() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-400 text-sm">Cargando...</p>
+        <p className="text-gris-texto text-sm">Cargando...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="px-4 pt-12 pb-4 border-b border-gray-100 flex items-center justify-between">
+    <div className="min-h-screen bg-crema">
+      <div className="px-4 pt-12 pb-4 border-b-2 border-tinta flex items-center justify-between bg-crema-header">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Avisos</h1>
-          <p className="text-xs text-gray-400 mt-0.5">{noLeidas} sin leer</p>
+          <h1 className="text-xl font-bold text-tinta">Avisos</h1>
+          <p className="text-xs text-gris-texto mt-0.5">{noLeidas} sin leer</p>
         </div>
         {noLeidas > 0 && (
-          <button onClick={marcarTodas} className="text-xs text-blue-600 font-medium">Marcar todas como leídas</button>
+          <button onClick={marcarTodas} className="text-xs text-dorado-link font-medium">Marcar todas como leídas</button>
         )}
       </div>
 
       <div className="px-4 py-4 space-y-2">
         {notificaciones.length === 0 && (
           <div className="text-center py-16">
-            <p className="text-sm font-medium text-gray-600">Sin notificaciones</p>
+            <p className="text-sm font-medium text-gris-medio">Sin notificaciones</p>
           </div>
         )}
         {notificaciones.map((n) => (
           <button
             key={n.id}
             onClick={() => !n.leida && marcarLeida(n.id)}
-            className={`w-full text-left rounded-xl border p-3 flex items-start gap-2.5 ${n.leida ? 'border-gray-100' : 'border-blue-100 bg-blue-50/40'}`}
+            className={`w-full text-left border-2 p-3 flex items-start gap-2.5 ${n.leida ? 'border-tinta' : 'border-tinta bg-crema-header'}`}
           >
             <span className="text-lg shrink-0">{ICONO_TIPO[n.tipo] ?? '🔔'}</span>
             <div className="flex-1 min-w-0">
-              <p className={`text-sm ${n.leida ? 'text-gray-600' : 'text-gray-900 font-medium'}`}>{n.mensaje}</p>
-              <p className="text-[10px] text-gray-400 mt-0.5">{formatFechaHora(n.created_at)}</p>
+              <p className={`text-sm ${n.leida ? 'text-gris-medio' : 'text-tinta font-medium'}`}>{n.mensaje}</p>
+              <p className="text-[10px] text-gris-texto mt-0.5">{formatFechaHora(n.created_at)}</p>
             </div>
-            {!n.leida && <span className="w-2 h-2 bg-blue-600 rounded-full shrink-0 mt-1.5" />}
+            {!n.leida && <span className="w-2 h-2 bg-tinta rounded-full shrink-0 mt-1.5" />}
           </button>
         ))}
       </div>

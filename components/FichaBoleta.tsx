@@ -23,9 +23,9 @@ interface Props {
 }
 
 const BADGE_ESTADO: Record<string, string> = {
-  pendiente: 'bg-amber-100 text-amber-700',
+  pendiente: 'bg-dorado/40 text-tinta',
   aprobado: 'bg-green-100 text-green-700',
-  rechazado: 'bg-red-100 text-red-700',
+  rechazado: 'bg-red-100 text-error',
 }
 const LABEL_ESTADO: Record<string, string> = { pendiente: 'Pendiente', aprobado: 'Aprobada', rechazado: 'Rechazada' }
 
@@ -174,46 +174,46 @@ export default function FichaBoleta({
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onCerrar}>
       <div
-        className="bg-white rounded-t-2xl w-full max-w-[390px] flex flex-col"
+        className="bg-white border-t-2 border-tinta w-full max-w-[390px] flex flex-col"
         style={{ maxHeight: '92vh' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between px-4 pt-4 pb-3 border-b border-gray-100 shrink-0">
+        <div className="flex items-start justify-between px-4 pt-4 pb-3 border-b-2 border-tinta shrink-0">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-sm font-semibold text-gray-900 truncate">{gasto.proveedor}</p>
+              <p className="text-sm font-semibold text-tinta truncate">{gasto.proveedor}</p>
               <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${BADGE_ESTADO[gasto.estado_aprobacion]}`}>
                 {LABEL_ESTADO[gasto.estado_aprobacion]}
               </span>
             </div>
             {gasto.proyecto?.nombre && (
-              <p className="text-xs font-semibold text-blue-600 mt-0.5">📁 {gasto.proyecto.nombre}</p>
+              <p className="text-xs font-semibold text-dorado-link mt-0.5">📁 {gasto.proyecto.nombre}</p>
             )}
-            <p className="text-xs text-gray-400 mt-0.5">RUT {gasto.rut_proveedor} · {gasto.fecha_boleta}</p>
+            <p className="text-xs text-gris-texto mt-0.5">RUT {gasto.rut_proveedor} · {gasto.fecha_boleta}</p>
             {gasto.descuento_general_monto ? (
               <div className="mt-1">
-                <p className="text-xs text-gray-400">Subtotal antes de descuento: {formatCLP(gasto.total + gasto.descuento_general_monto)}</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gris-texto">Subtotal antes de descuento: {formatCLP(gasto.total + gasto.descuento_general_monto)}</p>
+                <p className="text-xs text-gris-texto">
                   Descuento: -{formatCLP(gasto.descuento_general_monto)}
                   {gasto.descuento_general_descripcion ? ` (${gasto.descuento_general_descripcion})` : ''}
                 </p>
-                <p className="text-base font-bold text-gray-900 mt-0.5">Total pagado: {formatCLP(gasto.total)}</p>
+                <p className="text-base font-bold text-tinta mt-0.5">Total pagado: {formatCLP(gasto.total)}</p>
               </div>
             ) : (
-              <p className="text-base font-bold text-gray-900 mt-1">{formatCLP(gasto.total)}</p>
+              <p className="text-base font-bold text-tinta mt-1">{formatCLP(gasto.total)}</p>
             )}
             {gasto.creado_por_email && (
-              <p className="text-[10px] text-gray-400 mt-1">Solicitado por {gasto.creado_por_email}</p>
+              <p className="text-[10px] text-gris-texto mt-1">Solicitado por {gasto.creado_por_email}</p>
             )}
             {gasto.comentario && (
-              <p className="text-xs text-gray-500 italic mt-1">💬 {gasto.comentario}</p>
+              <p className="text-xs text-gris-medio italic mt-1">💬 {gasto.comentario}</p>
             )}
           </div>
           <div className="flex flex-col gap-2 items-end shrink-0 ml-3">
             {gasto.imagen_url && (
               <button
                 onClick={(e) => { e.stopPropagation(); descargarImagen(gasto.imagen_url!, `boleta-${gasto.proveedor}.jpg`) }}
-                className="flex items-center gap-1 bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg"
+                className="flex items-center gap-1 bg-tinta text-dorado text-xs font-medium px-3 py-1.5  border-2 border-tinta shadow-hard-sm"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -221,7 +221,7 @@ export default function FichaBoleta({
                 Descargar
               </button>
             )}
-            <button onClick={onCerrar} className="text-xs text-gray-400 px-3 py-1.5 border border-gray-200 rounded-lg">Cerrar</button>
+            <button onClick={onCerrar} className="text-xs text-gris-texto px-3 py-1.5 border-2 border-tinta ">Cerrar</button>
           </div>
         </div>
 
@@ -232,54 +232,54 @@ export default function FichaBoleta({
           {gasto.imagen_url ? (
             <img src={gasto.imagen_url} alt={gasto.proveedor} className="w-full" />
           ) : (
-            <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-5xl">🧾</div>
+            <div className="w-full h-48 bg-panel flex items-center justify-center text-5xl">🧾</div>
           )}
 
           <div className="px-4 py-4 space-y-4">
             {yaResuelta && (
-              <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                <p className="text-xs text-amber-700">Esta boleta ya fue resuelta por otro aprobador. Cerrá y volvé a abrirla para ver el estado actual.</p>
+              <div className="bg-dorado/40 border-2 border-tinta px-3 py-2">
+                <p className="text-xs text-tinta">Esta boleta ya fue resuelta por otro aprobador. Cerrá y volvé a abrirla para ver el estado actual.</p>
               </div>
             )}
 
             {/* Metadata de aprobación */}
             {gasto.estado_aprobacion !== 'aprobado' || gasto.aprobado_por_email ? (
-              <div className="text-xs text-gray-500 space-y-0.5 bg-gray-50 rounded-lg p-3">
+              <div className="text-xs text-gris-medio space-y-0.5 bg-panel p-3">
                 {gasto.fecha_solicitud && <p>Solicitada: {formatFechaHora(gasto.fecha_solicitud)}</p>}
                 {gasto.aprobado_por_email && (
                   <p>{gasto.estado_aprobacion === 'rechazado' ? 'Rechazada' : 'Aprobada'} por {gasto.aprobado_por_email}{gasto.fecha_resolucion ? ` · ${formatFechaHora(gasto.fecha_resolucion)}` : ''}</p>
                 )}
-                {gasto.motivo_rechazo && <p className="text-red-600">Motivo: {gasto.motivo_rechazo}</p>}
+                {gasto.motivo_rechazo && <p className="text-error">Motivo: {gasto.motivo_rechazo}</p>}
               </div>
             ) : null}
 
             {/* Datos de la boleta (editable por aprobador o dueño en rechazo) */}
             {puedoEditar && (
               editandoDatos ? (
-                <div className="space-y-2 bg-blue-50 rounded-lg p-3">
-                  <input value={proveedorEdit} onChange={(e) => setProveedorEdit(e.target.value)} placeholder="Proveedor" className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white" />
-                  <input value={rutEdit} onChange={(e) => setRutEdit(e.target.value)} placeholder="RUT" className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white" />
-                  <input type="date" value={fechaEdit} onChange={(e) => setFechaEdit(e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white" />
+                <div className="space-y-2 bg-crema-header p-3">
+                  <input value={proveedorEdit} onChange={(e) => setProveedorEdit(e.target.value)} placeholder="Proveedor" className="w-full border-2 border-tinta px-2 py-1.5 text-xs bg-white" />
+                  <input value={rutEdit} onChange={(e) => setRutEdit(e.target.value)} placeholder="RUT" className="w-full border-2 border-tinta px-2 py-1.5 text-xs bg-white" />
+                  <input type="date" value={fechaEdit} onChange={(e) => setFechaEdit(e.target.value)} className="w-full border-2 border-tinta px-2 py-1.5 text-xs bg-white" />
                   <div className="flex gap-2">
-                    <button onClick={handleGuardarDatos} disabled={procesando} className="flex-1 bg-blue-600 text-white rounded-lg py-1.5 text-xs font-semibold disabled:opacity-50">Guardar datos</button>
-                    <button onClick={() => setEditandoDatos(false)} className="text-xs text-gray-400 px-3">Cancelar</button>
+                    <button onClick={handleGuardarDatos} disabled={procesando} className="flex-1 bg-dorado border-2 border-tinta shadow-hard-sm font-bold text-tinta py-1.5 text-xs font-semibold disabled:opacity-50">Guardar datos</button>
+                    <button onClick={() => setEditandoDatos(false)} className="text-xs text-gris-texto px-3">Cancelar</button>
                   </div>
                 </div>
               ) : (
-                <button onClick={() => setEditandoDatos(true)} className="text-xs text-blue-600 font-medium">Editar proveedor / RUT / fecha</button>
+                <button onClick={() => setEditandoDatos(true)} className="text-xs text-dorado-link font-medium">Editar proveedor / RUT / fecha</button>
               )
             )}
 
             {puedeReescanear && !editandoDatos && (
-              <button onClick={() => setConfirmandoReescaneo(true)} className="text-xs text-blue-600 font-medium">🔄 Re-escanear</button>
+              <button onClick={() => setConfirmandoReescaneo(true)} className="text-xs text-dorado-link font-medium">🔄 Re-escanear</button>
             )}
 
             {confirmandoReescaneo && (
-              <div className="space-y-2 bg-amber-50 border border-amber-100 rounded-lg p-3">
-                <p className="text-xs text-amber-700">¿Volver a escanear esta boleta? Vas a revisar los datos nuevos y clasificar los ítems antes de guardar los cambios.</p>
+              <div className="space-y-2 bg-dorado/40 border-2 border-tinta p-3 shadow-hard-sm">
+                <p className="text-xs text-tinta">¿Volver a escanear esta boleta? Vas a revisar los datos nuevos y clasificar los ítems antes de guardar los cambios.</p>
                 <div className="flex gap-2">
-                  <button onClick={handleReescanear} className="flex-1 bg-amber-500 text-white rounded-lg py-1.5 text-xs font-semibold">Sí, re-escanear</button>
-                  <button onClick={() => setConfirmandoReescaneo(false)} className="text-xs text-gray-400 px-3">Cancelar</button>
+                  <button onClick={handleReescanear} className="flex-1 bg-amber-500 text-white py-1.5 text-xs font-semibold border-2 border-tinta shadow-hard-sm">Sí, re-escanear</button>
+                  <button onClick={() => setConfirmandoReescaneo(false)} className="text-xs text-gris-texto px-3">Cancelar</button>
                 </div>
               </div>
             )}
@@ -289,34 +289,34 @@ export default function FichaBoleta({
             {/* Ítems */}
             {(gasto.items ?? []).length > 0 && (
               <div className="space-y-1.5">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Ítems</p>
+                <p className="text-[10px] font-semibold text-gris-texto uppercase tracking-wide">Ítems</p>
                 {(gasto.items ?? []).map((item) => {
                   const { bruto } = calcularNetoBruto(item.subtotal, gasto.interpretacion_precios ?? 'bruto', item.exento)
                   return confirmandoEliminarItem === item.id ? (
-                    <div key={item.id} className="bg-red-50 border border-red-100 rounded-lg px-2 py-1.5 flex items-center justify-between">
-                      <span className="text-xs text-red-600 font-medium">¿Eliminar ítem?</span>
+                    <div key={item.id} className="bg-red-50 border-2 border-error px-2 py-1.5 flex items-center justify-between">
+                      <span className="text-xs text-error font-medium">¿Eliminar ítem?</span>
                       <div className="flex items-center gap-3">
-                        <button onClick={() => handleEliminarItem(item)} className="text-xs font-semibold text-red-600">Sí</button>
-                        <button onClick={() => setConfirmandoEliminarItem(null)} className="text-xs font-medium text-gray-400">No</button>
+                        <button onClick={() => handleEliminarItem(item)} className="text-xs font-semibold text-error">Sí</button>
+                        <button onClick={() => setConfirmandoEliminarItem(null)} className="text-xs font-medium text-gris-texto">No</button>
                       </div>
                     </div>
                   ) : (
-                    <div key={item.id} className="flex items-center justify-between text-xs text-gray-500">
+                    <div key={item.id} className="flex items-center justify-between text-xs text-gris-medio">
                       <span className="truncate flex-1">{item.descripcion}</span>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
                         <span>
                           {formatCLP(bruto)}
                           {/* Solo descuentos IMPRESOS en la boleta — nunca inferidos por aritmética */}
-                          {!!item.descuento_monto && <span className="text-gray-300"> · desc {formatCLP(item.descuento_monto)}</span>}
+                          {!!item.descuento_monto && <span className="text-gris-texto"> · desc {formatCLP(item.descuento_monto)}</span>}
                         </span>
                         {puedoEditar && (
                           <>
-                            <button onClick={() => setItemEditando(item)} className="text-gray-300 hover:text-blue-500">
+                            <button onClick={() => setItemEditando(item)} className="text-gris-texto hover:text-dorado-link">
                               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
                             </button>
-                            <button onClick={() => setConfirmandoEliminarItem(item.id)} className="text-gray-300 hover:text-red-500">
+                            <button onClick={() => setConfirmandoEliminarItem(item.id)} className="text-gris-texto hover:text-error">
                               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
@@ -333,16 +333,16 @@ export default function FichaBoleta({
             {/* Historial de aprobación */}
             {(gasto.historial_aprobacion ?? []).length > 0 && (
               <div>
-                <button onClick={() => setHistorialAbierto((v) => !v)} className="text-[10px] text-blue-600 font-medium">
+                <button onClick={() => setHistorialAbierto((v) => !v)} className="text-[10px] text-dorado-link font-medium">
                   {historialAbierto ? 'Ocultar historial' : `Ver historial (${(gasto.historial_aprobacion ?? []).length})`}
                 </button>
                 {historialAbierto && (
-                  <div className="mt-1.5 space-y-2 bg-gray-50 rounded-lg p-2">
+                  <div className="mt-1.5 space-y-2 bg-panel p-2">
                     {(gasto.historial_aprobacion ?? []).map((ev) => (
-                      <div key={ev.id} className="text-[10px] text-gray-500">
-                        <p><span className="font-medium text-gray-700">{LABEL_ACCION[ev.accion] ?? ev.accion}</span></p>
-                        {ev.comentario && <p className="italic text-gray-400 mt-0.5">💬 {ev.comentario}</p>}
-                        <p className="text-gray-300 mt-0.5">{ev.usuario_email} · {formatFechaHora(ev.created_at)}</p>
+                      <div key={ev.id} className="text-[10px] text-gris-medio">
+                        <p><span className="font-medium text-gris-medio">{LABEL_ACCION[ev.accion] ?? ev.accion}</span></p>
+                        {ev.comentario && <p className="italic text-gris-texto mt-0.5">💬 {ev.comentario}</p>}
+                        <p className="text-gris-texto mt-0.5">{ev.usuario_email} · {formatFechaHora(ev.created_at)}</p>
                       </div>
                     ))}
                   </div>
@@ -354,29 +354,29 @@ export default function FichaBoleta({
 
         {puedoEditar && (
           <div
-            className="px-4 pt-3 border-t border-gray-100 shrink-0 space-y-3"
+            className="px-4 pt-3 border-t-2 border-tinta shrink-0 space-y-3"
             style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px) + 64px)' }}
           >
             {puedoResolver && (
               <div className="space-y-2">
                 {rechazando ? (
-                  <div className="space-y-2 bg-red-50 rounded-lg p-3">
+                  <div className="space-y-2 bg-red-50 p-3">
                     <textarea
                       value={motivoRechazo}
                       onChange={(e) => setMotivoRechazo(e.target.value)}
                       placeholder="Motivo del rechazo (obligatorio)"
                       rows={2}
-                      className="w-full border border-red-200 rounded-lg px-2 py-1.5 text-xs bg-white resize-none"
+                      className="w-full border-2 border-error px-2 py-1.5 text-xs bg-white resize-none"
                     />
                     <div className="flex gap-2">
-                      <button onClick={handleRechazar} disabled={procesando || !motivoRechazo.trim()} className="flex-1 bg-red-600 text-white rounded-lg py-2 text-xs font-semibold disabled:opacity-50">Confirmar rechazo</button>
-                      <button onClick={() => { setRechazando(false); setMotivoRechazo('') }} className="text-xs text-gray-400 px-3">Cancelar</button>
+                      <button onClick={handleRechazar} disabled={procesando || !motivoRechazo.trim()} className="flex-1 bg-red-600 text-white py-2 text-xs font-semibold disabled:opacity-50 border-2 border-tinta shadow-hard-sm">Confirmar rechazo</button>
+                      <button onClick={() => { setRechazando(false); setMotivoRechazo('') }} className="text-xs text-gris-texto px-3">Cancelar</button>
                     </div>
                   </div>
                 ) : (
                   <div className="flex gap-2">
-                    <button onClick={handleAprobar} disabled={procesando} className="flex-1 bg-green-600 text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-50">Aprobar</button>
-                    <button onClick={() => setRechazando(true)} disabled={procesando} className="flex-1 bg-red-50 text-red-600 border border-red-200 rounded-xl py-3 text-sm font-semibold disabled:opacity-50">Rechazar</button>
+                    <button onClick={handleAprobar} disabled={procesando} className="flex-1 bg-green-600 text-white py-3 text-sm font-semibold disabled:opacity-50 border-2 border-tinta shadow-hard-sm">Aprobar</button>
+                    <button onClick={() => setRechazando(true)} disabled={procesando} className="flex-1 bg-red-50 text-error border-2 border-error py-3 text-sm font-semibold disabled:opacity-50">Rechazar</button>
                   </div>
                 )}
               </div>
@@ -388,20 +388,20 @@ export default function FichaBoleta({
                   value={comentarioReenvio}
                   onChange={(e) => setComentarioReenvio(e.target.value)}
                   placeholder="Comentario para el reenvío (opcional)"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-700"
+                  className="w-full border-2 border-tinta px-3 py-2 text-xs text-gris-medio"
                 />
                 {confirmandoEliminarBoleta ? (
-                  <div className="flex items-center justify-between bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                    <span className="text-xs text-red-600 font-medium">¿Eliminar esta boleta?</span>
+                  <div className="flex items-center justify-between bg-red-50 border-2 border-error px-3 py-2">
+                    <span className="text-xs text-error font-medium">¿Eliminar esta boleta?</span>
                     <div className="flex items-center gap-3">
-                      <button onClick={handleEliminarBoleta} disabled={procesando} className="text-xs font-semibold text-red-600">Sí</button>
-                      <button onClick={() => setConfirmandoEliminarBoleta(false)} className="text-xs font-medium text-gray-400">No</button>
+                      <button onClick={handleEliminarBoleta} disabled={procesando} className="text-xs font-semibold text-error">Sí</button>
+                      <button onClick={() => setConfirmandoEliminarBoleta(false)} className="text-xs font-medium text-gris-texto">No</button>
                     </div>
                   </div>
                 ) : (
                   <div className="flex gap-2">
-                    <button onClick={handleReenviar} disabled={procesando} className="flex-1 bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-50">Reenviar</button>
-                    <button onClick={() => setConfirmandoEliminarBoleta(true)} disabled={procesando} className="flex-1 bg-red-50 text-red-600 border border-red-200 rounded-xl py-3 text-sm font-semibold disabled:opacity-50">Eliminar boleta</button>
+                    <button onClick={handleReenviar} disabled={procesando} className="flex-1 bg-dorado border-2 border-tinta shadow-hard-sm font-bold text-tinta py-3 text-sm font-semibold disabled:opacity-50">Reenviar</button>
+                    <button onClick={() => setConfirmandoEliminarBoleta(true)} disabled={procesando} className="flex-1 bg-red-50 text-error border-2 border-error py-3 text-sm font-semibold disabled:opacity-50">Eliminar boleta</button>
                   </div>
                 )}
               </div>
