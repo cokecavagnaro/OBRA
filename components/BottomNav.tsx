@@ -1,91 +1,53 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { getAllGastos, getUsuarioActual, getPermisosOverrides, getNotificaciones } from '@/lib/supabase/db'
-import { tienePermiso } from '@/lib/permisos'
-import type { PermissionOverride } from '@/lib/types'
-
-const tabs = [
-  { href: '/', label: 'Inicio', icon: HomeIcon },
-  { href: '/pendientes', label: 'Pendientes', icon: ClockIcon },
-  { href: '/scan', label: 'Escanear', icon: CameraIcon },
-  { href: '/aprobaciones', label: 'Aprobar', icon: CheckIcon },
-  { href: '/notificaciones', label: 'Avisos', icon: BellIcon },
-]
+import { useConteosBandeja } from '@/lib/useConteosBandeja'
 
 export default function BottomNav() {
   const pathname = usePathname()
-  const [pendientes, setPendientes] = useState(0)
-  const [porAprobar, setPorAprobar] = useState(0)
-  const [avisos, setAvisos] = useState(0)
+  const oculto = pathname === '/login' || pathname.startsWith('/auth')
+  const conteos = useConteosBandeja(pathname, !oculto)
 
-  useEffect(() => {
-    if (pathname === '/login' || pathname.startsWith('/auth')) return
+  if (oculto) return null
 
-    getUsuarioActual().then(async (usuario) => {
-      if (!usuario) return
-      const overrides: PermissionOverride[] = await getPermisosOverrides(usuario.id)
-      const esAprobador = tienePermiso(usuario, overrides, 'approve_boletas')
-
-      const [gastos, notificaciones] = await Promise.all([getAllGastos(), getNotificaciones(usuario.id)])
-
-      setPendientes(gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length)
-      setPorAprobar(
-        esAprobador
-          ? gastos.filter((g) => g.estado_aprobacion === 'pendiente').length
-          : gastos.filter((g) => g.estado_aprobacion === 'rechazado' && g.solicitante_id === usuario.id).length
-      )
-      setAvisos(notificaciones.filter((n) => !n.leida).length)
-    })
-  }, [pathname])
-
-  if (pathname === '/login' || pathname.startsWith('/auth')) return null
-
-  const badges: Record<string, number> = {
-    '/pendientes': pendientes,
-    '/aprobaciones': porAprobar,
-    '/notificaciones': avisos,
-  }
+  const bandeja = conteos.items + conteos.porAprobar + conteos.avisos
 
   return (
     <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] bg-crema-header border-t-2 border-tinta z-50">
-      <div className="grid grid-cols-[1fr_1fr_1.7fr_1fr_1fr] items-end h-16 px-1">
-        {tabs.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href
-          const badge = badges[href] ?? 0
-          if (href === '/scan') {
-            return (
-              <Link
-                key={href}
-                href={href}
-                className="justify-self-center -mt-9 w-[98px] h-[78px] bg-dorado border-[3px] border-tinta shadow-hard-lg flex flex-col items-center justify-center gap-0.5 text-tinta font-bold text-xs tracking-wide active:translate-x-[3px] active:translate-y-[3px] active:shadow-hard-sm"
-              >
-                <Icon className="w-9 h-9" />
-                <span>ESCANEAR</span>
-              </Link>
-            )
-          }
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex flex-col items-center gap-0.5 py-2 relative ${active ? 'text-tinta' : 'text-gris-texto'}`}
-            >
-              <div className="relative">
-                <Icon className="w-5 h-5" />
-                {badge > 0 && (
-                  <span className="absolute -top-1 -right-2 bg-dorado border-2 border-tinta text-tinta text-[9px] font-bold rounded-full min-w-4 h-4 px-0.5 flex items-center justify-center">
-                    {badge > 9 ? '9+' : badge}
-                  </span>
-                )}
-              </div>
-              <span className="text-[9px] font-bold">{label}</span>
-              {active && <span className="absolute bottom-0.5 w-5 h-[3px] bg-tinta" />}
-            </Link>
-          )
-        })}
+      <div className="grid grid-cols-[1fr_1.7fr_1fr] items-end h-16 px-1">
+        <Link
+          href="/"
+          className={`flex flex-col items-center gap-0.5 py-2 relative ${pathname === '/' ? 'text-tinta' : 'text-gris-texto'}`}
+        >
+          <HomeIcon className="w-6 h-6" />
+          <span className="text-[10px] font-bold">Inicio</span>
+          {pathname === '/' && <span className="absolute bottom-0.5 w-5 h-[3px] bg-tinta" />}
+        </Link>
+
+        <Link
+          href="/scan"
+          className="justify-self-center -mt-9 w-[98px] h-[78px] bg-dorado border-[3px] border-tinta shadow-hard-lg flex flex-col items-center justify-center gap-0.5 text-tinta font-bold text-xs tracking-wide active:translate-x-[3px] active:translate-y-[3px] active:shadow-hard-sm"
+        >
+          <CameraIcon className="w-9 h-9" />
+          <span>ESCANEAR</span>
+        </Link>
+
+        <Link
+          href="/bandeja"
+          className={`flex flex-col items-center gap-0.5 py-2 relative ${pathname === '/bandeja' ? 'text-tinta' : 'text-gris-texto'}`}
+        >
+          <div className="relative">
+            <BellIcon className="w-6 h-6" />
+            {bandeja > 0 && (
+              <span className="absolute -top-1 -right-2 bg-dorado border-2 border-tinta text-tinta text-[9px] font-bold rounded-full min-w-4 h-4 px-0.5 flex items-center justify-center">
+                {bandeja > 9 ? '9+' : bandeja}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] font-bold">Bandeja</span>
+          {pathname === '/bandeja' && <span className="absolute bottom-0.5 w-5 h-[3px] bg-tinta" />}
+        </Link>
       </div>
     </nav>
   )
@@ -104,22 +66,6 @@ function CameraIcon({ className }: { className?: string }) {
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  )
-}
-
-function ClockIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  )
-}
-
-function CheckIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   )
 }

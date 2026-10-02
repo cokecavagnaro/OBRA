@@ -6,6 +6,7 @@ import { formatCLP } from '@/lib/mock'
 import { getProyectos, getEtapas, getPartidas, getEtiquetas, getGastoPorId, saveGasto, saveIngreso, reescanearGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { normalizarImagenParaSubida } from '@/lib/imagen'
 import { tienePermiso } from '@/lib/permisos'
+import { etiquetasAutomaticas } from '@/lib/etiquetasAutomaticas'
 import { calcularNetoBruto, calcularCruce, decidirExencionCargos, FACTOR_IVA, type InterpretacionPrecio, type FuenteInterpretacion } from '@/lib/confianzaDocumento'
 import CruceItemsTotal from '@/components/CruceItemsTotal'
 import BottomSheet from '@/components/ds/BottomSheet'
@@ -597,7 +598,9 @@ function ScanContenido() {
     }
   }
 
-  async function handleGuardar(tagPendiente?: string) {
+  // `automatico`: guardar sin etiquetar. Los ítems que no tengan etiquetas
+  // reciben las del sistema (etiquetasAutomaticas) en vez de quedar pendientes.
+  async function handleGuardar(tagPendiente?: string, automatico = false) {
     if (guardandoRef.current) return
     guardandoRef.current = true
     setGuardando(true)
@@ -607,9 +610,21 @@ function ScanContenido() {
       // — leer `items` del estado directamente se arriesga a perder ese tag porque
       // el setItems de addTag no llega a re-renderizar antes de este guardado.
       const t = tagPendiente?.toLowerCase().trim()
-      const itemsFinal = t
+      const itemsConTag = t
         ? items.map((x, idx) => idx === itemActual && !x.etiquetas.includes(t) ? { ...x, etiquetas: [...x.etiquetas, t] } : x)
         : items
+      // Lo que el sistema etiquetó solo NO se envía al aprendizaje del
+      // proyecto: enseñaría etiquetas genéricas como si las hubiera elegido
+      // una persona, y la IA las repetiría en las próximas boletas.
+      const autoEtiquetados = new Set<ItemAnalizado>()
+      const itemsFinal = automatico
+        ? itemsConTag.map((x) => {
+            if (x.etiquetas.length > 0) return x
+            const conEtiqueta = { ...x, etiquetas: etiquetasAutomaticas(x) }
+            autoEtiquetados.add(conEtiqueta)
+            return conEtiqueta
+          })
+        : itemsConTag
 
       if (gastoIdReescaneo) {
         await reescanearGasto(gastoIdReescaneo, {
@@ -628,7 +643,7 @@ function ScanContenido() {
         })
         if (proyecto) {
           for (const i of itemsFinal) {
-            if (i.etiquetas.length > 0) {
+            if (i.etiquetas.length > 0 && !autoEtiquetados.has(i)) {
               await upsertClasificacionAprendida({
                 proyecto_id: proyecto.id,
                 descripcion: i.descripcion,
@@ -686,7 +701,7 @@ function ScanContenido() {
         })
 
         for (const i of itemsFinal) {
-          if (i.etiquetas.length > 0) {
+          if (i.etiquetas.length > 0 && !autoEtiquetados.has(i)) {
             await upsertClasificacionAprendida({
               proyecto_id: proyecto.id,
               descripcion: i.descripcion,
@@ -1130,12 +1145,26 @@ function ScanContenido() {
           </div>
 
           {cruceRevision.cruce_valido ? (
-            <button
-              onClick={() => setRevisionTotales(false)}
-              className="w-full bg-dorado border-2 border-tinta shadow-hard-sm font-bold text-tinta py-3 text-sm font-semibold"
-            >
-              Continuar a clasificar ítems
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={() => setRevisionTotales(false)}
+                className="w-full bg-dorado border-2 border-tinta shadow-hard-sm font-bold text-tinta py-3 text-sm font-semibold"
+              >
+                Continuar a clasificar ítems
+              </button>
+              <div className="pt-3 border-t-2 border-tinta space-y-1.5">
+                <button
+                  onClick={() => handleGuardar(undefined, true)}
+                  disabled={guardando || (modoManual && items.some((i) => !i.descripcion.trim()))}
+                  className="w-full bg-green-600 text-white border-2 border-tinta shadow-hard-sm font-bold py-3 text-sm disabled:opacity-50"
+                >
+                  {guardando ? 'Guardando...' : usuarioActual?.rol === 'usuario' ? 'Guardar boleta y enviar a aprobación' : 'Guardar boleta'}
+                </button>
+                <p className="text-[11px] text-gris-medio text-center">
+                  Sin etiquetar: el sistema pondrá las etiquetas a todos los productos. Podrás cambiarlas después.
+                </p>
+              </div>
+            </div>
           ) : (
             <div className="space-y-3">
               <button
@@ -1546,6 +1575,20 @@ function ScanContenido() {
                 </>
               ) : esUltimo ? (usuarioActual?.rol === 'usuario' ? 'Enviar a aprobación' : 'Guardar boleta') : 'Siguiente'}
             </button>
+          </div>
+
+          {/* Salta el etiquetado: el sistema etiqueta los productos que falten */}
+          <div className="pt-3 border-t-2 border-tinta space-y-1.5">
+            <button
+              onClick={() => handleGuardar(tagInput.trim() || undefined, true)}
+              disabled={guardando || (modoManual && items.some((i) => !i.descripcion.trim()))}
+              className="w-full bg-white border-2 border-tinta shadow-hard-sm font-bold text-tinta py-3 text-sm disabled:opacity-50"
+            >
+              {usuarioActual?.rol === 'usuario' ? 'Guardar boleta y enviar a aprobación' : 'Guardar boleta'} · etiquetar automático
+            </button>
+            <p className="text-[11px] text-gris-medio text-center">
+              Salta el etiquetado: el sistema pone las etiquetas a los productos que no tengan.
+            </p>
           </div>
 
           {/* Resumen al final */}

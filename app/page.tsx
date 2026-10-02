@@ -66,7 +66,7 @@ export default function Inicio() {
           </div>
           <div className="flex items-center gap-2">
             {pendientesCount > 0 && (
-              <Link href="/pendientes" className="flex items-center gap-1 bg-dorado/40 border-2 border-tinta rounded-full px-3 py-1">
+              <Link href="/bandeja?tab=pendientes" className="flex items-center gap-1 bg-dorado/40 border-2 border-tinta rounded-full px-3 py-1">
                 <span className="w-2 h-2 bg-dorado rounded-full" />
                 <span className="text-xs font-medium text-tinta">{pendientesCount} pendientes</span>
               </Link>
