@@ -3,21 +3,23 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { formatCLP } from '@/lib/mock'
-import { getProyectos, getAllGastos, getUsuarioActual, getCuenta } from '@/lib/supabase/db'
-import type { Proyecto, Gasto, Usuario, Cuenta } from '@/lib/types'
+import { getProyectos, getAllGastos, getAllIngresos, getUsuarioActual, getCuenta } from '@/lib/supabase/db'
+import type { Proyecto, Gasto, Ingreso, Usuario, Cuenta } from '@/lib/types'
 import AntLogo from '@/components/AntLogo'
 
 export default function Inicio() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
   const [gastos, setGastos] = useState<Gasto[]>([])
+  const [ingresos, setIngresos] = useState<Ingreso[]>([])
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [cuenta, setCuenta] = useState<Cuenta | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([getProyectos(), getAllGastos()]).then(([o, g]) => {
+    Promise.all([getProyectos(), getAllGastos(), getAllIngresos()]).then(([o, g, i]) => {
       setProyectos(o)
       setGastos(g)
+      setIngresos(i)
       setLoading(false)
     })
     getUsuarioActual().then((u) => {
@@ -29,15 +31,14 @@ export default function Inicio() {
   const nombreUsuario = usuario?.nombre?.trim() || usuario?.email?.split('@')[0] || ''
 
   const pendientesCount = gastos.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
-  const totalGlobal = gastos.filter((g) => g.estado_aprobacion === 'aprobado').reduce((s, g) => s + g.total, 0)
-  const totalBoletas = gastos.length
 
   const proyectosConTotales = proyectos.map((proyecto) => {
     const gastosProyecto = gastos.filter((g) => g.proyecto_id === proyecto.id)
     const total = gastosProyecto.filter((g) => g.estado_aprobacion === 'aprobado').reduce((s, g) => s + g.total, 0)
     const boletas = gastosProyecto.length
     const pendientes = gastosProyecto.flatMap((g) => g.items ?? []).filter((i) => i.estado === 'pendiente').length
-    return { ...proyecto, total, boletas, pendientes }
+    const ingresado = ingresos.filter((i) => i.proyecto_id === proyecto.id).reduce((s, i) => s + i.monto, 0)
+    return { ...proyecto, total, boletas, pendientes, ingresado, diferencia: ingresado - total }
   })
 
   if (loading) {
@@ -78,18 +79,6 @@ export default function Inicio() {
             </Link>
           </div>
         </div>
-
-        {/* Totales globales */}
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          <div className="bg-panel p-3 border-2 border-tinta shadow-hard-sm">
-            <p className="text-[11px] text-gris-texto font-medium uppercase tracking-wide">Total general</p>
-            <p className="text-lg font-bold text-tinta mt-1">{formatCLP(totalGlobal)}</p>
-          </div>
-          <div className="bg-panel p-3 border-2 border-tinta shadow-hard-sm">
-            <p className="text-[11px] text-gris-texto font-medium uppercase tracking-wide">Boletas</p>
-            <p className="text-lg font-bold text-tinta mt-1">{totalBoletas}</p>
-          </div>
-        </div>
       </div>
 
       {/* Lista de proyectos */}
@@ -98,36 +87,42 @@ export default function Inicio() {
 
         {proyectosConTotales.map((proyecto) => (
           <Link key={proyecto.id} href={`/proyecto/${proyecto.id}`}>
-            <div className=" border-2 border-tinta p-4 hover:border-tinta transition-colors active:bg-panel bg-white shadow-hard-sm">
+            <div className="border-2 border-tinta p-4 active:bg-panel bg-white shadow-hard-sm">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-tinta text-sm">{proyecto.nombre}</p>
+                  <p className="font-bold text-tinta text-sm">{proyecto.nombre}</p>
                   <p className="text-xs text-gris-texto mt-0.5">{proyecto.boletas} boleta{proyecto.boletas !== 1 ? 's' : ''}</p>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="font-bold text-tinta">{formatCLP(proyecto.total)}</p>
-                  {proyecto.pendientes > 0 && (
-                    <span className="inline-flex items-center gap-1 mt-1 bg-dorado/40 text-tinta text-[10px] font-medium px-2 py-0.5 rounded-full">
-                      ⚠ {proyecto.pendientes} pendiente{proyecto.pendientes > 1 ? 's' : ''}
-                    </span>
-                  )}
+                {proyecto.pendientes > 0 && (
+                  <span className="inline-flex items-center gap-1 bg-dorado/40 text-tinta text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0">
+                    ⚠ {proyecto.pendientes} pendiente{proyecto.pendientes > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+              <div className="mt-3 pt-3 border-t-2 border-tinta grid grid-cols-3 gap-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] text-gris-texto font-bold uppercase tracking-wide">Ingresado</p>
+                  <p className="text-[13px] font-bold text-ingreso truncate">{formatCLP(proyecto.ingresado)}</p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-gris-texto font-bold uppercase tracking-wide">Gastado</p>
+                  <p className="text-[13px] font-bold text-error truncate">{formatCLP(proyecto.total)}</p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-gris-texto font-bold uppercase tracking-wide">Diferencia</p>
+                  <p className={`text-[13px] font-bold truncate ${proyecto.diferencia < 0 ? 'text-error' : 'text-tinta'}`}>{formatCLP(proyecto.diferencia)}</p>
                 </div>
               </div>
-              <div className="mt-3 flex items-center justify-between">
-                <div className="flex-1 bg-panel rounded-full h-1.5 mr-3">
-                  {totalGlobal > 0 && (
-                    <div
-                      className="bg-dorado h-1.5 rounded-full"
-                      style={{ width: `${Math.min((proyecto.total / totalGlobal) * 100, 100)}%` }}
-                    />
-                  )}
+              <div className="mt-3 flex items-center gap-3">
+                <div className="flex-1 border-2 border-tinta bg-white h-2.5">
+                  <div
+                    className={`h-full ${proyecto.total > proyecto.ingresado ? 'bg-error' : 'bg-dorado'}`}
+                    style={{ width: `${proyecto.ingresado > 0 ? Math.min((proyecto.total / proyecto.ingresado) * 100, 100) : 0}%` }}
+                  />
                 </div>
-                <div className="flex items-center gap-1 text-gris-texto shrink-0">
-                  <span className="text-xs">{totalGlobal > 0 ? Math.round((proyecto.total / totalGlobal) * 100) : 0}%</span>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
+                <span className="text-[11px] text-gris-medio shrink-0">
+                  {proyecto.ingresado > 0 ? Math.round((proyecto.total / proyecto.ingresado) * 100) : 0}% gastado
+                </span>
               </div>
             </div>
           </Link>

@@ -3,11 +3,14 @@
 import { useState, useRef, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getProyectos, getEtapas, getPartidas, getEtiquetas, getGastoPorId, saveGasto, reescanearGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
+import { getProyectos, getEtapas, getPartidas, getEtiquetas, getGastoPorId, saveGasto, saveIngreso, reescanearGasto, subirImagenBoleta, createEtapa, createPartida, upsertClasificacionAprendida, getUsuarioActual, getPermisosOverrides } from '@/lib/supabase/db'
 import { normalizarImagenParaSubida } from '@/lib/imagen'
 import { tienePermiso } from '@/lib/permisos'
 import { calcularNetoBruto, calcularCruce, decidirExencionCargos, FACTOR_IVA, type InterpretacionPrecio, type FuenteInterpretacion } from '@/lib/confianzaDocumento'
 import CruceItemsTotal from '@/components/CruceItemsTotal'
+import BottomSheet from '@/components/ds/BottomSheet'
+import Button from '@/components/ds/Button'
+import InputMonto from '@/components/ds/InputMonto'
 import type { Proyecto, Etapa, Partida, ItemAnalizado, Usuario, PermissionOverride } from '@/lib/types'
 
 type Paso = 1 | 2 | 3
@@ -25,6 +28,19 @@ function ScanContenido() {
   const [cargandoReescaneo, setCargandoReescaneo] = useState(!!gastoIdReescaneo)
   const [errorCargaReescaneo, setErrorCargaReescaneo] = useState<string | null>(null)
   const [paso, setPaso] = useState<Paso>(1)
+
+  // Tipo de documento: la IA decide si lo escaneado es un gasto (boleta) o un
+  // ingreso (comprobante de transferencia que entra al proyecto). Define el
+  // color de las pantallas posteriores al análisis: rojo = gasto, verde = ingreso.
+  const [tipoDoc, setTipoDoc] = useState<'gasto' | 'ingreso'>('gasto')
+  const [ingRemitente, setIngRemitente] = useState('')
+  const [ingCuenta, setIngCuenta] = useState('')
+  const [ingMonto, setIngMonto] = useState('')
+  const [ingFecha, setIngFecha] = useState(new Date().toISOString().split('T')[0])
+  const [ingNota, setIngNota] = useState('')
+  const [ingConfianza, setIngConfianza] = useState<number | null>(null)
+  const [ingErrorGuardar, setIngErrorGuardar] = useState<string | null>(null)
+  const [confirmandoCancelar, setConfirmandoCancelar] = useState(false)
 
   // Paso 1
   const [proyecto, setProyecto] = useState<Proyecto | null>(null)
@@ -85,6 +101,7 @@ function ScanContenido() {
   const [overrides, setOverrides] = useState<PermissionOverride[]>([])
   const [permisosCargados, setPermisosCargados] = useState(false)
   const puedeEscanear = usuarioActual ? tienePermiso(usuarioActual, overrides, 'scan_receipts') : false
+  const puedeRegistrarIngresos = usuarioActual ? tienePermiso(usuarioActual, overrides, 'manage_ingresos') : false
 
   useEffect(() => {
     getProyectos().then(setProyectos)
@@ -142,6 +159,7 @@ function ScanContenido() {
             media_type: blob.type || 'image/jpeg',
             proyecto_id: gasto.proyecto_id,
             contexto_boleta: gasto.contexto_boleta,
+            solo_gasto: true,
           }),
         })
         if (!res.ok) {
@@ -333,6 +351,24 @@ function ScanContenido() {
       }
 
       const data = await res.json()
+
+      // La IA reconoció un comprobante de transferencia que entra al proyecto:
+      // se salta todo el flujo de boleta y se pasa a la pantalla verde.
+      if (data.tipo === 'ingreso' && data.ingreso) {
+        setImagenDataUrl(dataUrl)
+        setTipoDoc('ingreso')
+        setIngRemitente(data.ingreso.remitente ?? '')
+        setIngCuenta(data.ingreso.cuenta_destino ?? '')
+        setIngMonto(String(Math.round(data.ingreso.monto ?? 0)))
+        setIngFecha(data.ingreso.fecha || new Date().toISOString().split('T')[0])
+        setIngNota('')
+        setIngConfianza(typeof data.confianza === 'number' ? data.confianza : null)
+        setIngErrorGuardar(null)
+        setPaso(3)
+        return
+      }
+      setTipoDoc('gasto')
+
       const itemsResultado = data.items ?? []
 
       if (itemsResultado.length === 0) {
@@ -376,6 +412,7 @@ function ScanContenido() {
   }
 
   function handleIngresoManual() {
+    setTipoDoc('gasto')
     setModoManual(true)
     setProveedor('')
     setRut('')
@@ -501,6 +538,63 @@ function ScanContenido() {
         exento,
       },
     ])
+  }
+
+  // El documento se había leído como gasto pero en realidad es una
+  // transferencia que entra: se pasa a la pantalla de ingreso con lo que ya hay.
+  function cambiarAIngreso() {
+    setTipoDoc('ingreso')
+    setIngRemitente('')
+    setIngCuenta('')
+    setIngMonto(totalBoleta > 0 ? String(Math.round(totalBoleta)) : '')
+    setIngFecha(fecha || new Date().toISOString().split('T')[0])
+    setIngNota('')
+    setIngConfianza(null)
+    setIngErrorGuardar(null)
+  }
+
+  // Al revés: la IA lo leyó como ingreso pero es un gasto. Se sigue por la
+  // carga manual de gasto, que no depende de lo que la IA haya leído.
+  function cambiarAGasto() {
+    handleIngresoManual()
+  }
+
+  function handleCancelar() {
+    if (gastoIdReescaneo) { router.back(); return }
+    if (paso === 3) setConfirmandoCancelar(true)
+    else router.push('/')
+  }
+
+  async function handleGuardarIngreso() {
+    if (guardandoRef.current || !proyecto || !usuarioActual) return
+    guardandoRef.current = true
+    setGuardando(true)
+    setIngErrorGuardar(null)
+    try {
+      let imagenUrl: string | null = null
+      if (fileSeleccionadoRef.current) {
+        imagenUrl = await subirImagenBoleta(usuarioActual.cuenta_id, proyecto.id, fileSeleccionadoRef.current)
+      }
+      const ingreso = await saveIngreso({
+        proyecto_id: proyecto.id,
+        remitente: ingRemitente.trim(),
+        cuenta_destino: ingCuenta.trim(),
+        monto: Number(ingMonto) || 0,
+        fecha: ingFecha,
+        nota: ingNota.trim() || null,
+        imagen_url: imagenUrl,
+        origen: ingConfianza != null ? 'foto' : 'manual',
+        creado_por_email: usuarioActual.email,
+      })
+      if (!ingreso) {
+        setIngErrorGuardar('No pudimos guardar el ingreso. Intenta de nuevo.')
+        return
+      }
+      router.push(`/proyecto/${proyecto.id}`)
+    } finally {
+      guardandoRef.current = false
+      setGuardando(false)
+    }
   }
 
   async function handleGuardar(tagPendiente?: string) {
@@ -643,32 +737,46 @@ function ScanContenido() {
     )
   }
 
+  // Tono de las pantallas posteriores al análisis: verde = ingreso, rojo = gasto.
+  const tono = paso === 3
+    ? tipoDoc === 'ingreso'
+      ? { fondo: 'bg-ingreso-fondo', header: 'bg-ingreso', texto: 'text-white', borde: 'border-white' }
+      : { fondo: 'bg-gasto-fondo', header: 'bg-error', texto: 'text-white', borde: 'border-white' }
+    : { fondo: 'bg-crema', header: 'bg-crema-header', texto: 'text-tinta', borde: 'border-tinta' }
+  const titulo =
+    paso === 1 ? 'Contexto del documento'
+    : paso === 2 ? 'Fotografiar documento'
+    : tipoDoc === 'ingreso' ? 'Ingreso de dinero'
+    : revisionTotales ? 'Gasto · revisar totales'
+    : 'Gasto · clasificar ítems'
+
   return (
-    <div className="min-h-screen bg-crema">
+    <div className={`min-h-screen ${tono.fondo}`}>
       {/* Header */}
-      <div className="px-4 pt-12 pb-4 border-b-2 border-tinta bg-crema-header">
-        <div className="flex items-center justify-between mb-4">
+      <div className={`px-4 pt-12 pb-4 border-b-2 border-tinta ${tono.header}`}>
+        <div className="flex items-center justify-between gap-2 mb-4">
           <button
             onClick={() => {
-              if (paso === 3 && !revisionTotales && !modoManual) { setRevisionTotales(true); return }
+              if (paso === 3 && tipoDoc === 'gasto' && !revisionTotales && !modoManual) { setRevisionTotales(true); return }
               if (gastoIdReescaneo) { router.back(); return }
               if (paso > 1) setPaso((paso - 1) as Paso)
               else router.push('/')
             }}
-            className="text-gris-texto"
+            aria-label="Volver"
+            className={paso === 3 ? 'text-white' : 'text-gris-medio'}
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h2 className="text-sm font-semibold text-tinta">
-            {paso === 1 ? 'Contexto de la boleta' : paso === 2 ? 'Fotografiar boleta' : revisionTotales ? 'Revisar totales' : 'Clasificar ítems'}
-          </h2>
-          <span className="text-xs text-gris-texto">{paso}/3</span>
+          <h2 className={`text-sm font-bold ${tono.texto}`}>{titulo}</h2>
+          <button onClick={handleCancelar} className={`border-2 ${tono.borde} ${tono.texto} text-xs font-bold px-3 py-1.5 shrink-0`}>
+            ✕ Cancelar
+          </button>
         </div>
         <div className="flex gap-1">
           {[1, 2, 3].map((n) => (
-            <div key={n} className={`h-1 flex-1 rounded-full transition-colors ${n <= paso ? 'bg-tinta' : 'bg-borde'}`} />
+            <div key={n} className={`h-1.5 flex-1 border-2 border-tinta transition-colors ${n <= paso ? 'bg-tinta' : 'bg-white'}`} />
           ))}
         </div>
       </div>
@@ -736,7 +844,7 @@ function ScanContenido() {
 
           <div className="bg-crema-header border-2 border-tinta p-3 shadow-hard-sm">
             <p className="text-xs text-dorado-link">
-              📸 La foto debe mostrar la boleta completa: los montos de cada ítem, los descuentos si hay, el IVA, los impuestos y el TOTAL. Sin esos datos el sistema no puede validar los cálculos.
+              📸 La foto debe mostrar el documento completo. En una boleta: los montos de cada ítem, los descuentos si hay, el IVA, los impuestos y el TOTAL. En una transferencia: quién transfiere, la cuenta de destino y el monto. La IA reconoce solo si es un gasto o un ingreso.
             </p>
           </div>
 
@@ -764,7 +872,7 @@ function ScanContenido() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <span className="text-sm font-medium">Fotografiar boleta</span>
+              <span className="text-sm font-medium">Fotografiar documento</span>
               <span className="text-xs">Toca para abrir la cámara</span>
             </button>
           ) : (
@@ -840,14 +948,126 @@ function ScanContenido() {
         </div>
       )}
 
+      {/* Paso 3 — ingreso de dinero (pantalla verde) */}
+      {paso === 3 && tipoDoc === 'ingreso' && (
+        <div className="px-4 py-5 flex flex-col gap-4">
+          {imagenPreview && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imagenPreview} alt="Comprobante" className="w-full max-h-40 object-cover border-2 border-tinta" />
+          )}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase bg-white text-ingreso border-2 border-tinta rounded-full px-2.5 py-0.5">
+              {ingConfianza != null ? '↓ Ingreso detectado' : 'Ingreso manual'}
+            </span>
+            {ingConfianza != null && (
+              <span className="text-[11px] text-gris-medio font-bold uppercase">Confianza {Math.round(ingConfianza * 100)}%</span>
+            )}
+          </div>
+          <div className="bg-white border-2 border-tinta px-3 py-2.5">
+            <p className="text-xs text-tinta">
+              El dinero <b>entra</b> al proyecto{proyecto ? <> <b>{proyecto.nombre}</b></> : ''}. Revisa los datos que leyó la IA; puedes corregirlos.
+            </p>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-gris-medio uppercase tracking-wide">Quién transfirió{ingConfianza != null && ' · IA'}</label>
+            <input
+              type="text"
+              value={ingRemitente}
+              onChange={(e) => setIngRemitente(e.target.value)}
+              placeholder={ingConfianza != null && !ingRemitente ? 'Sin leer — escribe quién transfirió' : 'Nombre o razón social'}
+              className="mt-1 w-full border-2 border-tinta bg-white px-3 py-3 text-[15px] text-tinta min-h-[44px] focus:outline-none focus:shadow-hard-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gris-medio uppercase tracking-wide">Cuenta a la que se transfirió{ingConfianza != null && ' · IA'}</label>
+            <input
+              type="text"
+              value={ingCuenta}
+              onChange={(e) => setIngCuenta(e.target.value)}
+              placeholder={ingConfianza != null && !ingCuenta ? 'Sin leer — escribe la cuenta' : 'Ej: Cuenta Vista ···4821'}
+              className="mt-1 w-full border-2 border-tinta bg-white px-3 py-3 text-[15px] text-tinta min-h-[44px] focus:outline-none focus:shadow-hard-sm"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-gris-medio uppercase tracking-wide">Monto{ingConfianza != null && ' · IA'}</label>
+              <InputMonto className="mt-1" value={ingMonto} onChange={setIngMonto} />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gris-medio uppercase tracking-wide">Fecha</label>
+              <input
+                type="date"
+                value={ingFecha}
+                onChange={(e) => setIngFecha(e.target.value)}
+                className="mt-1 w-full border-2 border-tinta bg-white px-3 py-3 text-[15px] text-tinta min-h-[44px]"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gris-medio uppercase tracking-wide">Proyecto</label>
+            <select
+              value={proyecto?.id ?? ''}
+              onChange={(e) => handleProyectoChange(e.target.value)}
+              className="mt-1 w-full border-2 border-tinta bg-white px-3 py-3 text-sm text-tinta min-h-[44px]"
+            >
+              {proyectos.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gris-medio uppercase tracking-wide">
+              Nota <span className="text-gris-texto font-normal normal-case">(opcional)</span>
+            </label>
+            <input
+              type="text"
+              value={ingNota}
+              onChange={(e) => setIngNota(e.target.value)}
+              placeholder="Ej: primer aporte"
+              className="mt-1 w-full border-2 border-tinta bg-white px-3 py-3 text-[15px] text-tinta min-h-[44px] focus:outline-none focus:shadow-hard-sm"
+            />
+          </div>
+
+          {!puedeRegistrarIngresos && (
+            <div className="bg-dorado/40 border-2 border-tinta p-3">
+              <p className="text-sm text-tinta">Tu usuario no puede registrar ingresos. Pídele a un administrador que lo cargue.</p>
+            </div>
+          )}
+          {ingErrorGuardar && (
+            <div className="bg-error/10 border-2 border-error p-3">
+              <p className="text-sm text-error">{ingErrorGuardar}</p>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <Button variant="secondary" className="flex-1" onClick={handleCancelar}>Cancelar</Button>
+            <Button
+              className="flex-[1.4] !bg-ingreso !text-white"
+              onClick={handleGuardarIngreso}
+              disabled={guardando || !puedeRegistrarIngresos || !proyecto || !ingRemitente.trim() || !(Number(ingMonto) > 0)}
+            >
+              {guardando ? 'Guardando...' : 'Guardar ingreso'}
+            </Button>
+          </div>
+          <button onClick={cambiarAGasto} className="text-xs font-bold text-gris-medio underline text-center">
+            ¿No es un ingreso? Cargarlo como gasto
+          </button>
+        </div>
+      )}
+
       {/* Paso 3, sub-fase "revisión de totales" — compuerta real: no se llega
           al etiquetado con números que no cuadran. Se puede corregir acá
           mismo (total e ítems editables), volver a sacar la foto, o continuar
           con descuadre solo mediante confirmación explícita. */}
-      {paso === 3 && revisionTotales && (() => {
+      {paso === 3 && tipoDoc === 'gasto' && revisionTotales && (() => {
         const cruceRevision = calcularCruce(items, totalBoleta, interpretacionPrecios ?? 'bruto')
         return (
         <div className="px-4 py-5 flex flex-col gap-4">
+          {!gastoIdReescaneo && (
+            <div className="bg-white border-2 border-tinta px-3 py-2 flex items-center justify-between gap-2">
+              <span className="text-xs text-tinta">Se leyó como <b>gasto</b> (sale dinero).</span>
+              <button onClick={cambiarAIngreso} className="text-xs font-bold text-dorado-link underline shrink-0">Es un ingreso</button>
+            </div>
+          )}
           {requiereAtencion && (
             <div className="bg-dorado/40 border-2 border-tinta p-3 shadow-hard-sm">
               <p className="text-sm text-tinta">
@@ -998,7 +1218,7 @@ function ScanContenido() {
       })()}
 
       {/* Paso 3, sub-fase "etiquetado" — clasificación ítem a ítem */}
-      {paso === 3 && !revisionTotales && item && (
+      {paso === 3 && tipoDoc === 'gasto' && !revisionTotales && item && (
         <div className="px-4 py-5 flex flex-col gap-4">
 
           {/* Progreso */}
@@ -1337,6 +1557,14 @@ function ScanContenido() {
           )}
         </div>
       )}
+
+      <BottomSheet open={confirmandoCancelar} onClose={() => setConfirmandoCancelar(false)} title="¿Cancelar esta operación?" labelListo={null}>
+        <p className="text-sm text-tinta">Se descartará la foto y los datos que llevas cargados. No se guardará nada.</p>
+        <div className="flex gap-3">
+          <Button variant="secondary" className="flex-1" onClick={() => setConfirmandoCancelar(false)}>Seguir aquí</Button>
+          <Button className="flex-1 !bg-error !text-white" onClick={() => router.push('/')}>Sí, cancelar</Button>
+        </div>
+      </BottomSheet>
     </div>
   )
 }

@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { formatCLP } from '@/lib/mock'
-import { getProyectos, getEtapas, getPartidas, getGastos, getUsuarioActual, getPermisosOverrides, deleteGasto, deleteItemGasto } from '@/lib/supabase/db'
+import { getProyectos, getEtapas, getPartidas, getGastos, getIngresos, deleteIngreso, getUsuarioActual, getPermisosOverrides, deleteGasto, deleteItemGasto } from '@/lib/supabase/db'
 import { tienePermiso } from '@/lib/permisos'
 import { determinarInterpretacionConIva, calcularNetoBruto } from '@/lib/confianzaDocumento'
 import * as XLSX from 'xlsx'
 import ClasificacionModal from '@/components/ClasificacionModal'
 import FichaBoleta from '@/components/FichaBoleta'
-import type { Proyecto, Etapa, Partida, Gasto, ItemGasto, Usuario, PermissionOverride } from '@/lib/types'
+import BottomSheet from '@/components/ds/BottomSheet'
+import type { Proyecto, Etapa, Partida, Gasto, ItemGasto, Ingreso, Usuario, PermissionOverride } from '@/lib/types'
 
 // Los montos van hasta 9 dígitos ("$999.999.999"), que no entra en
 // text-3xl a ningún ancho de tarjeta mobile razonable. En vez de adivinar
@@ -44,20 +45,26 @@ export default function ProyectoDetalle() {
   const [historialAbierto, setHistorialAbierto] = useState<Set<string>>(new Set())
   const [galeriaAbierta, setGaleriaAbierta] = useState(false)
   const [manoDeObraAbierta, setManoDeObraAbierta] = useState(false)
+  const [ingresos, setIngresos] = useState<Ingreso[]>([])
+  const [ingresosAbierto, setIngresosAbierto] = useState(true)
+  const [ingresoDetalle, setIngresoDetalle] = useState<Ingreso | null>(null)
+  const [confirmandoEliminarIngreso, setConfirmandoEliminarIngreso] = useState(false)
 
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
   const [overrides, setOverrides] = useState<PermissionOverride[]>([])
   const puedeExportar = usuarioActual ? tienePermiso(usuarioActual, overrides, 'export_excel') : false
   const puedeEditarItems = usuarioActual ? tienePermiso(usuarioActual, overrides, 'edit_scanned_items') : false
   const puedeEliminarGasto = usuarioActual ? tienePermiso(usuarioActual, overrides, 'delete_scanned_items') : false
+  const puedeRegistrarIngresos = usuarioActual ? tienePermiso(usuarioActual, overrides, 'manage_ingresos') : false
 
   useEffect(() => {
-    Promise.all([getProyectos(), getEtapas(id), getPartidas(id), getGastos(id)]).then(
-      ([proyectos, e, p, g]) => {
+    Promise.all([getProyectos(), getEtapas(id), getPartidas(id), getGastos(id), getIngresos(id)]).then(
+      ([proyectos, e, p, g, ing]) => {
         setProyecto(proyectos.find((o) => o.id === id) ?? null)
         setEtapas(e)
         setPartidas(p)
         setGastos(g)
+        setIngresos(ing)
         setLoading(false)
       }
     )
@@ -93,6 +100,8 @@ export default function ProyectoDetalle() {
 
   const totalManoDeObra = gastoDeItems((i) => !!i.persona_id)
   const totalMateriales = totalProyecto - totalManoDeObra
+  const totalIngresado = ingresos.reduce((s, i) => s + i.monto, 0)
+  const diferenciaIngresos = totalIngresado - totalProyecto
 
   const totalesPorPersona = Array.from(
     gastosAprobados
@@ -245,6 +254,12 @@ export default function ProyectoDetalle() {
       )
       XLSX.utils.book_append_sheet(wb, wsPersonas, 'Totales por persona')
     }
+    if (ingresos.length > 0) {
+      const wsIngresos = XLSX.utils.json_to_sheet(
+        ingresos.map((i) => ({ Fecha: i.fecha, 'Quién transfirió': i.remitente, 'Cuenta destino': i.cuenta_destino, Monto: Math.round(i.monto), Nota: i.nota ?? '', Origen: i.origen === 'foto' ? 'Foto' : 'Manual' }))
+      )
+      XLSX.utils.book_append_sheet(wb, wsIngresos, 'Ingresos')
+    }
     XLSX.writeFile(wb, `${proyecto?.nombre ?? 'Proyecto'}${hayFiltros ? ' (filtrado)' : ''}.xlsx`)
   }
 
@@ -276,21 +291,23 @@ export default function ProyectoDetalle() {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className={`bg-panel p-4 border-2 border-tinta  shadow-hard-sm${CLASE_CONTENEDOR_MONTO}`}>
-            <p className="text-[11px] text-gris-texto font-medium uppercase tracking-wide">Mano de obra</p>
-            <p className={CLASE_TEXTO_MONTO}>{formatCLP(totalManoDeObra)}</p>
+          <TarjetaMonto etiqueta="Total ingresado" valor={formatCLP(totalIngresado)} claseValor="text-ingreso" />
+          <TarjetaMonto etiqueta="Ingresado − gastado" valor={formatCLP(diferenciaIngresos)} claseValor={diferenciaIngresos < 0 ? 'text-error' : ''} />
+          <TarjetaMonto etiqueta="Mano de obra" valor={formatCLP(totalManoDeObra)} />
+          <TarjetaMonto etiqueta="Materiales" valor={formatCLP(totalMateriales)} />
+          <TarjetaMonto etiqueta="IVA pagado" valor={formatCLP(ivaProyecto)} />
+          <TarjetaMonto etiqueta="Total gastado" valor={formatCLP(totalProyecto)} claseValor="text-error" />
+        </div>
+        <div className="mt-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] text-gris-texto font-bold uppercase tracking-wide">Gastado / ingresado</span>
+            <span className="text-[11px] text-gris-medio">{totalIngresado > 0 ? Math.round((totalProyecto / totalIngresado) * 100) : 0}%</span>
           </div>
-          <div className={`bg-panel p-4 border-2 border-tinta  shadow-hard-sm${CLASE_CONTENEDOR_MONTO}`}>
-            <p className="text-[11px] text-gris-texto font-medium uppercase tracking-wide">Materiales</p>
-            <p className={CLASE_TEXTO_MONTO}>{formatCLP(totalMateriales)}</p>
-          </div>
-          <div className={`bg-panel p-4 border-2 border-tinta  shadow-hard-sm${CLASE_CONTENEDOR_MONTO}`}>
-            <p className="text-[11px] text-gris-texto font-medium uppercase tracking-wide">IVA pagado</p>
-            <p className={CLASE_TEXTO_MONTO}>{formatCLP(ivaProyecto)}</p>
-          </div>
-          <div className={`bg-panel p-4 border-2 border-tinta  shadow-hard-sm${CLASE_CONTENEDOR_MONTO}`}>
-            <p className="text-[11px] text-gris-texto font-medium uppercase tracking-wide">Total proyecto</p>
-            <p className={CLASE_TEXTO_MONTO}>{formatCLP(totalProyecto)}</p>
+          <div className="border-2 border-tinta bg-white h-2.5">
+            <div
+              className={`h-full ${totalProyecto > totalIngresado ? 'bg-error' : 'bg-ingreso'}`}
+              style={{ width: `${totalIngresado > 0 ? Math.min((totalProyecto / totalIngresado) * 100, 100) : 0}%` }}
+            />
           </div>
         </div>
       </div>
@@ -309,6 +326,73 @@ export default function ProyectoDetalle() {
           ))}
         </div>
       )}
+
+      {/* Ingresos de dinero */}
+      <div className="px-4 pt-4 pb-3 border-b-2 border-tinta">
+        <div className="flex items-center justify-between mb-2">
+          <button onClick={() => setIngresosAbierto((prev) => !prev)} className="flex items-center gap-1">
+            <p className="text-xs font-semibold text-gris-texto uppercase tracking-wide">Ingresos ({ingresos.length})</p>
+            <svg
+              className={`w-3.5 h-3.5 text-gris-texto transition-transform ${ingresosAbierto ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {puedeRegistrarIngresos && (
+            <button
+              onClick={() => router.push(`/ingreso?proyecto=${id}`)}
+              aria-label="Agregar ingreso"
+              className="w-6 h-6 border-2 border-tinta bg-white flex items-center justify-center text-tinta shrink-0"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          )}
+        </div>
+        {ingresosAbierto && (
+          <div className="space-y-2">
+            {ingresos.length === 0 ? (
+              <p className="text-xs text-gris-texto">Sin ingresos registrados.</p>
+            ) : (
+              <div className="bg-white border-2 border-tinta shadow-hard-sm px-3">
+                {ingresos.map((n) => (
+                  <button
+                    key={n.id}
+                    onClick={() => { setConfirmandoEliminarIngreso(false); setIngresoDetalle(n) }}
+                    className="w-full flex items-center justify-between gap-2 py-2.5 text-left border-t border-borde first:border-t-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-bold text-tinta truncate">
+                        {n.remitente}
+                        {n.origen === 'foto' && <span className="text-[10px] text-gris-texto font-normal"> · con foto</span>}
+                      </p>
+                      <p className="text-[10px] text-gris-texto uppercase tracking-wide">
+                        {formatFecha(n.fecha)}{n.cuenta_destino ? ` · ${n.cuenta_destino}` : ''}
+                      </p>
+                    </div>
+                    <span className="text-[13px] font-bold text-ingreso shrink-0">+{formatCLP(n.monto)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {puedeRegistrarIngresos ? (
+              <button
+                onClick={() => router.push(`/ingreso?proyecto=${id}`)}
+                className="w-full border-2 border-tinta bg-white shadow-hard-sm py-2.5 text-sm font-bold text-tinta"
+              >
+                + Agregar ingreso a mano
+              </button>
+            ) : (
+              <p className="text-[11px] text-gris-texto">Solo quien tenga el permiso &quot;Registrar ingresos&quot; puede agregarlos.</p>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Mano de obra */}
       <div className="px-4 pt-4 pb-2 border-b-2 border-tinta">
@@ -742,6 +826,61 @@ export default function ProyectoDetalle() {
         </div>
       )}
 
+      {/* Detalle de un ingreso */}
+      <BottomSheet
+        open={!!ingresoDetalle}
+        onClose={() => setIngresoDetalle(null)}
+        title={ingresoDetalle ? `Ingreso +${formatCLP(ingresoDetalle.monto)}` : undefined}
+        labelListo="Cerrar"
+      >
+        {ingresoDetalle && (
+          <div className="space-y-3 text-sm">
+            {ingresoDetalle.imagen_url && (
+              ingresoDetalle.imagen_url.toLowerCase().endsWith('.pdf') ? (
+                <a href={ingresoDetalle.imagen_url} target="_blank" rel="noreferrer" className="block border-2 border-tinta bg-white p-3 text-center font-bold text-dorado-link">
+                  Abrir comprobante (PDF)
+                </a>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={ingresoDetalle.imagen_url} alt="Comprobante de la transferencia" className="w-full border-2 border-tinta" />
+              )
+            )}
+            <FilaDetalle etiqueta="Quién transfirió" valor={ingresoDetalle.remitente} />
+            <FilaDetalle etiqueta="Cuenta destino" valor={ingresoDetalle.cuenta_destino || '—'} />
+            <FilaDetalle etiqueta="Fecha" valor={formatFecha(ingresoDetalle.fecha)} />
+            {ingresoDetalle.nota && <FilaDetalle etiqueta="Nota" valor={ingresoDetalle.nota} />}
+            {ingresoDetalle.creado_por_email && <FilaDetalle etiqueta="Registrado por" valor={ingresoDetalle.creado_por_email} />}
+            {puedeRegistrarIngresos && (
+              confirmandoEliminarIngreso ? (
+                <div className="flex items-center justify-between gap-2 bg-error/10 border-2 border-error px-3 py-2">
+                  <span className="text-xs text-error font-bold">¿Eliminar ingreso?</span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={async () => {
+                        const ok = await deleteIngreso(ingresoDetalle.id)
+                        if (ok) setIngresos((prev) => prev.filter((x) => x.id !== ingresoDetalle.id))
+                        setIngresoDetalle(null)
+                      }}
+                      className="text-xs font-bold text-error"
+                    >
+                      Sí
+                    </button>
+                    <button onClick={() => setConfirmandoEliminarIngreso(false)} className="text-xs font-bold text-gris-medio">No</button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmandoEliminarIngreso(true)}
+                  className="w-full border-2 border-tinta bg-white py-2.5 text-sm font-bold text-error"
+                >
+                  Eliminar ingreso
+                </button>
+              )
+            )}
+          </div>
+        )}
+      </BottomSheet>
+
       {/* Modal de edición de clasificación */}
       {itemEditando && (
         <ClasificacionModal
@@ -857,6 +996,24 @@ function BarraPresupuesto({ label, gastado, presupuesto }: { label: string; gast
       {pct >= 100 && (
         <p className="text-[10px] text-error mt-1">⚠ Superó el presupuesto por {formatCLP(gastado - presupuesto)}</p>
       )}
+    </div>
+  )
+}
+
+function TarjetaMonto({ etiqueta, valor, claseValor = '' }: { etiqueta: string; valor: string; claseValor?: string }) {
+  return (
+    <div className={`bg-panel p-4 border-2 border-tinta shadow-hard-sm ${CLASE_CONTENEDOR_MONTO}`}>
+      <p className="text-[11px] text-gris-texto font-medium uppercase tracking-wide">{etiqueta}</p>
+      <p className={`${CLASE_TEXTO_MONTO} ${claseValor}`}>{valor}</p>
+    </div>
+  )
+}
+
+function FilaDetalle({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="text-[11px] text-gris-texto uppercase tracking-wide shrink-0">{etiqueta}</span>
+      <span className="font-bold text-tinta text-right break-words min-w-0">{valor}</span>
     </div>
   )
 }

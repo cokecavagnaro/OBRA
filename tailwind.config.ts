@@ -21,6 +21,9 @@ const config: Config = {
         dorado: "#FFC94A",
         "dorado-link": "#B8860B",
         error: "#DC2626",
+        ingreso: "#1E7A4C",
+        "ingreso-fondo": "#CDEBD9",
+        "gasto-fondo": "#F7D6D6",
       },
       fontFamily: {
         mono: ["var(--font-fragment-mono)", "monospace"],

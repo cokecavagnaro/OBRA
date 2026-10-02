@@ -11,6 +11,7 @@ export const PERMISOS = [
   { key: 'view_reports', label: 'Ver reportes y presupuesto' },
   { key: 'delete_proyectos', label: 'Eliminar proyectos' },
   { key: 'approve_boletas', label: 'Aprobar boletas' },
+  { key: 'manage_ingresos', label: 'Registrar ingresos' },
 ] as const
 
 export type PermisoKey = (typeof PERMISOS)[number]['key']
