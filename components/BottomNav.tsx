@@ -14,20 +14,21 @@ export default function BottomNav() {
   const bandeja = conteos.items + conteos.porAprobar + conteos.avisos
 
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] bg-crema-header border-t-2 border-tinta z-50">
-      <div className="grid grid-cols-[1fr_1.7fr_1fr] items-end h-16 px-1">
+    <nav aria-label="Navegación principal" className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] bg-crema-header border-t-2 border-tinta pb-[env(safe-area-inset-bottom)] z-50">
+      <div className="grid grid-cols-[1fr_1.7fr_1fr] items-end h-[88px] px-1">
         <Link
           href="/"
-          className={`flex flex-col items-center gap-0.5 py-2 relative ${pathname === '/' ? 'text-tinta' : 'text-gris-texto'}`}
+          aria-current={pathname === '/' ? 'page' : undefined}
+          className={`flex min-w-0 flex-col items-center justify-center gap-1 min-h-[72px] py-2 relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tinta focus-visible:ring-inset ${pathname === '/' ? 'text-tinta' : 'text-gris-medio'}`}
         >
-          <HomeIcon className="w-6 h-6" />
-          <span className="text-[10px] font-bold">Inicio</span>
+          <HomeIcon className="w-7 h-7" />
+          <span className="text-xs min-[390px]:text-[13px] font-bold leading-5">Inicio</span>
           {pathname === '/' && <span className="absolute bottom-0.5 w-5 h-[3px] bg-tinta" />}
         </Link>
 
         <Link
           href="/scan"
-          className="justify-self-center -mt-9 w-[98px] h-[78px] bg-dorado border-[3px] border-tinta shadow-hard-lg flex flex-col items-center justify-center gap-0.5 text-tinta font-bold text-xs tracking-wide active:translate-x-[3px] active:translate-y-[3px] active:shadow-hard-sm"
+          className="justify-self-center -mt-10 w-[104px] h-[84px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tinta focus-visible:ring-offset-2 bg-dorado border-[3px] border-tinta shadow-hard-lg flex flex-col items-center justify-center gap-0.5 text-tinta font-bold text-xs tracking-wide active:translate-x-[3px] active:translate-y-[3px] active:shadow-hard-sm"
         >
           <CameraIcon className="w-9 h-9" />
           <span>ESCANEAR</span>
@@ -35,17 +36,18 @@ export default function BottomNav() {
 
         <Link
           href="/bandeja"
-          className={`flex flex-col items-center gap-0.5 py-2 relative ${pathname === '/bandeja' ? 'text-tinta' : 'text-gris-texto'}`}
+          aria-current={pathname === '/bandeja' ? 'page' : undefined}
+          className={`flex min-w-0 flex-col items-center justify-center gap-1 min-h-[72px] py-2 relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tinta focus-visible:ring-inset ${pathname === '/bandeja' ? 'text-tinta' : 'text-gris-medio'}`}
         >
           <div className="relative">
-            <BellIcon className="w-6 h-6" />
+            <BellIcon className="w-7 h-7" />
             {bandeja > 0 && (
-              <span className="absolute -top-1 -right-2 bg-dorado border-2 border-tinta text-tinta text-[9px] font-bold rounded-full min-w-4 h-4 px-0.5 flex items-center justify-center">
+              <span className="absolute -top-1 -right-2 bg-dorado border-2 border-tinta text-tinta text-[10px] font-bold rounded-full min-w-4 h-4 px-0.5 flex items-center justify-center">
                 {bandeja > 9 ? '9+' : bandeja}
               </span>
             )}
           </div>
-          <span className="text-[10px] font-bold">Bandeja</span>
+          <span className="text-xs min-[390px]:text-[13px] font-bold leading-5">Bandeja</span>
           {pathname === '/bandeja' && <span className="absolute bottom-0.5 w-5 h-[3px] bg-tinta" />}
         </Link>
       </div>

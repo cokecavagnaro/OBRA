@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body className={fragmentMono.variable}>
         <div className="app-container">
-          <main className="pb-16">{children}</main>
+          <main className="pb-[calc(5.5rem+env(safe-area-inset-bottom))]">{children}</main>
           <BottomNav />
         </div>
       </body>
