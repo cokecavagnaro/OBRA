@@ -2,7 +2,7 @@ import { createClient } from './client'
 import { formatCLP } from '../mock'
 import { normalizarDescripcion } from '../aprendizaje'
 import { determinarInterpretacionConIva, calcularNetoBruto, type InterpretacionPrecio, type FuenteInterpretacion } from '../confianzaDocumento'
-import type { Proyecto, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta, EstadoItem, RolUsuario, GastoEvento, Notificacion, RespuestaAnalisis } from '../types'
+import type { Proyecto, Etapa, Partida, Gasto, ClasificacionAprendida, Usuario, Invitacion, PermissionOverride, Cuenta, EstadoItem, RolUsuario, GastoEvento, Notificacion, RespuestaAnalisis, Ingreso } from '../types'
 import type { PermisoKey } from '../permisos'
 
 // ---- Usuarios / cuenta ----
@@ -157,6 +157,7 @@ export async function deleteProyecto(proyecto: Proyecto): Promise<boolean> {
   // item_gasto_eventos/items_gasto/gastos, ver comentario arriba), pero se
   // limpia igual acá por consistencia con la paranoia ya documentada.
   await supabase.from('gasto_eventos').delete().eq('proyecto_id', proyecto.id)
+  await supabase.from('ingresos').delete().eq('proyecto_id', proyecto.id)
 
   await supabase.from('partidas').delete().eq('proyecto_id', proyecto.id)
   await supabase.from('etapas').delete().eq('proyecto_id', proyecto.id)
@@ -451,6 +452,54 @@ export async function subirComprobanteManoDeObra(cuentaId: string, proyectoId: s
   }
   const { data } = supabase.storage.from('boletas').getPublicUrl(path)
   return data.publicUrl
+}
+
+// ---- Ingresos de dinero ----
+
+export async function getIngresos(proyecto_id: string): Promise<Ingreso[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('ingresos')
+    .select('*')
+    .eq('proyecto_id', proyecto_id)
+    .order('fecha', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (error) console.error('getIngresos:', error)
+  return (data ?? []) as Ingreso[]
+}
+
+export async function getAllIngresos(): Promise<Ingreso[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase.from('ingresos').select('*').order('fecha', { ascending: false })
+  if (error) console.error('getAllIngresos:', error)
+  return (data ?? []) as Ingreso[]
+}
+
+export async function saveIngreso(params: {
+  proyecto_id: string
+  remitente: string
+  cuenta_destino: string
+  monto: number
+  fecha: string
+  nota: string | null
+  imagen_url: string | null
+  origen: 'manual' | 'foto'
+  creado_por_email: string
+}): Promise<Ingreso | null> {
+  const supabase = createClient()
+  const { data, error } = await supabase.from('ingresos').insert(params).select('*').single()
+  if (error) {
+    console.error('saveIngreso:', error)
+    return null
+  }
+  return data as Ingreso
+}
+
+export async function deleteIngreso(id: string): Promise<boolean> {
+  const supabase = createClient()
+  const { error } = await supabase.from('ingresos').delete().eq('id', id)
+  if (error) console.error('deleteIngreso:', error)
+  return !error
 }
 
 // ---- Flujo de aprobación de boletas ----

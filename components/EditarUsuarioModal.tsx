@@ -39,16 +39,16 @@ export default function EditarUsuarioModal({ usuario, overridesIniciales, onGuar
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={onCerrar}>
       <div
-        className="bg-white rounded-t-2xl w-full max-w-[390px] flex flex-col"
+        className="bg-white w-full max-w-[390px] flex flex-col"
         style={{ maxHeight: '85vh' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 shrink-0">
+        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b-2 border-tinta shrink-0">
           <div>
-            <p className="text-sm font-bold text-gray-900">{usuario.email}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{usuario.nombre || 'Sin nombre'}</p>
+            <p className="text-sm font-bold text-tinta">{usuario.email}</p>
+            <p className="text-xs text-gris-texto mt-0.5">{usuario.nombre || 'Sin nombre'}</p>
           </div>
-          <button onClick={onCerrar} className="text-gray-400 ml-3">
+          <button onClick={onCerrar} className="text-gris-texto ml-3">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -57,11 +57,11 @@ export default function EditarUsuarioModal({ usuario, overridesIniciales, onGuar
 
         <div className="overflow-y-auto flex-1 px-4 py-4 space-y-5">
           <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Rol</p>
+            <p className="text-[10px] font-semibold text-gris-texto uppercase tracking-wide mb-1.5">Rol</p>
             <select
               value={rol}
               onChange={(e) => setRol(e.target.value as 'admin' | 'usuario')}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white"
+              className="w-full border-2 border-tinta px-3 py-2 text-sm text-gris-medio bg-white"
             >
               <option value="usuario">Usuario</option>
               <option value="admin">Admin</option>
@@ -69,14 +69,14 @@ export default function EditarUsuarioModal({ usuario, overridesIniciales, onGuar
           </div>
 
           <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Permisos</p>
+            <p className="text-[10px] font-semibold text-gris-texto uppercase tracking-wide mb-2">Permisos</p>
             <div className="space-y-1">
               {PERMISOS.map((p) => (
                 <label
                   key={p.key}
-                  className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
+                  className="flex items-center justify-between py-2 border-b-2 border-tinta last:border-0"
                 >
-                  <span className="text-sm text-gray-700">{p.label}</span>
+                  <span className="text-sm text-gris-medio">{p.label}</span>
                   <input
                     type="checkbox"
                     checked={tienePermiso(usuarioConRol, overrides, p.key)}
@@ -89,11 +89,11 @@ export default function EditarUsuarioModal({ usuario, overridesIniciales, onGuar
           </div>
         </div>
 
-        <div className="px-4 pt-3 border-t border-gray-100 shrink-0" style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px) + 64px)' }}>
+        <div className="px-4 pt-3 border-t-2 border-tinta shrink-0" style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px) + 64px)' }}>
           <button
             onClick={handleGuardar}
             disabled={guardando}
-            className="w-full bg-blue-600 text-white rounded-xl py-3.5 text-sm font-semibold disabled:opacity-50"
+            className="w-full bg-dorado border-2 border-tinta shadow-hard-sm font-bold text-tinta py-3.5 text-sm font-semibold disabled:opacity-50"
           >
             {guardando ? 'Guardando...' : 'Guardar'}
           </button>

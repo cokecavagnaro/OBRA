@@ -37,6 +37,20 @@ export interface Partida {
   presupuesto?: number | null
 }
 
+export interface Ingreso {
+  id: string
+  proyecto_id: string
+  remitente: string
+  cuenta_destino: string
+  monto: number
+  fecha: string
+  nota: string | null
+  imagen_url: string | null
+  origen: 'manual' | 'foto'
+  creado_por_email: string | null
+  created_at: string
+}
+
 export interface Persona {
   id: string
   cuenta_id: string

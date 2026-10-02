@@ -85,26 +85,26 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-crema flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <div className="flex items-center justify-center gap-2">
-            <AntLogo size={32} className="text-gray-900" />
-            <h1 className="text-2xl font-bold text-gray-900">Hormigasto</h1>
+            <AntLogo size={32} className="text-tinta" />
+            <h1 className="text-2xl font-bold text-tinta">Hormigasto</h1>
           </div>
-          <p className="text-sm text-gray-400 mt-1">Gestión de gastos de construcción</p>
+          <p className="text-sm text-gris-texto mt-1">Gestión de gastos de construcción</p>
         </div>
 
-        <div className="flex gap-2 mb-6 bg-gray-100 rounded-xl p-1">
+        <div className="flex gap-2 mb-6 bg-white border-2 border-tinta p-1">
           <button
             onClick={() => { setPantalla('login'); setError('') }}
-            className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${pantalla === 'login' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
+            className={`flex-1 py-2 text-sm font-semibold transition-colors ${pantalla === 'login' ? 'bg-tinta text-dorado' : 'text-gris-texto'}`}
           >
             Iniciar sesión
           </button>
           <button
             onClick={() => { setPantalla('signup'); setError('') }}
-            className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${pantalla === 'signup' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
+            className={`flex-1 py-2 text-sm font-semibold transition-colors ${pantalla === 'signup' ? 'bg-tinta text-dorado' : 'text-gris-texto'}`}
           >
             Crear cuenta
           </button>
@@ -119,11 +119,11 @@ export default function Login() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <p className="text-sm font-semibold text-gray-900">Revisa tu correo</p>
-                <p className="text-xs text-gray-400">Te enviamos un link de acceso a <span className="font-medium text-gray-600">{email}</span></p>
+                <p className="text-sm font-semibold text-tinta">Revisa tu correo</p>
+                <p className="text-xs text-gris-texto">Te enviamos un link de acceso a <span className="font-medium text-gris-medio">{email}</span></p>
                 <button
                   onClick={() => { setEnviado(false); setEmail('') }}
-                  className="text-xs text-blue-600 font-medium mt-2"
+                  className="text-xs text-dorado-link font-medium mt-2"
                 >
                   Usar otro correo
                 </button>
@@ -131,7 +131,7 @@ export default function Login() {
             ) : (
               <form onSubmit={handleMagicLink} className="space-y-4">
                 <div>
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  <label className="text-xs font-semibold text-gris-texto uppercase tracking-wide">
                     Correo electrónico
                   </label>
                   <input
@@ -140,16 +140,16 @@ export default function Login() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="tu@correo.com"
                     required
-                    className="mt-1.5 w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-gray-400"
+                    className="mt-1.5 w-full border-2 border-tinta px-4 py-3 text-sm text-tinta focus:outline-none focus:border-tinta"
                   />
                 </div>
 
-                {error && <p className="text-xs text-red-500">{error}</p>}
+                {error && <p className="text-xs text-error">{error}</p>}
 
                 <button
                   type="submit"
                   disabled={loading || !email}
-                  className="w-full bg-gray-900 text-white rounded-xl py-3.5 text-sm font-semibold disabled:opacity-40"
+                  className="w-full bg-tinta text-dorado py-3.5 text-sm font-semibold disabled:opacity-40 border-2 border-tinta shadow-hard-sm"
                 >
                   {loading ? 'Enviando...' : 'Entrar con link por email'}
                 </button>
@@ -157,7 +157,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setModoLogin('password')}
-                  className="w-full text-center text-xs text-blue-600 font-medium"
+                  className="w-full text-center text-xs text-dorado-link font-medium"
                 >
                   Usar contraseña
                 </button>
@@ -166,7 +166,7 @@ export default function Login() {
           ) : (
             <form onSubmit={handleLoginPassword} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                <label className="text-xs font-semibold text-gris-texto uppercase tracking-wide">
                   Correo electrónico
                 </label>
                 <input
@@ -181,11 +181,11 @@ export default function Login() {
                   }}
                   placeholder="tu@correo.com"
                   required
-                  className="mt-1.5 w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-gray-400"
+                  className="mt-1.5 w-full border-2 border-tinta px-4 py-3 text-sm text-tinta focus:outline-none focus:border-tinta"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                <label className="text-xs font-semibold text-gris-texto uppercase tracking-wide">
                   Contraseña
                 </label>
                 <input
@@ -195,16 +195,16 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="mt-1.5 w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-gray-400"
+                  className="mt-1.5 w-full border-2 border-tinta px-4 py-3 text-sm text-tinta focus:outline-none focus:border-tinta"
                 />
               </div>
 
-              {error && <p className="text-xs text-red-500">{error}</p>}
+              {error && <p className="text-xs text-error">{error}</p>}
 
               <button
                 type="submit"
                 disabled={loading || !email || !password}
-                className="w-full bg-gray-900 text-white rounded-xl py-3.5 text-sm font-semibold disabled:opacity-40"
+                className="w-full bg-tinta text-dorado py-3.5 text-sm font-semibold disabled:opacity-40 border-2 border-tinta shadow-hard-sm"
               >
                 {loading ? 'Entrando...' : 'Entrar'}
               </button>
@@ -212,7 +212,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setModoLogin('magic')}
-                className="w-full text-center text-xs text-blue-600 font-medium"
+                className="w-full text-center text-xs text-dorado-link font-medium"
               >
                 ¿Prefieres un link por correo?
               </button>
@@ -225,46 +225,46 @@ export default function Login() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
-            <p className="text-sm font-semibold text-gray-900">Confirma tu correo</p>
-            <p className="text-xs text-gray-400">Te enviamos un correo de confirmación a <span className="font-medium text-gray-600">{email}</span>. Una vez confirmado, ya puedes iniciar sesión con tu contraseña.</p>
+            <p className="text-sm font-semibold text-tinta">Confirma tu correo</p>
+            <p className="text-xs text-gris-texto">Te enviamos un correo de confirmación a <span className="font-medium text-gris-medio">{email}</span>. Una vez confirmado, ya puedes iniciar sesión con tu contraseña.</p>
           </div>
         ) : (
           <form onSubmit={handleSignup} className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Nombre</label>
+              <label className="text-xs font-semibold text-gris-texto uppercase tracking-wide">Nombre</label>
               <input
                 type="text"
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
                 placeholder="Tu nombre"
                 required
-                className="mt-1.5 w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-gray-400"
+                className="mt-1.5 w-full border-2 border-tinta px-4 py-3 text-sm text-tinta focus:outline-none focus:border-tinta"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Nombre de la empresa</label>
+              <label className="text-xs font-semibold text-gris-texto uppercase tracking-wide">Nombre de la empresa</label>
               <input
                 type="text"
                 value={nombreEmpresa}
                 onChange={(e) => setNombreEmpresa(e.target.value)}
                 placeholder="Ej: Constructora Los Alpes"
                 required
-                className="mt-1.5 w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-gray-400"
+                className="mt-1.5 w-full border-2 border-tinta px-4 py-3 text-sm text-tinta focus:outline-none focus:border-tinta"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Correo electrónico</label>
+              <label className="text-xs font-semibold text-gris-texto uppercase tracking-wide">Correo electrónico</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@correo.com"
                 required
-                className="mt-1.5 w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-gray-400"
+                className="mt-1.5 w-full border-2 border-tinta px-4 py-3 text-sm text-tinta focus:outline-none focus:border-tinta"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Contraseña</label>
+              <label className="text-xs font-semibold text-gris-texto uppercase tracking-wide">Contraseña</label>
               <input
                 type="password"
                 value={password}
@@ -272,27 +272,27 @@ export default function Login() {
                 placeholder="••••••••"
                 required
                 minLength={6}
-                className="mt-1.5 w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-gray-400"
+                className="mt-1.5 w-full border-2 border-tinta px-4 py-3 text-sm text-tinta focus:outline-none focus:border-tinta"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Confirmar contraseña</label>
+              <label className="text-xs font-semibold text-gris-texto uppercase tracking-wide">Confirmar contraseña</label>
               <input
                 type="password"
                 value={confirmarPassword}
                 onChange={(e) => setConfirmarPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="mt-1.5 w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-gray-400"
+                className="mt-1.5 w-full border-2 border-tinta px-4 py-3 text-sm text-tinta focus:outline-none focus:border-tinta"
               />
             </div>
 
-            {error && <p className="text-xs text-red-500">{error}</p>}
+            {error && <p className="text-xs text-error">{error}</p>}
 
             <button
               type="submit"
               disabled={loading || !email || !password || !confirmarPassword || !nombre || !nombreEmpresa}
-              className="w-full bg-gray-900 text-white rounded-xl py-3.5 text-sm font-semibold disabled:opacity-40"
+              className="w-full bg-tinta text-dorado py-3.5 text-sm font-semibold disabled:opacity-40 border-2 border-tinta shadow-hard-sm"
             >
               {loading ? 'Creando cuenta...' : 'Crear cuenta'}
             </button>

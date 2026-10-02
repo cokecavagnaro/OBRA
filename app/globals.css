@@ -11,7 +11,7 @@ body {
 .app-container {
   max-width: 390px;
   margin: 0 auto;
-  background: white;
+  background: #F0EEE9;
   min-height: 100dvh;
   position: relative;
 }

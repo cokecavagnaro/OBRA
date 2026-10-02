@@ -23,9 +23,9 @@ export default function CruceItemsTotal({ items, total, interpretacion, ivaImpre
   const totalExento = items.reduce((acc, i) => acc + (i.exento ? (i.subtotal ?? 0) : 0), 0)
 
   return (
-    <div className={`rounded-xl p-3 border ${cruce_valido ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-200'}`}>
+    <div className={` p-3 border-2 ${cruce_valido ? 'bg-green-50 border-tinta' : 'bg-dorado/40 border-tinta'}`}>
       {variante === 'detallada' && (
-        <div className="space-y-0.5 mb-2 pb-2 border-b border-black/5">
+        <div className="space-y-0.5 mb-2 pb-2 border-b-2 border-black/5">
           <FilaMonto label="Total boleta" valor={total} />
           {typeof ivaImpreso === 'number' && ivaImpreso > 0 && (
             <>
@@ -41,14 +41,14 @@ export default function CruceItemsTotal({ items, total, interpretacion, ivaImpre
         </div>
       )}
       <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-500">Suma de ítems</span>
-        <span className="font-semibold text-gray-800">{formatCLP(suma_bruto)}</span>
+        <span className="text-gris-medio">Suma de ítems</span>
+        <span className="font-semibold text-gris-medio">{formatCLP(suma_bruto)}</span>
       </div>
       <div className="flex items-center justify-between text-sm mt-0.5">
-        <span className="text-gray-500">Total boleta</span>
-        <span className="font-semibold text-gray-800">{formatCLP(total)}</span>
+        <span className="text-gris-medio">Total boleta</span>
+        <span className="font-semibold text-gris-medio">{formatCLP(total)}</span>
       </div>
-      <p className={`text-xs mt-1.5 font-semibold ${cruce_valido ? 'text-green-700' : 'text-amber-700'}`}>
+      <p className={`text-xs mt-1.5 font-semibold ${cruce_valido ? 'text-green-700' : 'text-tinta'}`}>
         {cruce_valido ? '✓ Cuadra' : `⚠ Descuadre de ${formatCLP(diferencia)}`}
       </p>
     </div>
@@ -58,8 +58,8 @@ export default function CruceItemsTotal({ items, total, interpretacion, ivaImpre
 function FilaMonto({ label, valor }: { label: string; valor: number }) {
   return (
     <div className="flex items-center justify-between text-xs">
-      <span className="text-gray-400">{label}</span>
-      <span className="text-gray-600">{formatCLP(valor)}</span>
+      <span className="text-gris-texto">{label}</span>
+      <span className="text-gris-medio">{formatCLP(valor)}</span>
     </div>
   )
 }

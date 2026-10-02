@@ -265,35 +265,35 @@ function ConfigContenido() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-400 text-sm">Cargando...</p>
+        <p className="text-gris-texto text-sm">Cargando...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="px-4 pt-12 pb-4 border-b border-gray-100">
+    <div className="min-h-screen bg-crema">
+      <div className="px-4 pt-12 pb-4 border-b-2 border-tinta bg-crema-header">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Configuración</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Proyectos, etapas y partidas</p>
+            <h1 className="text-xl font-bold text-tinta">Configuración</h1>
+            <p className="text-xs text-gris-texto mt-0.5">Proyectos, etapas y partidas</p>
           </div>
-          <button onClick={handleCerrarSesion} className="text-xs text-gray-400 border border-gray-200 rounded-lg px-3 py-1.5">
+          <button onClick={handleCerrarSesion} className="text-xs text-gris-texto border-2 border-tinta px-3 py-1.5">
             Cerrar sesión
           </button>
         </div>
 
         {puedeVerCuenta && (
-          <div className="flex gap-2 mt-4 bg-gray-100 rounded-xl p-1">
+          <div className="flex gap-2 mt-4 bg-white border-2 border-tinta p-1">
             <button
               onClick={() => setTab('proyectos')}
-              className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${tab === 'proyectos' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
+              className={`flex-1 py-2 text-sm font-semibold transition-colors ${tab === 'proyectos' ? 'bg-tinta text-dorado' : 'text-gris-texto'}`}
             >
               Proyectos
             </button>
             <button
               onClick={() => setTab('cuenta')}
-              className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${tab === 'cuenta' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
+              className={`flex-1 py-2 text-sm font-semibold transition-colors ${tab === 'cuenta' ? 'bg-tinta text-dorado' : 'text-gris-texto'}`}
             >
               Cuenta
             </button>
@@ -306,9 +306,9 @@ function ConfigContenido() {
         {/* Lista de proyectos */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Proyectos</p>
+            <p className="text-xs font-semibold text-gris-texto uppercase tracking-wide">Proyectos</p>
             {puedeCrearProyectos && (
-              <button onClick={() => setCreandoProyecto(true)} className="text-xs font-medium text-blue-600">
+              <button onClick={() => setCreandoProyecto(true)} className="text-xs font-medium text-dorado-link">
                 + Nuevo proyecto
               </button>
             )}
@@ -323,33 +323,33 @@ function ConfigContenido() {
                 onChange={(e) => setNuevoProyecto(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && crearProyecto()}
                 placeholder="Nombre del proyecto"
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                className="flex-1 border-2 border-tinta px-3 py-2 text-sm"
               />
               <InputPresupuesto
                 value={nuevoProyectoPresupuesto}
                 onChange={setNuevoProyectoPresupuesto}
                 onEnter={crearProyecto}
                 placeholder="Presupuesto (opcional)"
-                className="w-36 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                className="w-36 border-2 border-tinta px-3 py-2 text-sm"
               />
-              <button onClick={crearProyecto} disabled={guardando} className="bg-blue-600 text-white px-3 rounded-lg text-sm font-medium disabled:opacity-40">Crear</button>
-              <button onClick={() => setCreandoProyecto(false)} className="text-gray-400 px-2 text-sm">✕</button>
+              <button onClick={crearProyecto} disabled={guardando} className="bg-dorado border-2 border-tinta shadow-hard-sm font-bold text-tinta px-3 text-sm font-medium disabled:opacity-40">Crear</button>
+              <button onClick={() => setCreandoProyecto(false)} className="text-gris-texto px-2 text-sm">✕</button>
             </div>
           )}
 
           <div className="space-y-1.5">
             {proyectos.length === 0 && !creandoProyecto && (
-              <p className="text-xs text-gray-300 italic py-2">Sin proyectos — crea el primero</p>
+              <p className="text-xs text-gris-texto italic py-2">Sin proyectos — crea el primero</p>
             )}
             {proyectos.map((proyecto) => (
               <button
                 key={proyecto.id}
                 onClick={() => seleccionar(proyecto)}
-                className={`w-full text-left rounded-xl border px-4 py-3 transition-colors ${
-                  proyectoSeleccionado?.id === proyecto.id ? 'border-blue-300 bg-blue-50' : 'border-gray-100 hover:border-gray-200'
+                className={`w-full text-left border-2 px-4 py-3 transition-colors ${
+                  proyectoSeleccionado?.id === proyecto.id ? 'border-tinta bg-dorado/40' : 'border-tinta hover:border-tinta'
                 }`}
               >
-                <p className="text-sm font-medium text-gray-900">{proyecto.nombre}</p>
+                <p className="text-sm font-medium text-tinta">{proyecto.nombre}</p>
               </button>
             ))}
           </div>
@@ -359,32 +359,32 @@ function ConfigContenido() {
         {proyectoSeleccionado && (
           <>
             {/* Presupuesto del proyecto */}
-            <div className="rounded-xl border border-gray-100 p-4">
+            <div className=" border-2 border-tinta p-4 bg-white shadow-hard-sm">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Presupuesto total</p>
+                <p className="text-xs font-semibold text-gris-texto uppercase tracking-wide">Presupuesto total</p>
                 <InputPresupuesto
                   key={proyectoSeleccionado.id}
                   defaultValue={proyectoSeleccionado.presupuesto}
                   onCommit={actualizarPresupuestoProyecto}
                   placeholder="Presupuesto (opcional)"
-                  className="w-40 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right"
+                  className="w-40 border-2 border-tinta px-2 py-1.5 text-sm text-right"
                 />
               </div>
             </div>
 
             {/* Etapas */}
-            <div className="rounded-xl border border-gray-100 p-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Etapas</p>
+            <div className=" border-2 border-tinta p-4 bg-white shadow-hard-sm">
+              <p className="text-xs font-semibold text-gris-texto uppercase tracking-wide mb-3">Etapas</p>
               <div className="space-y-1.5 mb-3">
-                {etapasFiltradas.length === 0 && <p className="text-xs text-gray-300 italic">Sin etapas</p>}
+                {etapasFiltradas.length === 0 && <p className="text-xs text-gris-texto italic">Sin etapas</p>}
                 {etapasFiltradas.map((etapa) => (
-                  <div key={etapa.id} className="flex items-center justify-between gap-2 py-1 border-b border-gray-50 last:border-0">
-                    <p className="text-sm text-gray-700">{etapa.nombre}</p>
+                  <div key={etapa.id} className="flex items-center justify-between gap-2 py-1 border-b-2 border-tinta last:border-0">
+                    <p className="text-sm text-gris-medio">{etapa.nombre}</p>
                     <InputPresupuesto
                       defaultValue={etapa.presupuesto}
                       onCommit={(valor) => actualizarPresupuestoEtapa(etapa.id, valor)}
                       placeholder="Presupuesto"
-                      className="w-28 border border-gray-200 rounded-lg px-2 py-1 text-xs text-right"
+                      className="w-28 border-2 border-tinta px-2 py-1 text-xs text-right"
                     />
                   </div>
                 ))}
@@ -396,40 +396,40 @@ function ConfigContenido() {
                   onChange={(e) => setNuevaEtapa(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && agregarEtapa()}
                   placeholder="Nueva etapa..."
-                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  className="flex-1 border-2 border-tinta px-3 py-2 text-sm"
                 />
                 <InputPresupuesto
                   value={nuevaEtapaPresupuesto}
                   onChange={setNuevaEtapaPresupuesto}
                   onEnter={agregarEtapa}
                   placeholder="Presupuesto"
-                  className="w-28 border border-gray-200 rounded-lg px-2 py-2 text-sm"
+                  className="w-28 border-2 border-tinta px-2 py-2 text-sm"
                 />
-                <button onClick={agregarEtapa} disabled={guardando} className="bg-gray-900 text-white px-3 rounded-lg text-sm font-medium disabled:opacity-40">+</button>
+                <button onClick={agregarEtapa} disabled={guardando} className="bg-tinta text-dorado px-3 text-sm font-medium disabled:opacity-40">+</button>
               </div>
             </div>
 
             {/* Partidas */}
-            <div className="rounded-xl border border-gray-100 p-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Partidas</p>
+            <div className=" border-2 border-tinta p-4 bg-white shadow-hard-sm">
+              <p className="text-xs font-semibold text-gris-texto uppercase tracking-wide mb-3">Partidas</p>
 
               <div className="space-y-1.5 mb-3">
                 {partidas.filter((p) => p.proyecto_id === proyectoSeleccionado.id).length === 0 && (
-                  <p className="text-xs text-gray-300 italic">Sin partidas</p>
+                  <p className="text-xs text-gris-texto italic">Sin partidas</p>
                 )}
                 {partidas.filter((p) => p.proyecto_id === proyectoSeleccionado.id).map((p) => {
                   const etapa = etapas.find((e) => e.id === p.etapa_id)
                   return (
-                    <div key={p.id} className="flex items-center justify-between gap-2 py-1 border-b border-gray-50 last:border-0">
+                    <div key={p.id} className="flex items-center justify-between gap-2 py-1 border-b-2 border-tinta last:border-0">
                       <div className="min-w-0">
-                        <p className="text-sm text-gray-700 truncate">{p.nombre}</p>
-                        <span className="text-xs text-gray-400">{etapa?.nombre ?? '—'}</span>
+                        <p className="text-sm text-gris-medio truncate">{p.nombre}</p>
+                        <span className="text-xs text-gris-texto">{etapa?.nombre ?? '—'}</span>
                       </div>
                       <InputPresupuesto
                         defaultValue={p.presupuesto}
                         onCommit={(valor) => actualizarPresupuestoPartida(p.id, valor)}
                         placeholder="Presupuesto"
-                        className="w-28 shrink-0 border border-gray-200 rounded-lg px-2 py-1 text-xs text-right"
+                        className="w-28 shrink-0 border-2 border-tinta px-2 py-1 text-xs text-right"
                       />
                     </div>
                   )
@@ -437,11 +437,11 @@ function ConfigContenido() {
               </div>
 
               <div className="space-y-2">
-                <p className="text-[10px] text-gray-400">Etapa (opcional)</p>
+                <p className="text-[10px] text-gris-texto">Etapa (opcional)</p>
                 <select
                   value={etapaParaPartida}
                   onChange={(e) => setEtapaParaPartida(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+                  className="w-full border-2 border-tinta px-3 py-2 text-sm bg-white"
                 >
                   <option value="">Sin etapa</option>
                   {etapasFiltradas.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
@@ -453,30 +453,30 @@ function ConfigContenido() {
                     onChange={(e) => setNuevaPartida(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && agregarPartida()}
                     placeholder="Nueva partida..."
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    className="flex-1 border-2 border-tinta px-3 py-2 text-sm"
                   />
                   <InputPresupuesto
                     value={nuevaPartidaPresupuesto}
                     onChange={setNuevaPartidaPresupuesto}
                     onEnter={agregarPartida}
                     placeholder="Presupuesto"
-                    className="w-28 border border-gray-200 rounded-lg px-2 py-2 text-sm"
+                    className="w-28 border-2 border-tinta px-2 py-2 text-sm"
                   />
-                  <button onClick={agregarPartida} disabled={guardando} className="bg-gray-900 text-white px-3 rounded-lg text-sm font-medium disabled:opacity-40">+</button>
+                  <button onClick={agregarPartida} disabled={guardando} className="bg-tinta text-dorado px-3 text-sm font-medium disabled:opacity-40">+</button>
                 </div>
               </div>
             </div>
 
             {/* Eliminar proyecto */}
             {puedeEliminarProyecto && (
-              <div className="rounded-xl border border-red-100 p-4">
+              <div className=" border-2 border-error p-4">
                 {!eliminandoProyecto ? (
-                  <button onClick={() => setEliminandoProyecto(true)} className="text-sm text-red-600 font-medium">
+                  <button onClick={() => setEliminandoProyecto(true)} className="text-sm text-error font-medium">
                     Eliminar proyecto
                   </button>
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-xs text-red-600">
+                    <p className="text-xs text-error">
                       Esto borra el proyecto completo: todas sus boletas, ítems, historial, etapas y partidas, sin poder deshacerlo.
                       Escribe <span className="font-semibold">{proyectoSeleccionado.nombre}</span> para confirmar.
                     </p>
@@ -485,19 +485,19 @@ function ConfigContenido() {
                       value={confirmacionNombreProyecto}
                       onChange={(e) => setConfirmacionNombreProyecto(e.target.value)}
                       placeholder="Nombre del proyecto"
-                      className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm"
+                      className="w-full border-2 border-error px-3 py-2 text-sm"
                     />
                     <div className="flex gap-2">
                       <button
                         onClick={() => { setEliminandoProyecto(false); setConfirmacionNombreProyecto('') }}
-                        className="flex-1 border border-gray-200 rounded-lg py-2 text-xs text-gray-500"
+                        className="flex-1 border-2 border-tinta py-2 text-xs text-gris-medio"
                       >
                         Cancelar
                       </button>
                       <button
                         onClick={handleEliminarProyecto}
                         disabled={borrandoProyecto || confirmacionNombreProyecto.trim() !== proyectoSeleccionado.nombre}
-                        className="flex-1 bg-red-600 text-white rounded-lg py-2 text-xs font-semibold disabled:opacity-40"
+                        className="flex-1 bg-red-600 text-white py-2 text-xs font-semibold disabled:opacity-40 border-2 border-tinta shadow-hard-sm"
                       >
                         {borrandoProyecto ? 'Eliminando...' : 'Eliminar definitivamente'}
                       </button>
@@ -514,11 +514,11 @@ function ConfigContenido() {
       {tab === 'cuenta' && usuarioActual && (
         <div className="px-4 py-4 space-y-4">
           {/* Datos de la cuenta */}
-          <div className="rounded-xl border border-gray-100 p-4">
+          <div className=" border-2 border-tinta p-4 bg-white shadow-hard-sm">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Nombre de la empresa</p>
+              <p className="text-xs font-semibold text-gris-texto uppercase tracking-wide">Nombre de la empresa</p>
               {puedeGestionarUsuarios && !editandoNombreCuenta && (
-                <button onClick={() => setEditandoNombreCuenta(true)} className="text-xs text-blue-600 font-medium">✏ Editar</button>
+                <button onClick={() => setEditandoNombreCuenta(true)} className="text-xs text-dorado-link font-medium">✏ Editar</button>
               )}
             </div>
             {editandoNombreCuenta ? (
@@ -529,39 +529,39 @@ function ConfigContenido() {
                   value={nombreCuentaDraft}
                   onChange={(e) => setNombreCuentaDraft(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && guardarNombreCuenta()}
-                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  className="flex-1 border-2 border-tinta px-3 py-2 text-sm"
                 />
-                <button onClick={guardarNombreCuenta} className="bg-blue-600 text-white px-3 rounded-lg text-sm font-medium">Guardar</button>
+                <button onClick={guardarNombreCuenta} className="bg-dorado border-2 border-tinta shadow-hard-sm font-bold text-tinta px-3 text-sm font-medium">Guardar</button>
               </div>
             ) : (
-              <p className="text-sm text-gray-700">{cuenta?.nombre}</p>
+              <p className="text-sm text-gris-medio">{cuenta?.nombre}</p>
             )}
           </div>
 
           {/* Crear contraseña */}
-          <div className="rounded-xl border border-gray-100 p-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Contraseña de acceso</p>
-            <p className="text-xs text-gray-400 mb-3">Acá defines la contraseña con la que vas a entrar la próxima vez. Si es tu primer ingreso, créala ahora; si ya tenías una, puedes cambiarla cuando quieras.</p>
+          <div className=" border-2 border-tinta p-4 bg-white shadow-hard-sm">
+            <p className="text-xs font-semibold text-gris-texto uppercase tracking-wide mb-1">Contraseña de acceso</p>
+            <p className="text-xs text-gris-texto mb-3">Acá defines la contraseña con la que vas a entrar la próxima vez. Si es tu primer ingreso, créala ahora; si ya tenías una, puedes cambiarla cuando quieras.</p>
             <div className="space-y-2">
               <input
                 type="password"
                 value={nuevaPassword}
                 onChange={(e) => setNuevaPassword(e.target.value)}
                 placeholder="Nueva contraseña"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                className="w-full border-2 border-tinta px-3 py-2 text-sm"
               />
               <input
                 type="password"
                 value={confirmarPassword}
                 onChange={(e) => setConfirmarPassword(e.target.value)}
                 placeholder="Confirmar contraseña"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                className="w-full border-2 border-tinta px-3 py-2 text-sm"
               />
-              {passwordMensaje && <p className="text-xs text-gray-500">{passwordMensaje}</p>}
+              {passwordMensaje && <p className="text-xs text-gris-medio">{passwordMensaje}</p>}
               <button
                 onClick={handleCrearPassword}
                 disabled={guardandoPassword || !nuevaPassword || !confirmarPassword}
-                className="w-full bg-gray-900 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40"
+                className="w-full bg-tinta text-dorado py-2 text-sm font-semibold disabled:opacity-40 border-2 border-tinta shadow-hard-sm"
               >
                 {guardandoPassword ? 'Guardando...' : 'Crear contraseña'}
               </button>
@@ -571,24 +571,24 @@ function ConfigContenido() {
           {puedeGestionarUsuarios && (
             <>
               {/* Usuarios */}
-              <div className="rounded-xl border border-gray-100 p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Usuarios</p>
+              <div className=" border-2 border-tinta p-4 bg-white shadow-hard-sm">
+                <p className="text-xs font-semibold text-gris-texto uppercase tracking-wide mb-3">Usuarios</p>
                 <div className="space-y-1.5 mb-3">
                   {usuariosCuenta.map((u) => (
-                    <div key={u.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                    <div key={u.id} className="flex items-center justify-between py-2 border-b-2 border-tinta last:border-0">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm text-gray-900 truncate">{u.email}</p>
+                        <p className="text-sm text-tinta truncate">{u.email}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[10px] text-gray-400 uppercase">{u.rol}</span>
+                          <span className="text-[10px] text-gris-texto uppercase">{u.rol}</span>
                           {!u.activo && (
-                            <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">Inactivo</span>
+                            <span className="text-[10px] bg-panel text-gris-medio px-1.5 py-0.5 rounded-full">Inactivo</span>
                           )}
                         </div>
                       </div>
                       {u.rol !== 'super_admin' && (
                         <div className="flex items-center gap-2 shrink-0 ml-2">
-                          <button onClick={() => abrirEdicionUsuario(u)} className="text-xs text-blue-600 font-medium">Editar</button>
-                          <button onClick={() => handleDarDeBaja(u)} className="text-xs text-gray-400 font-medium">
+                          <button onClick={() => abrirEdicionUsuario(u)} className="text-xs text-dorado-link font-medium">Editar</button>
+                          <button onClick={() => handleDarDeBaja(u)} className="text-xs text-gris-texto font-medium">
                             {u.activo ? 'Dar de baja' : 'Reactivar'}
                           </button>
                         </div>
@@ -599,34 +599,34 @@ function ConfigContenido() {
               </div>
 
               {/* Invitar usuario */}
-              <div className="rounded-xl border border-gray-100 p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Invitar usuario</p>
+              <div className=" border-2 border-tinta p-4 bg-white shadow-hard-sm">
+                <p className="text-xs font-semibold text-gris-texto uppercase tracking-wide mb-3">Invitar usuario</p>
                 <div className="space-y-2">
                   <input
                     type="email"
                     value={emailInvitar}
                     onChange={(e) => setEmailInvitar(e.target.value)}
                     placeholder="correo@ejemplo.com"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    className="w-full border-2 border-tinta px-3 py-2 text-sm"
                   />
                   <select
                     value={rolInvitar}
                     onChange={(e) => setRolInvitar(e.target.value as 'admin' | 'usuario')}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+                    className="w-full border-2 border-tinta px-3 py-2 text-sm bg-white"
                   >
                     <option value="usuario">Usuario</option>
                     <option value="admin">Admin</option>
                   </select>
 
                   <div>
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Permisos</p>
+                    <p className="text-[10px] font-semibold text-gris-texto uppercase tracking-wide mb-1.5">Permisos</p>
                     <div className="space-y-1">
                       {PERMISOS.map((p) => (
                         <label
                           key={p.key}
-                          className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0"
+                          className="flex items-center justify-between py-1 border-b-2 border-tinta last:border-0"
                         >
-                          <span className="text-sm text-gray-700">{p.label}</span>
+                          <span className="text-sm text-gris-medio">{p.label}</span>
                           <input
                             type="checkbox"
                             checked={tienePermiso({ rol: rolInvitar }, overridesInvitar, p.key)}
@@ -641,25 +641,25 @@ function ConfigContenido() {
                   <button
                     onClick={handleInvitar}
                     disabled={invitando || !emailInvitar.trim()}
-                    className="w-full bg-blue-600 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-40"
+                    className="w-full bg-dorado border-2 border-tinta shadow-hard-sm font-bold text-tinta py-2 text-sm font-semibold disabled:opacity-40"
                   >
                     {invitando ? 'Generando...' : 'Invitar (genera link)'}
                   </button>
 
                   {linkInvitacion && (
-                    <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-2">
-                      <p className="text-xs text-gray-600">Copia este link y mándaselo a la persona invitada:</p>
-                      <p className="text-xs text-gray-500 break-all">{linkInvitacion}</p>
+                    <div className="bg-panel border-2 border-tinta p-3 space-y-2 shadow-hard-sm">
+                      <p className="text-xs text-gris-medio">Copia este link y mándaselo a la persona invitada:</p>
+                      <p className="text-xs text-gris-medio break-all">{linkInvitacion}</p>
                       <div className="flex gap-2">
                         <button
                           onClick={() => navigator.clipboard.writeText(linkInvitacion)}
-                          className="flex-1 bg-gray-900 text-white rounded-lg py-1.5 text-xs font-semibold"
+                          className="flex-1 bg-tinta text-dorado py-1.5 text-xs font-semibold border-2 border-tinta shadow-hard-sm"
                         >
                           Copiar link
                         </button>
                         <button
                           onClick={() => setLinkInvitacion(null)}
-                          className="text-xs text-gray-400 px-2"
+                          className="text-xs text-gris-texto px-2"
                         >
                           Cerrar
                         </button>
@@ -670,11 +670,11 @@ function ConfigContenido() {
 
                 {invitaciones.length > 0 && (
                   <div className="mt-3 space-y-1.5">
-                    <p className="text-[10px] text-gray-400 uppercase">Pendientes</p>
+                    <p className="text-[10px] text-gris-texto uppercase">Pendientes</p>
                     {invitaciones.map((inv) => (
                       <div key={inv.id} className="flex items-center justify-between py-1">
-                        <p className="text-sm text-gray-700">{inv.email} <span className="text-xs text-gray-400">({inv.rol})</span></p>
-                        <button onClick={() => handleCancelarInvitacion(inv.id)} className="text-xs text-gray-400">Cancelar</button>
+                        <p className="text-sm text-gris-medio">{inv.email} <span className="text-xs text-gris-texto">({inv.rol})</span></p>
+                        <button onClick={() => handleCancelarInvitacion(inv.id)} className="text-xs text-gris-texto">Cancelar</button>
                       </div>
                     ))}
                   </div>
@@ -702,7 +702,7 @@ function ConfigContenido() {
 
 export default function Config() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-gray-400 text-sm">Cargando...</p></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-gris-texto text-sm">Cargando...</p></div>}>
       <ConfigContenido />
     </Suspense>
   )
