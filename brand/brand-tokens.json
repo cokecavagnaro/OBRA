@@ -1,0 +1,23 @@
+{
+  "brand": "Costia",
+  "version": "1.0.0-draft",
+  "colors": {
+    "greenPrimary": "#1E5B35",
+    "greenSecondary": "#2E7D4B",
+    "yellowAccent": "#F5C542",
+    "creamBackground": "#F7F4E9",
+    "paper": "#FFFDF8",
+    "ink": "#111111",
+    "grayNeutral": "#A3A094",
+    "danger": "#C5493F"
+  },
+  "typography": {
+    "display": "Inter",
+    "data": "SFMono-Regular, Cascadia Code, Roboto Mono, monospace"
+  },
+  "messages": {
+    "slogan": "Cada gasto cuenta",
+    "headline": "Digitaliza tus documentos. Controla tu margen.",
+    "description": "Costia transforma facturas, boletas y comprobantes en información detallada para entender la rentabilidad de tus proyectos."
+  }
+}

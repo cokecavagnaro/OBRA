@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "hormigasto",
+      "name": "costia",
       "cwd": "/Users/jcavagnaro/Documents/Carpeta de Coke/CODE/Hormigasto",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "-p", "3001"],

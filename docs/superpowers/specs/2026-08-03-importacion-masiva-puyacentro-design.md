@@ -2,11 +2,11 @@
 
 ## Contexto
 
-Un usuario de Hormigasto (Santiago Leon) le pasó a Jorge muchas facturas de compras de materiales para su proyecto. Esas facturas viven en el portal de clientes de Puya Centro (`puyacentro.cl/my/invoices`), una ferretería con la que Santiago tiene cuenta. En vez de fotografiar ~80 facturas una por una en el flujo normal de escaneo de la app, se decidió construir una herramienta puntual (un script que corre Jorge junto con Claude Code) que:
+Un usuario de Costia (Santiago Leon) le pasó a Jorge muchas facturas de compras de materiales para su proyecto. Esas facturas viven en el portal de clientes de Puya Centro (`puyacentro.cl/my/invoices`), una ferretería con la que Santiago tiene cuenta. En vez de fotografiar ~80 facturas una por una en el flujo normal de escaneo de la app, se decidió construir una herramienta puntual (un script que corre Jorge junto con Claude Code) que:
 
 1. Extrae la información directamente del portal (son documentos digitales, no fotos).
 2. Pregunta la etiqueta de cada producto distinto una sola vez (reutilizando el mecanismo de aprendizaje que ya existe en la app).
-3. Inyecta las boletas resultantes directo a la base de datos de Hormigasto como gastos reales, en un proyecto nuevo.
+3. Inyecta las boletas resultantes directo a la base de datos de Costia como gastos reales, en un proyecto nuevo.
 
 No es una funcionalidad de la app — es una herramienta de una sola vez, fuera de la UI, que se apoya en las mismas tablas y en el mismo mecanismo de aprendizaje (`clasificaciones_aprendidas`) que ya usa el flujo normal de escaneo, de modo que el trabajo de etiquetado hecho acá también beneficia futuros escaneos de este proyecto dentro de la app.
 
@@ -60,7 +60,7 @@ Campos a extraer por factura: número de documento, fecha, cliente, RUT cliente,
 - Cada ítem se guarda **sin `etapa_id` ni `partida_id`** (quedan `null`/vacíos, igual que cuando hoy un ítem no se clasifica en el flujo normal) — solo con sus etiquetas aprendidas.
 - `interpretacion_precios: 'bruto'` e `iva_impreso` se completan directo con lo impreso en el PDF — no se corre ninguna heurística de reconciliación/cuadre (no hace falta: el documento ya trae el Neto y el IVA calculados por el sistema de Puya Centro, sin ambigüedad de lectura que resolver).
 - `estado_aprobacion: 'aprobado'` automáticamente (son documentos tributarios reales y pagados, no fotos que requieran el visto bueno manual pensado para desconfiar de una lectura dudosa).
-- `solicitante_id` / atribución: el usuario admin de Jorge en Hormigasto.
+- `solicitante_id` / atribución: el usuario admin de Jorge en Costia.
 - `imagen_url`: se sube el PDF descargado (mismo bucket/mecanismo que ya usa la app para las fotos de boleta) para que la boleta sea revisable desde la ficha, igual que cualquier otra.
 
 ## Qué NO se hace en esta pasada
@@ -68,10 +68,10 @@ Campos a extraer por factura: número de documento, fecha, cliente, RUT cliente,
 - No se importan `N/C` ni la `BEL` suelta.
 - No se asigna etapa ni partida a ningún ítem.
 - No se corre Claude Vision — todo el parseo es determinístico sobre el texto del PDF.
-- No se modifica ninguna pantalla ni componente de la app — es un script aparte, no una funcionalidad nueva de Hormigasto.
+- No se modifica ninguna pantalla ni componente de la app — es un script aparte, no una funcionalidad nueva de Costia.
 
 ## Verificación
 
-- Correr el script contra un subconjunto chico primero (2-3 facturas) y revisar a mano en el navegador (`/proyecto/<id>` en Hormigasto) que los montos, el IVA y las etiquetas quedaron correctos antes de correrlo contra las ~80 completas.
+- Correr el script contra un subconjunto chico primero (2-3 facturas) y revisar a mano en el navegador (`/proyecto/<id>` en Costia) que los montos, el IVA y las etiquetas quedaron correctos antes de correrlo contra las ~80 completas.
 - Confirmar que la suma de los gastos importados coincide con la suma de los "Total" de las facturas procesadas.
 - Revisar en la app que el proyecto "Casa Chago Lion" muestra las boletas, que los ítems tienen sus etiquetas, y que ningún ítem quedó con etapa/partida asignada por error.
