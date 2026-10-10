@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Símbolo monocromático oscuro de Costia">
+  <path d="M88 17 39 45c-4 2.3-6.5 6.6-6.5 11.2v18.6c0 4.7 2.5 9 6.6 11.3L88 103" fill="none" stroke="#111111" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="57" y="67" width="11" height="22" rx="5.5" fill="#111111"/>
+  <rect x="74" y="54" width="11" height="35" rx="5.5" fill="#111111"/>
+  <rect x="91" y="39" width="11" height="50" rx="5.5" fill="#111111"/>
+</svg>

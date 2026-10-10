@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Construir un script de una sola vez que descarga las facturas pagadas de Santiago Leon desde el portal de Puya Centro, las parsea de forma determinística (sin IA), pide una vez la etiqueta de cada producto distinto, y las inyecta como gastos reales en un proyecto nuevo "Casa Chago Lion" de Hormigasto.
+**Goal:** Construir un script de una sola vez que descarga las facturas pagadas de Santiago Leon desde el portal de Puya Centro, las parsea de forma determinística (sin IA), pide una vez la etiqueta de cada producto distinto, y las inyecta como gastos reales en un proyecto nuevo "Casa Chago Lion" de Costia.
 
 **Architecture:** Cada factura tiene una URL con `access_token` que devuelve un PDF de texto real (no escaneado) sin necesitar sesión. Un módulo puro (`lib/importacion/parsearFacturaPuya.ts`) parsea ese texto con regex + los parsers de montos que ya existen en el proyecto (`lib/montos.ts`). Una serie de scripts standalone (`scripts/importar-puyacentro/*.ts`, ejecutados con `tsx`) orquestan: descargar PDFs → parsear → deduplicar productos para preguntar etiquetas → aplicar etiquetas → insertar en Supabase con el cliente admin (`service_role`, mismo patrón que `scripts/qa/env.js`).
 
@@ -989,7 +989,7 @@ Expected: `Proyecto creado: Casa Chago Lion (<uuid>)`, luego una línea por fact
 
 - [ ] **Step 4: Verificar en el navegador**
 
-Abrir la app Hormigasto (`localhost:3001` con el dev server ya corriendo), entrar al proyecto "Casa Chago Lion", y confirmar:
+Abrir la app Costia (`localhost:3001` con el dev server ya corriendo), entrar al proyecto "Casa Chago Lion", y confirmar:
 - Aparecen las 2 boletas, con proveedor "COMERCIAL COSTA SUR SPA" y los totales correctos ($278.600 y el de la segunda factura).
 - Cada ítem tiene sus etiquetas (las que dio Jorge en la Task 5), y **ningún ítem tiene etapa ni partida asignada**.
 - El estado de aprobación es "Aprobada" en ambas, sin haber pasado por el flujo manual de aprobación.
@@ -1007,7 +1007,7 @@ Expected: ambas facturas reportan "ya estaba importada, se salta" — no se dupl
 
 ```bash
 git add scripts/importar-puyacentro/inyectarDb.ts
-git commit -m "feat: inyección de facturas parseadas a la base de datos de Hormigasto"
+git commit -m "feat: inyección de facturas parseadas a la base de datos de Costia"
 ```
 
 ---

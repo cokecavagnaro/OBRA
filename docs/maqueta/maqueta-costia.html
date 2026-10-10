@@ -1,4 +1,4 @@
-<meta charset="utf-8"><title>Maqueta Hormigasto</title>
+<meta charset="utf-8"><title>Maqueta Costia</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800&family=Fragment+Mono&display=swap" rel="stylesheet">
 <style>
@@ -125,7 +125,7 @@ details ul { margin: 8px 0 2px; }
 <div class="shell">
   <div class="stage"><div class="phone" id="ph"></div></div>
   <aside class="side">
-    <div><h1>Hormigasto completo, con ingresos</h1><p class="sub">Maqueta navegable de toda la app. Entra con cualquier correo y contraseña, o salta a una pantalla desde aquí. Los datos son de ejemplo.</p></div>
+    <div><h1>Costia completo, con ingresos</h1><p class="sub">Maqueta navegable de toda la app. Entra con cualquier correo y contraseña, o salta a una pantalla desde aquí. Los datos son de ejemplo.</p></div>
 
     <div class="box"><h2>Ver como</h2>
       <div class="tg"><button data-a="role" data-v="admin" class="on">Administrador</button><button data-a="role" data-v="usuario">Usuario (Vicente)</button></div>
@@ -297,7 +297,7 @@ const estPill = (g) => pill(...ESTADO[g.estado]);
 /* ===== login ===== */
 function vLogin() {
   const L = S.login;
-  const logo = `<div style="text-align:center;margin-bottom:6px"><div class="row" style="justify-content:center"><div class="logo-mk">H</div><div style="font-size:24px;font-weight:800">Hormigasto</div></div><div class="sm mut" style="margin-top:4px">Gestión de gastos de construcción</div></div>`;
+  const logo = `<div style="text-align:center;margin-bottom:6px"><div class="row" style="justify-content:center"><div class="logo-mk">H</div><div style="font-size:24px;font-weight:800">Costia</div></div><div class="sm mut" style="margin-top:4px">Gestión de gastos de construcción</div></div>`;
   const tabs = `<div class="seg"><button class="${L.pant === 'login' ? 'on' : ''}" data-a="lpant" data-v="login">Iniciar sesión</button><button class="${L.pant === 'signup' ? 'on' : ''}" data-a="lpant" data-v="signup">Crear cuenta</button></div>`;
   const err = L.error ? `<div class="bx rd">${esc(L.error)}</div>` : '';
   const msg = (t, d, extra) => `<div style="text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center"><div class="logo-mk" style="background:#DDF1E5">✓</div><b>${t}</b><div class="sm mut">${d}</div>${extra || ''}</div>`;
@@ -818,7 +818,7 @@ const A = {
   euOpen: (d) => { S.sheet = { t: 'editU', id: d.id }; },
   euRol: (d) => { const u = S.usuarios.find((x) => x.id === d.id); u.rol = d.v; u.over = {}; },
   baja: (d) => { const u = S.usuarios.find((x) => x.id === d.id); u.activo = !u.activo; },
-  invGen: () => { const i = S.inv; S.invs.push({ id: nid('v'), email: i.email.trim(), rol: i.rol }); i.link = 'https://hormigasto.cl/invitacion/' + Math.random().toString(36).slice(2, 12); i.email = ''; i.over = {}; },
+  invGen: () => { const i = S.inv; S.invs.push({ id: nid('v'), email: i.email.trim(), rol: i.rol }); i.link = 'https://costia.cl/invitacion/' + Math.random().toString(36).slice(2, 12); i.email = ''; i.over = {}; },
   copyLink: () => { try { navigator.clipboard.writeText(S.inv.link).catch(() => {}); } catch (_) {} toast('Link copiado'); }, closeLink: () => { S.inv.link = null; },
   invCancel: (d) => { S.invs = S.invs.filter((v) => v.id !== d.id); },
   /* editar ítem (clasificación) */

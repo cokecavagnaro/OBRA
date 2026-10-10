@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { formatCLP } from '@/lib/mock'
 import { getProyectos, getAllGastos, getAllIngresos, getUsuarioActual, getCuenta } from '@/lib/supabase/db'
 import type { Proyecto, Gasto, Ingreso, Usuario, Cuenta } from '@/lib/types'
-import AntLogo from '@/components/AntLogo'
+import CostiaLogo from '@/components/CostiaLogo'
 
 export default function Inicio() {
   const [proyectos, setProyectos] = useState<Proyecto[]>([])
@@ -58,9 +58,9 @@ export default function Inicio() {
         )}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <AntLogo size={28} className="text-tinta" />
+            <CostiaLogo size={28} />
             <div>
-              <h1 className="text-xl font-bold text-tinta">{nombreUsuario ? `Hola, ${nombreUsuario}` : 'Hormigasto'}</h1>
+              <h1 className="text-xl font-bold text-tinta">{nombreUsuario ? `Hola, ${nombreUsuario}` : 'Costia'}</h1>
               <p className="text-xs text-gris-texto mt-0.5">Tus proyectos</p>
             </div>
           </div>

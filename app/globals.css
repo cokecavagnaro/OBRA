@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 body {
-  background-color: #F0EEE9;
+  background-color: #F7F4E9;
   font-family: var(--font-fragment-mono), monospace;
   color: #111111;
 }
@@ -11,7 +11,7 @@ body {
 .app-container {
   max-width: 390px;
   margin: 0 auto;
-  background: #F0EEE9;
+  background: #F7F4E9;
   min-height: 100dvh;
   position: relative;
 }

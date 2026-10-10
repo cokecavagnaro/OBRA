@@ -10,7 +10,7 @@ const fragmentMono = Fragment_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Hormigasto',
+  title: 'Costia',
   description: 'Gestión de gastos para proyectos de construcción',
 }
 

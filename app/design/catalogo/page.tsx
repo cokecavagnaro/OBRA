@@ -9,7 +9,7 @@ import InputTexto from '@/components/ds/InputTexto'
 import BottomSheet from '@/components/ds/BottomSheet'
 import Header from '@/components/ds/Header'
 import BadgeRequerido from '@/components/ds/BadgeRequerido'
-import AntLogo from '@/components/AntLogo'
+import CostiaLogo from '@/components/CostiaLogo'
 import {
   CameraIcon,
   EyeIcon,
@@ -59,9 +59,8 @@ export default function CatalogoPage() {
       <div className="p-[18px] flex flex-col gap-8">
         <Seccion titulo="Logo">
           <div className="flex items-center gap-4">
-            <AntLogo size={64} />
-            <AntLogo size={44} />
-            <AntLogo size={20} className="text-error" />
+            <CostiaLogo size={64} />
+            <CostiaLogo size={44} />
           </div>
         </Seccion>
 
